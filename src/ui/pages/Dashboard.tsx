@@ -185,6 +185,7 @@ const Dashboard: React.FC = () => {
   const [copyingActivityDigest, setCopyingActivityDigest] = useState(false);
   const [copyingLatestIncident, setCopyingLatestIncident] = useState(false);
   const [copyingTopIncidentSource, setCopyingTopIncidentSource] = useState(false);
+  const [copyingTopIncidentSources, setCopyingTopIncidentSources] = useState(false);
   const [copyingLatestActivity, setCopyingLatestActivity] = useState(false);
   const [copyingTopActivityIssues, setCopyingTopActivityIssues] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -768,6 +769,33 @@ const Dashboard: React.FC = () => {
     t.dashboard.topIncidentSourceCopied,
     t.dashboard.topIncidentSourceCopyFailed,
     t.dashboard.topIncidentSourceUnavailable,
+  ]);
+
+  const handleCopyTopIncidentSources = useCallback(async () => {
+    if (!incidentDigest?.topSources.length) {
+      void message.warning(t.dashboard.topIncidentSourcesUnavailable);
+      return;
+    }
+
+    setCopyingTopIncidentSources(true);
+    const summaryLines = [
+      'Pro5 top dashboard incident sources',
+      ...incidentDigest.topSources.map(([source, count], index) => `${index + 1}. ${source} (${count})`),
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.topIncidentSourcesCopied);
+    } catch {
+      void message.error(t.dashboard.topIncidentSourcesCopyFailed);
+    } finally {
+      setCopyingTopIncidentSources(false);
+    }
+  }, [
+    incidentDigest,
+    t.dashboard.topIncidentSourcesCopied,
+    t.dashboard.topIncidentSourcesCopyFailed,
+    t.dashboard.topIncidentSourcesUnavailable,
   ]);
 
   const handleCopyActivityDigest = useCallback(async () => {
@@ -1433,6 +1461,16 @@ const Dashboard: React.FC = () => {
           title={t.dashboard.incidentsTitle}
           extra={(
             <Space size={8}>
+              {incidentDigest ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingTopIncidentSources}
+                  onClick={() => { void handleCopyTopIncidentSources(); }}
+                >
+                  {t.dashboard.copyTopIncidentSources}
+                </Button>
+              ) : null}
               {incidentDigest ? (
                 <Button
                   type="link"
