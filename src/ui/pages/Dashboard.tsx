@@ -66,6 +66,19 @@ interface IncidentEntry {
   message: string;
 }
 
+interface SelfTestCheck {
+  key: string;
+  label: string;
+  status: 'pass' | 'warn' | 'fail';
+  detail: string;
+}
+
+interface SelfTestResult {
+  status: 'pass' | 'warn' | 'fail';
+  checkedAt: string;
+  checks: SelfTestCheck[];
+}
+
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
@@ -84,10 +97,12 @@ const Dashboard: React.FC = () => {
   const [instances, setInstances] = useState<Record<string, DashboardInstance>>({});
   const [support, setSupport] = useState<SupportStatus | null>(null);
   const [incidents, setIncidents] = useState<IncidentEntry[]>([]);
+  const [selfTest, setSelfTest] = useState<SelfTestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
   const [retestingProfileId, setRetestingProfileId] = useState<string | null>(null);
   const [retestingAll, setRetestingAll] = useState(false);
+  const [runningSelfTest, setRunningSelfTest] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -209,6 +224,18 @@ const Dashboard: React.FC = () => {
     );
     await loadDashboard();
   }, [failingProxyIds, loadDashboard, t.dashboard.proxyRetested]);
+
+  const handleRunSelfTest = useCallback(async () => {
+    setRunningSelfTest(true);
+    const res = await apiClient.post<SelfTestResult>('/api/support/self-test');
+    setRunningSelfTest(false);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    setSelfTest(res.data);
+    void message.success(t.dashboard.selfTestRan);
+  }, [t.dashboard.selfTestRan]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -450,6 +477,50 @@ const Dashboard: React.FC = () => {
             />
           ) : (
             <Empty description={t.dashboard.noIncidents} />
+          )}
+        </Card>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.selfTestTitle}
+          extra={(
+            <Button type="link" loading={runningSelfTest} onClick={() => { void handleRunSelfTest(); }}>
+              {t.dashboard.runSelfTest}
+            </Button>
+          )}
+        >
+          {selfTest ? (
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
+              <Space wrap>
+                <Tag color={selfTest.status === 'pass' ? 'green' : selfTest.status === 'warn' ? 'gold' : 'red'}>
+                  {selfTest.status.toUpperCase()}
+                </Tag>
+                <Typography.Text type="secondary">
+                  {`${t.dashboard.lastSelfTest}: ${formatTime(selfTest.checkedAt)}`}
+                </Typography.Text>
+              </Space>
+              <List
+                size="small"
+                dataSource={selfTest.checks.slice(0, 5)}
+                renderItem={(check) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={(
+                        <Space wrap>
+                          <Tag color={check.status === 'pass' ? 'green' : check.status === 'warn' ? 'gold' : 'red'}>
+                            {check.status.toUpperCase()}
+                          </Tag>
+                          <Typography.Text strong>{check.label}</Typography.Text>
+                        </Space>
+                      )}
+                      description={check.detail}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Space>
+          ) : (
+            <Empty description={t.dashboard.selfTestEmpty} />
           )}
         </Card>
 
