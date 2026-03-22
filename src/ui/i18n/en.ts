@@ -243,6 +243,8 @@ const en: TranslationKeys = {
     issuesOnly: 'Issues only',
     recentIssuesPreset: 'Recent incidents',
     recentIssuesPresetApplied: 'Recent incident preset applied',
+    copyRecentIssueDigest: 'Copy 60m digest',
+    recentIssueDigestCopied: 'Recent incident digest copied',
     recentWindowOnly: 'Last 60 minutes',
     recentWindowOnlyActive: 'last 60 minutes only',
     resetFilters: 'Reset filters',

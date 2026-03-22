@@ -169,6 +169,11 @@ const Logs: React.FC = () => {
     warn: entries.filter((entry) => entry.level === 'warn' && isWithinLastMinutes(entry.timestamp, 60)).length,
   }), [entries]);
 
+  const recentIssueEntries = useMemo(
+    () => entries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60)),
+    [entries],
+  );
+
   const handleCopyIssues = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(issueEntries.map((entry) => entry.raw).join('\n'));
@@ -221,6 +226,26 @@ const Logs: React.FC = () => {
     setRecentWindowOnly(true);
     void message.success(t.logs.recentIssuesPresetApplied);
   }, [t.logs.recentIssuesPresetApplied]);
+
+  const handleCopyRecentIssueDigest = useCallback(async () => {
+    const latestRecentIssue = recentIssueEntries[0] ?? null;
+    const digestLines = [
+      'Pro5 recent incident digest',
+      `Incidents in last 60 minutes: ${recentIssueEntries.length}`,
+      `Recent errors: ${recentIssueBreakdown.error}`,
+      `Recent warnings: ${recentIssueBreakdown.warn}`,
+      latestRecentIssue
+        ? `Latest recent issue: ${latestRecentIssue.level.toUpperCase()} | ${latestRecentIssue.timestamp ?? 'unknown'} | ${latestRecentIssue.message}`
+        : 'Latest recent issue: none',
+    ];
+
+    try {
+      await navigator.clipboard.writeText(digestLines.join('\n'));
+      void message.success(t.logs.recentIssueDigestCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [recentIssueBreakdown.error, recentIssueBreakdown.warn, recentIssueEntries, t.logs.copyFailed, t.logs.recentIssueDigestCopied]);
 
   const handleCopyIssueDigest = useCallback(async () => {
     const digestLines = [
@@ -312,6 +337,9 @@ const Logs: React.FC = () => {
               </Button>
               <Button onClick={handleRecentIssuesPreset}>
                 {t.logs.recentIssuesPreset}
+              </Button>
+              <Button disabled={!recentIssueEntries.length} onClick={() => { void handleCopyRecentIssueDigest(); }}>
+                {t.logs.copyRecentIssueDigest}
               </Button>
               <Button type={recentWindowOnly ? 'primary' : 'default'} onClick={() => setRecentWindowOnly((value) => !value)}>
                 {t.logs.recentWindowOnly}

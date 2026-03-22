@@ -241,6 +241,8 @@ const vi = {
     issuesOnly: 'Chỉ lỗi/cảnh báo',
     recentIssuesPreset: 'Sự cố gần đây',
     recentIssuesPresetApplied: 'Đã bật preset sự cố gần đây',
+    copyRecentIssueDigest: 'Sao chép tóm tắt 60 phút',
+    recentIssueDigestCopied: 'Đã sao chép tóm tắt sự cố gần đây',
     recentWindowOnly: '60 phút gần nhất',
     recentWindowOnlyActive: 'lọc 60 phút gần nhất',
     resetFilters: 'Xóa bộ lọc',
