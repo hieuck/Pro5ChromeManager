@@ -1141,14 +1141,20 @@ const Logs: React.FC = () => {
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
               {`${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`}
             </Typography.Text>
+            <Typography.Text style={{ display: 'block', marginBottom: 8 }}>
+              {visibleTopSource.latestEntry.message}
+            </Typography.Text>
             <Alert
               style={{ marginBottom: 12 }}
               type={visibleTopSource.latestEntry.level === 'error' ? 'error' : visibleTopSource.latestEntry.level === 'warn' ? 'warning' : 'info'}
               showIcon
-              message={`${t.logs.visibleTopSourceLatestLabel}: ${visibleTopSource.latestEntry.message}`}
+              message={`${t.logs.visibleTopSourceLatestLabel}: ${visibleTopSource.source}`}
               description={`${t.logs.visibleTopSourceFreshnessLabel}: ${visibleTopSourceFreshness} · ${t.logs.visibleTopSourceLatestLevelLabel}: ${visibleTopSource.latestEntry.level.toUpperCase()}`}
               action={(
                 <Space size={4}>
+                  <Button size="small" type="link" onClick={() => handleFocusVisibleSource(visibleTopSource.source)}>
+                    {t.logs.focusVisibleSource}
+                  </Button>
                   <Button size="small" type="link" onClick={() => handleOpenVisibleSourceLatest(visibleTopSource.latestEntry)}>
                     {t.logs.openVisibleSourceLatest}
                   </Button>
