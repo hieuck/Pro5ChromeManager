@@ -159,6 +159,8 @@ function resolveUiDir(): string {
 
 // Serve static UI
 const uiDir = resolveUiDir();
+const uiAssetsDir = path.join(uiDir, 'assets');
+app.use('/assets', express.static(uiAssetsDir));
 app.use('/ui', express.static(uiDir));
 app.get('/ui/*', (_req: Request, res: Response) => {
   res.sendFile(path.join(uiDir, 'index.html'));
