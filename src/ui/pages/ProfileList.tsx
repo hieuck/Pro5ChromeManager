@@ -110,12 +110,14 @@ const ProfileList: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
   const [filterTag, setFilterTag] = useState<string | undefined>();
   const [filterOwner, setFilterOwner] = useState<string | undefined>();
+  const [filterProxyHealth, setFilterProxyHealth] = useState<string | undefined>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [bulkProxyTesting, setBulkProxyTesting] = useState(false);
   const searchRef = useRef<InputRef>(null);
 
   const getProfileProxyId = useCallback((profile: Profile): string | undefined => (
@@ -264,6 +266,37 @@ const ProfileList: React.FC = () => {
     await fetchProfiles();
   }
 
+  async function handleBulkTestSelectedProxies(): Promise<void> {
+    const proxyIds = Array.from(new Set(
+      selectedIds
+        .map((id) => profiles.find((profile) => profile.id === id))
+        .map((profile) => (profile ? getProfileProxyId(profile) : undefined))
+        .filter((proxyId): proxyId is string => Boolean(proxyId)),
+    ));
+
+    if (!proxyIds.length) {
+      void message.warning('Các hồ sơ đã chọn chưa có proxy để test');
+      return;
+    }
+
+    setBulkProxyTesting(true);
+    const res = await apiClient.post<{
+      total: number;
+      healthy: number;
+      failing: number;
+    }>('/api/proxies/test-bulk', { ids: proxyIds });
+    setBulkProxyTesting(false);
+
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+
+    void message.success(`Đã test ${res.data.total} proxy · OK ${res.data.healthy} · FAIL ${res.data.failing}`);
+    await fetchProfiles();
+    await fetchProxies();
+  }
+
   async function completeOnboarding(): Promise<void> {
     await apiClient.put('/api/config', { onboardingCompleted: true });
     setOnboardingCompleted(true);
@@ -298,6 +331,7 @@ const ProfileList: React.FC = () => {
   const filtered = profiles.filter((profile) => {
     const normalizedSearch = search.trim().toLowerCase();
     const status = getProfileStatus(profile.id);
+    const proxyHealth = profile.proxy?.lastCheckStatus ?? 'none';
     const joinedTags = profile.tags.join(' ').toLowerCase();
     const matchSearch = !normalizedSearch
       || profile.name.toLowerCase().includes(normalizedSearch)
@@ -310,13 +344,16 @@ const ProfileList: React.FC = () => {
     const matchStatus = !filterStatus || status === filterStatus;
     const matchTag = !filterTag || profile.tags.includes(filterTag);
     const matchOwner = !filterOwner || profile.owner === filterOwner;
-    return matchSearch && matchGroup && matchStatus && matchTag && matchOwner;
+    const matchProxyHealth = !filterProxyHealth || proxyHealth === filterProxyHealth;
+    return matchSearch && matchGroup && matchStatus && matchTag && matchOwner && matchProxyHealth;
   });
 
   const runningCount = profiles.filter((profile) => getProfileStatus(profile.id) === 'running').length;
   const groupedCount = profiles.filter((profile) => Boolean(profile.group)).length;
   const taggedCount = profiles.filter((profile) => profile.tags.length > 0).length;
   const proxiedCount = profiles.filter((profile) => Boolean(getProfileProxyId(profile))).length;
+  const healthyProxyCount = profiles.filter((profile) => profile.proxy?.lastCheckStatus === 'healthy').length;
+  const failingProxyCount = profiles.filter((profile) => profile.proxy?.lastCheckStatus === 'failing').length;
   const showingResults = t.common.showingResults
     .replace('{filtered}', String(filtered.length))
     .replace('{total}', String(profiles.length));
@@ -381,7 +418,7 @@ const ProfileList: React.FC = () => {
 
   useEffect(() => {
     setHighlightedIndex(-1);
-  }, [filterGroup, filterOwner, filterStatus, filterTag, search]);
+  }, [filterGroup, filterOwner, filterProxyHealth, filterStatus, filterTag, search]);
 
   if (!loading && profiles.length === 0 && !onboardingCompleted) {
     return (
@@ -643,6 +680,18 @@ const ProfileList: React.FC = () => {
                 style={{ width: 170 }}
                 options={owners.map((owner) => ({ label: owner, value: owner }))}
               />
+              <Select
+                placeholder="Sức khỏe proxy"
+                allowClear
+                value={filterProxyHealth}
+                onChange={setFilterProxyHealth}
+                style={{ width: 170 }}
+                options={[
+                  { label: 'Healthy', value: 'healthy' },
+                  { label: 'Needs check', value: 'failing' },
+                  { label: 'Không có proxy', value: 'none' },
+                ]}
+              />
               <Button icon={<ReloadOutlined />} onClick={() => { void fetchProfiles(); void fetchProxies(); void fetchInstances(); }} />
               <Tooltip title="Phím tắt (?)">
                 <Button icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} />
@@ -659,6 +708,13 @@ const ProfileList: React.FC = () => {
             {selectedIds.length > 0 ? (
               <Space wrap>
                 <Typography.Text type="secondary">Đã chọn {selectedIds.length}</Typography.Text>
+                <Button
+                  size="small"
+                  loading={bulkProxyTesting}
+                  onClick={() => void handleBulkTestSelectedProxies()}
+                >
+                  Test proxy đã chọn
+                </Button>
                 <Select
                   value={bulkProxySelection}
                   onChange={setBulkProxySelection}
