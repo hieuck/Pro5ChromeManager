@@ -162,6 +162,7 @@ const en: TranslationKeys = {
       latestActivityLabel: 'Latest activity',
       hottestPatternLabel: 'Hottest pattern',
       topIssuesLabel: 'Also repeating',
+      activityFreshnessLabel: 'Activity freshness',
       copyLatestActivity: 'Copy latest activity',
       latestActivityCopied: 'Latest activity copied',
       latestActivityCopyFailed: 'Unable to copy the latest activity',
