@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, Form, Input, List, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
-import { ApiOutlined, ArrowRightOutlined, DownloadOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
+import { ApiOutlined, ArrowRightOutlined, CopyOutlined, DownloadOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -41,6 +41,12 @@ interface DashboardInstance {
 }
 
 interface SupportStatus {
+  appVersion: string;
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  uptimeSeconds: number;
+  dataDir: string;
   diagnosticsReady: boolean;
   warnings: string[];
   profileCount: number;
@@ -134,6 +140,7 @@ const Dashboard: React.FC = () => {
   const [runningSelfTest, setRunningSelfTest] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
+  const [copyingSummary, setCopyingSummary] = useState(false);
   const [feedbackForm] = Form.useForm();
 
   const loadDashboard = useCallback(async () => {
@@ -361,6 +368,39 @@ const Dashboard: React.FC = () => {
     void message.success(t.dashboard.diagnosticsExportStarted);
   }, [t.dashboard.diagnosticsExportStarted]);
 
+  const handleCopySupportSummary = useCallback(async () => {
+    if (!support) {
+      void message.warning(t.dashboard.supportSummaryUnavailable);
+      return;
+    }
+
+    setCopyingSummary(true);
+    const summaryLines = [
+      'Pro5 support summary',
+      `App version: ${support.appVersion}`,
+      `Node: ${support.nodeVersion}`,
+      `Platform: ${support.platform}/${support.arch}`,
+      `Uptime: ${Math.round(support.uptimeSeconds)}s`,
+      `Profiles: ${support.profileCount}`,
+      `Proxies: ${support.proxyCount}`,
+      `Recent incidents: ${support.recentIncidentCount} (${support.recentErrorCount} errors)`,
+      `Diagnostics ready: ${support.diagnosticsReady ? 'yes' : 'no'}`,
+      `Data dir: ${support.dataDir}`,
+      `Onboarding: ${support.onboardingState.status}`,
+      `Last launch: ${support.usageMetrics.lastProfileLaunchAt ?? 'never'}`,
+      support.warnings.length ? `Warnings: ${support.warnings.join(' | ')}` : 'Warnings: none',
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.supportSummaryCopied);
+    } catch {
+      void message.error(t.dashboard.supportSummaryCopyFailed);
+    } finally {
+      setCopyingSummary(false);
+    }
+  }, [support, t.dashboard.supportSummaryCopied, t.dashboard.supportSummaryCopyFailed, t.dashboard.supportSummaryUnavailable]);
+
   const handleOpenCreateProfile = useCallback(() => {
     navigate('/profiles', { state: { openCreate: true } });
   }, [navigate]);
@@ -428,8 +468,18 @@ const Dashboard: React.FC = () => {
                 <Button icon={<DownloadOutlined />} onClick={handleExportDiagnostics}>
                   {t.dashboard.exportDiagnostics}
                 </Button>
+                <Button
+                  icon={<CopyOutlined />}
+                  loading={copyingSummary}
+                  onClick={() => { void handleCopySupportSummary(); }}
+                >
+                  {t.dashboard.copySupportSummary}
+                </Button>
                 <Button loading={creatingBackup} onClick={() => { void handleCreateBackup(); }}>
                   {t.dashboard.createBackup}
+                </Button>
+                <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { void loadDashboard(); }}>
+                  {t.dashboard.refresh}
                 </Button>
                 <Button icon={<SettingOutlined />} onClick={() => navigate('/settings')}>
                   {t.dashboard.openSettings}
