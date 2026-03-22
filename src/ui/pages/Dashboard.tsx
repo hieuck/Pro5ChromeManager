@@ -1489,6 +1489,7 @@ const Dashboard: React.FC = () => {
                       key={`${source}-${count}`}
                       type="link"
                       size="small"
+                      title={source}
                       style={{ paddingInline: 0 }}
                       onClick={() => handleOpenIncidentSource(source)}
                     >
@@ -1569,7 +1570,7 @@ const Dashboard: React.FC = () => {
                 </Button>
               ) : null}
               {hottestRecentIssue ? (
-                <Tag color="magenta">
+                <Tag color="magenta" title={hottestRecentIssue.entry.message}>
                   {`${t.dashboard.hottestIssueLabel}: ${summarizeIssueMessage(hottestRecentIssue.entry.message)} ×${hottestRecentIssue.count}`}
                 </Tag>
               ) : null}
@@ -1610,6 +1611,7 @@ const Dashboard: React.FC = () => {
                       key={`${issue.entry.message}-${issue.count}`}
                       type="link"
                       size="small"
+                      title={issue.entry.message}
                       style={{ paddingInline: 0 }}
                       onClick={() => handleOpenActivityIssue(issue.entry.message)}
                     >
