@@ -78,6 +78,10 @@ function isWithinLastMinutes(value: string | null, minutes: number): boolean {
   return diffMs >= 0 && diffMs <= minutes * 60_000;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const Logs: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -129,6 +133,18 @@ const Logs: React.FC = () => {
   const [recentWindowOnly, setRecentWindowOnly] = useState(initialViewState.recentWindowOnly);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(initialViewState.sortOrder);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+
+  const highlightSearchMatch = useCallback((value: string) => {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) return value;
+
+    const parts = value.split(new RegExp(`(${escapeRegExp(normalizedQuery)})`, 'gi'));
+    return parts.map((part, index) => (
+      part.toLowerCase() === normalizedQuery.toLowerCase()
+        ? <mark key={`${part}-${index}`}>{part}</mark>
+        : <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
+    ));
+  }, [query]);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -946,14 +962,14 @@ const Logs: React.FC = () => {
                       description={(
                         <Space direction="vertical" size={2} style={{ width: '100%' }}>
                           {entry.level === 'error' ? (
-                            <Alert type="error" showIcon message={entry.message} />
+                            <Alert type="error" showIcon message={highlightSearchMatch(entry.message)} />
                           ) : entry.level === 'warn' ? (
-                            <Alert type="warning" showIcon message={entry.message} />
+                            <Alert type="warning" showIcon message={highlightSearchMatch(entry.message)} />
                           ) : (
-                            <Typography.Text>{entry.message}</Typography.Text>
+                            <Typography.Text>{highlightSearchMatch(entry.message)}</Typography.Text>
                           )}
                           <Typography.Text type="secondary" style={{ fontFamily: 'Consolas, monospace', fontSize: 12 }}>
-                            {entry.raw}
+                            {highlightSearchMatch(entry.raw)}
                           </Typography.Text>
                         </Space>
                       )}
