@@ -7,6 +7,7 @@ import { proxyManager } from './ProxyManager';
 import { profileManager } from './ProfileManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import { configManager } from './ConfigManager';
+import { usageMetricsManager } from './UsageMetricsManager';
 import { findFreePort } from '../utils/portScanner';
 import { waitForCDP } from '../utils/cdpWaiter';
 import { logger } from '../utils/logger';
@@ -199,6 +200,7 @@ export class InstanceManager {
 
     await this.persistCurrentInstances();
     await profileManager.updateLastUsed(profileId);
+    await usageMetricsManager.recordProfileLaunch();
     wsServer.broadcast({ type: 'instance:started', payload: { profileId, status: 'running', port: remoteDebuggingPort } });
     logger.info('Instance launched', { profileId, pid, port: remoteDebuggingPort });
     return instance;
@@ -327,8 +329,11 @@ export class InstanceManager {
         parsedFinal.pathname.toLowerCase().includes('login') ||
         parsedFinal.pathname.toLowerCase().includes('signin') ||
         parsedFinal.pathname.toLowerCase().includes('auth');
-      return { result: isLoggedOut ? 'logged_out' : 'logged_in' };
+      const result = isLoggedOut ? 'logged_out' : 'logged_in';
+      await usageMetricsManager.recordSessionCheck(result);
+      return { result };
     } catch (err) {
+      await usageMetricsManager.recordSessionCheck('error');
       return { result: 'error', reason: err instanceof Error ? err.message : String(err) };
     } finally {
       try { child.kill('SIGTERM'); } catch { /* ignore */ }

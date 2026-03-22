@@ -48,6 +48,19 @@ interface SupportStatusPayload {
   profileCount: number;
   proxyCount: number;
   backupCount: number;
+  usageMetrics: {
+    profileCreates: number;
+    profileImports: number;
+    profileLaunches: number;
+    sessionChecks: number;
+    sessionCheckLoggedIn: number;
+    sessionCheckLoggedOut: number;
+    sessionCheckErrors: number;
+    lastProfileCreatedAt: string | null;
+    lastProfileImportedAt: string | null;
+    lastProfileLaunchAt: string | null;
+    lastSessionCheckAt: string | null;
+  };
   recentIncidentCount: number;
   recentErrorCount: number;
   lastIncidentAt: string | null;
@@ -140,11 +153,14 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const { profileManager } = await import('../managers/ProfileManager');
   const { proxyManager } = await import('../managers/ProxyManager');
   const { backupManager } = await import('../managers/BackupManager');
+  const { usageMetricsManager } = await import('../managers/UsageMetricsManager');
 
   const config = configManager.get();
   const profiles = profileManager.listProfiles();
   const proxies = proxyManager.listProxies();
   const backups = await backupManager.listBackups();
+  await usageMetricsManager.initialize();
+  const usageMetrics = usageMetricsManager.getSnapshot();
   const logFiles = await listLogFiles();
   const recentIncidents = await loadIncidentEntries(20);
   const diagnosticsReady = await fileExists(dataPath('config.json'));
@@ -175,6 +191,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     profileCount: profiles.length,
     proxyCount: proxies.length,
     backupCount: backups.length,
+    usageMetrics,
     recentIncidentCount: recentIncidents.length,
     recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
     lastIncidentAt: recentIncidents[0]?.timestamp ?? null,

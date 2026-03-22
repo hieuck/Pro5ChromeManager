@@ -51,6 +51,7 @@ When a user reports a problem:
 3. Review:
    - app version
    - `support-status.json`, `self-test.json`, and `incidents.json` from the diagnostics bundle
+   - usage snapshot in `support-status.json` to confirm whether the user is creating, importing, launching, or session-checking profiles
    - runtime in use
    - diagnostics bundle
    - recent logs

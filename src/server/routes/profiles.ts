@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { profileManager } from '../managers/ProfileManager';
 import { fingerprintEngine } from '../managers/FingerprintEngine';
 import { licenseManager } from '../managers/LicenseManager';
+import { usageMetricsManager } from '../managers/UsageMetricsManager';
 import { logger } from '../utils/logger';
 import { dataPath } from '../utils/dataPaths';
 
@@ -82,6 +83,7 @@ router.post('/profiles', async (req: Request, res: Response) => {
       owner: body.owner ?? null,
       runtime: body.runtime,
     });
+    await usageMetricsManager.recordProfileCreated();
     res.status(201).json({ success: true, data: profile });
   } catch (err) {
     logger.error('POST /api/profiles error', { error: err instanceof Error ? err.message : String(err) });
@@ -114,6 +116,7 @@ router.post('/profiles/import', async (req: Request, res: Response) => {
     }
 
     const profile = await profileManager.importProfile(srcDir);
+    await usageMetricsManager.recordProfileImported();
     res.status(201).json({ success: true, data: profile });
   } catch (err) {
     logger.error('POST /api/profiles/import error', { error: err instanceof Error ? err.message : String(err) });
@@ -137,6 +140,7 @@ router.post('/profiles/import-bulk', async (req: Request, res: Response) => {
       }
       try {
         const profile = await profileManager.importProfile(srcDir);
+        await usageMetricsManager.recordProfileImported();
         results.push({ srcDir, success: true, profile });
       } catch (err) {
         results.push({ srcDir, success: false, error: err instanceof Error ? err.message : String(err) });

@@ -183,6 +183,9 @@ async function start(): Promise<void> {
   const { licenseManager } = await import('./managers/LicenseManager');
   await licenseManager.initialize();
 
+  const { usageMetricsManager } = await import('./managers/UsageMetricsManager');
+  await usageMetricsManager.initialize();
+
   const { instanceManager } = await import('./managers/InstanceManager');
   await instanceManager.initialize();
 

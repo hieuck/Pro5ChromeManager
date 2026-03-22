@@ -103,6 +103,19 @@ describe('Operations endpoints', () => {
         profileCount: number;
         proxyCount: number;
         backupCount: number;
+        usageMetrics: {
+          profileCreates: number;
+          profileImports: number;
+          profileLaunches: number;
+          sessionChecks: number;
+          sessionCheckLoggedIn: number;
+          sessionCheckLoggedOut: number;
+          sessionCheckErrors: number;
+          lastProfileCreatedAt: string | null;
+          lastProfileImportedAt: string | null;
+          lastProfileLaunchAt: string | null;
+          lastSessionCheckAt: string | null;
+        };
         recentIncidentCount: number;
         recentErrorCount: number;
         lastIncidentAt: string | null;
@@ -116,6 +129,14 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.profileCount).toBe(0);
     expect(statusJson.data.proxyCount).toBe(0);
     expect(statusJson.data.backupCount).toBe(0);
+    expect(statusJson.data.usageMetrics.profileCreates).toBe(0);
+    expect(statusJson.data.usageMetrics.profileImports).toBe(0);
+    expect(statusJson.data.usageMetrics.profileLaunches).toBe(0);
+    expect(statusJson.data.usageMetrics.sessionChecks).toBe(0);
+    expect(statusJson.data.usageMetrics.lastProfileCreatedAt).toBeNull();
+    expect(statusJson.data.usageMetrics.lastProfileImportedAt).toBeNull();
+    expect(statusJson.data.usageMetrics.lastProfileLaunchAt).toBeNull();
+    expect(statusJson.data.usageMetrics.lastSessionCheckAt).toBeNull();
     expect(statusJson.data.recentIncidentCount).toBeGreaterThanOrEqual(0);
     expect(statusJson.data.recentErrorCount).toBeGreaterThanOrEqual(0);
     expect(statusJson.data.recentErrorCount).toBeLessThanOrEqual(statusJson.data.recentIncidentCount);
@@ -182,6 +203,49 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.lastIncidentAt).toBeTruthy();
   });
 
+  it('includes usage metrics snapshots in support status', async () => {
+    const { usageMetricsManager } = await import('../managers/UsageMetricsManager');
+    await usageMetricsManager.recordProfileCreated();
+    await usageMetricsManager.recordProfileImported();
+    await usageMetricsManager.recordProfileLaunch();
+    await usageMetricsManager.recordSessionCheck('logged_in');
+    await usageMetricsManager.recordSessionCheck('logged_out');
+    await usageMetricsManager.recordSessionCheck('error');
+
+    const statusRes = await fetch(`${baseUrl}/api/support/status`);
+    expect(statusRes.status).toBe(200);
+    const statusJson = await statusRes.json() as {
+      success: boolean;
+      data: {
+        usageMetrics: {
+          profileCreates: number;
+          profileImports: number;
+          profileLaunches: number;
+          sessionChecks: number;
+          sessionCheckLoggedIn: number;
+          sessionCheckLoggedOut: number;
+          sessionCheckErrors: number;
+          lastProfileCreatedAt: string | null;
+          lastProfileImportedAt: string | null;
+          lastProfileLaunchAt: string | null;
+          lastSessionCheckAt: string | null;
+        };
+      };
+    };
+    expect(statusJson.success).toBe(true);
+    expect(statusJson.data.usageMetrics.profileCreates).toBe(1);
+    expect(statusJson.data.usageMetrics.profileImports).toBe(1);
+    expect(statusJson.data.usageMetrics.profileLaunches).toBe(1);
+    expect(statusJson.data.usageMetrics.sessionChecks).toBe(3);
+    expect(statusJson.data.usageMetrics.sessionCheckLoggedIn).toBe(1);
+    expect(statusJson.data.usageMetrics.sessionCheckLoggedOut).toBe(1);
+    expect(statusJson.data.usageMetrics.sessionCheckErrors).toBe(1);
+    expect(statusJson.data.usageMetrics.lastProfileCreatedAt).toBeTruthy();
+    expect(statusJson.data.usageMetrics.lastProfileImportedAt).toBeTruthy();
+    expect(statusJson.data.usageMetrics.lastProfileLaunchAt).toBeTruthy();
+    expect(statusJson.data.usageMetrics.lastSessionCheckAt).toBeTruthy();
+  });
+
   it('exports diagnostics bundles with support snapshots', async () => {
     await fs.mkdir(path.join(tmpDir, 'logs'), { recursive: true });
     await fs.writeFile(
@@ -224,6 +288,12 @@ describe('Operations endpoints', () => {
       profileCount: number;
       proxyCount: number;
       backupCount: number;
+      usageMetrics: {
+        profileCreates: number;
+        profileImports: number;
+        profileLaunches: number;
+        sessionChecks: number;
+      };
       recentIncidentCount: number;
     };
     const selfTest = JSON.parse(await fs.readFile(path.join(extractDir, 'self-test.json'), 'utf-8')) as {
@@ -241,6 +311,10 @@ describe('Operations endpoints', () => {
     expect(supportStatus.profileCount).toBe(0);
     expect(supportStatus.proxyCount).toBe(0);
     expect(supportStatus.backupCount).toBe(0);
+    expect(supportStatus.usageMetrics.profileCreates).toBe(1);
+    expect(supportStatus.usageMetrics.profileImports).toBe(1);
+    expect(supportStatus.usageMetrics.profileLaunches).toBe(1);
+    expect(supportStatus.usageMetrics.sessionChecks).toBe(3);
     expect(supportStatus.recentIncidentCount).toBeGreaterThan(0);
     expect(selfTest.status).toBe('pass');
     expect(selfTest.checks.some((check) => check.key === 'diagnostics')).toBe(true);

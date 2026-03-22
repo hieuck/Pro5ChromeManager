@@ -53,6 +53,19 @@ interface SupportStatus {
   profileCount: number;
   proxyCount: number;
   backupCount: number;
+  usageMetrics: {
+    profileCreates: number;
+    profileImports: number;
+    profileLaunches: number;
+    sessionChecks: number;
+    sessionCheckLoggedIn: number;
+    sessionCheckLoggedOut: number;
+    sessionCheckErrors: number;
+    lastProfileCreatedAt: string | null;
+    lastProfileImportedAt: string | null;
+    lastProfileLaunchAt: string | null;
+    lastSessionCheckAt: string | null;
+  };
   recentIncidentCount: number;
   recentErrorCount: number;
   lastIncidentAt: string | null;
@@ -513,6 +526,8 @@ const SupportTab: React.FC = () => {
       `Profiles: ${status.profileCount}`,
       `Proxies: ${status.proxyCount}`,
       `Backups: ${status.backupCount}`,
+      `Usage: ${status.usageMetrics.profileCreates} created / ${status.usageMetrics.profileImports} imported / ${status.usageMetrics.profileLaunches} launches`,
+      `Session checks: ${status.usageMetrics.sessionChecks} total / ${status.usageMetrics.sessionCheckLoggedIn} logged in / ${status.usageMetrics.sessionCheckLoggedOut} logged out / ${status.usageMetrics.sessionCheckErrors} errors`,
       `Offline secret: ${status.offlineSecretConfigured ? 'configured' : 'missing'}`,
       `Code signing: ${status.codeSigningConfigured ? 'configured' : 'missing'}`,
       `Support pages: ${status.supportPagesReady ? 'ready' : 'missing'}`,
@@ -520,6 +535,19 @@ const SupportTab: React.FC = () => {
       `Recent incidents: ${status.recentIncidentCount} total / ${status.recentErrorCount} errors`,
       `Last incident: ${status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'none'}`,
     ];
+
+    if (status.usageMetrics.lastProfileCreatedAt) {
+      summaryLines.push(`Last profile created: ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`);
+    }
+    if (status.usageMetrics.lastProfileImportedAt) {
+      summaryLines.push(`Last profile imported: ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`);
+    }
+    if (status.usageMetrics.lastProfileLaunchAt) {
+      summaryLines.push(`Last launch: ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`);
+    }
+    if (status.usageMetrics.lastSessionCheckAt) {
+      summaryLines.push(`Last session check: ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`);
+    }
 
     if (status.warnings.length > 0) {
       summaryLines.push(`Warnings: ${status.warnings.join(' | ')}`);
@@ -600,6 +628,24 @@ const SupportTab: React.FC = () => {
           <Typography.Text><strong>Profiles:</strong> {status.profileCount}</Typography.Text>
           <Typography.Text><strong>Proxies:</strong> {status.proxyCount}</Typography.Text>
           <Typography.Text><strong>Backups:</strong> {status.backupCount}</Typography.Text>
+          <Typography.Text>
+            <strong>Usage:</strong> {status.usageMetrics.profileCreates} created / {status.usageMetrics.profileImports} imported / {status.usageMetrics.profileLaunches} launches
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Session checks:</strong> {status.usageMetrics.sessionChecks} total / {status.usageMetrics.sessionCheckLoggedIn} logged in / {status.usageMetrics.sessionCheckLoggedOut} logged out / {status.usageMetrics.sessionCheckErrors} errors
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Last usage:</strong>{' '}
+            {status.usageMetrics.lastProfileLaunchAt
+              ? `Launch ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`
+              : status.usageMetrics.lastProfileCreatedAt
+                ? `Create ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`
+                : status.usageMetrics.lastProfileImportedAt
+                  ? `Import ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`
+                  : status.usageMetrics.lastSessionCheckAt
+                    ? `Session check ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`
+                    : 'None'}
+          </Typography.Text>
           <Typography.Text><strong>Recent incidents:</strong> {status.recentIncidentCount} total / {status.recentErrorCount} errors</Typography.Text>
           <Typography.Text><strong>Last incident:</strong> {status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'None'}</Typography.Text>
           <Typography.Text>
