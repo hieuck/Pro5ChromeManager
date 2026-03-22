@@ -441,6 +441,14 @@ const Dashboard: React.FC = () => {
       topSourceLatestIncident?.level === 'error'
         ? { color: 'red', label: t.dashboard.errorCountLabel }
         : { color: 'gold', label: t.dashboard.warningCountLabel };
+    const incidentActionHint =
+      incidents15 >= 3 && latestIncidentMinutes !== null && latestIncidentMinutes <= 5
+        ? t.dashboard.incidentActionImmediate
+        : topSourcesConcentration >= 80
+          ? t.dashboard.incidentActionFocused
+          : topSourcesConcentration < 50 && incidents60 >= 5
+            ? t.dashboard.incidentActionDistributed
+            : t.dashboard.incidentActionMonitor;
 
     return {
       total: incidents.length,
@@ -452,6 +460,7 @@ const Dashboard: React.FC = () => {
       trend,
       sourceMode,
       sourceModeHint,
+      incidentActionHint,
       freshness,
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
@@ -784,6 +793,7 @@ const Dashboard: React.FC = () => {
       `Top source concentration: ${incidentDigest.topSourcesConcentration}%`,
       `Source mode: ${incidentDigest.sourceMode.label}`,
       `Source mode hint: ${incidentDigest.sourceModeHint}`,
+      `Suggested action: ${incidentDigest.incidentActionHint}`,
       incidentDigest.topSourceLatestIncident
         ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
         : null,
@@ -1712,6 +1722,9 @@ const Dashboard: React.FC = () => {
                   </Typography.Text>
                   <Typography.Text type="secondary">
                     {`${t.dashboard.incidentSourceModeHintLabel}: ${incidentDigest.sourceModeHint}`}
+                  </Typography.Text>
+                  <Typography.Text type="secondary">
+                    {`${t.dashboard.incidentActionHintLabel}: ${incidentDigest.incidentActionHint}`}
                   </Typography.Text>
                   {incidentDigest.topSourceLatestIncident ? (
                     <Space direction="vertical" size={2} style={{ width: '100%' }}>
