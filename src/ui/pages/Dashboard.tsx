@@ -651,6 +651,14 @@ const Dashboard: React.FC = () => {
     handleOpenIncidentInLogs(incidentDigest.latestIncident);
   }, [handleOpenIncidentInLogs, incidentDigest]);
 
+  const handleOpenTopSourceLatestIncident = useCallback(() => {
+    if (!incidentDigest?.topSourceLatestIncident) {
+      return;
+    }
+
+    handleOpenIncidentInLogs(incidentDigest.topSourceLatestIncident);
+  }, [handleOpenIncidentInLogs, incidentDigest]);
+
   const handleOpenRecentLogs = useCallback(() => {
     navigate('/logs', {
       state: {
@@ -1601,9 +1609,14 @@ const Dashboard: React.FC = () => {
                     {`${t.dashboard.latestMessageLabel}: ${summarizeIssueMessage(incidentDigest.latestIncident.message, 120)}`}
                   </Typography.Text>
                   {incidentDigest.topSourceLatestIncident ? (
-                    <Typography.Text type="secondary">
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ paddingInline: 0, justifyContent: 'flex-start' }}
+                      onClick={handleOpenTopSourceLatestIncident}
+                    >
                       {`${t.dashboard.topSourceLatestMessageLabel}: ${summarizeIssueMessage(incidentDigest.topSourceLatestIncident.message, 120)}`}
-                    </Typography.Text>
+                    </Button>
                   ) : null}
                 </Space>
               ) : null}

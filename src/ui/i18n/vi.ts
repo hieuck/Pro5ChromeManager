@@ -120,7 +120,7 @@ const vi = {
       latestIncidentUnavailable: 'Hiện chưa có incident mới nhất để sao chép',
       topSourceLabel: 'Nguồn chính',
       topSourcesLabel: 'Nguồn nóng khác',
-      topSourceLatestMessageLabel: 'Nguồn chính mới nhất',
+      topSourceLatestMessageLabel: 'Mở nguồn chính mới nhất',
       copyTopIncidentSource: 'Sao chép nguồn chính',
       topIncidentSourceCopied: 'Đã sao chép nguồn chính',
       topIncidentSourceCopyFailed: 'Không thể sao chép nguồn chính',
