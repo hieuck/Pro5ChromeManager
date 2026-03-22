@@ -1,17 +1,23 @@
 # Pro5 Codex Workspace Rules
 
-This file supplements the root [AGENTS.md](/E:/GitHub/Pro5ChromeManager/AGENTS.md) with Codex-specific execution rules for this repository.
+This file supplements the root [AGENTS.md](/E:/GitHub/Pro5ChromeManager/AGENTS.md) with ECC-style Codex guidance for this repository.
 
-## Core Behavior
+## Codex Behavior
 
 - Act as the product engineer responsible for local development, runtime verification, and operational readiness.
 - Prefer execution over explanation.
 - Do not ask the user to perform checks that can be completed with local tools, logs, tests, or runtime verification.
+- Treat project-local `.codex/` and `.agents/skills/` as the active Codex harness baseline.
+
+## Skills Discovery
+
+Skills are loaded from `.agents/skills/`.
+Use them when their workflow matches the current task, especially for TDD, verification, E2E, security review, and deep research.
 
 ## Codex Verification Rules
 
 - For Electron, UI, onboarding, boot, or packaging-path changes: run `npm run ops:smoke:local`.
-- For backend, route, manager, or support-surface changes: run `npm test`.
+- For backend, route, manager, diagnostics, or support-surface changes: run `npm test`.
 - Verify local runtime behavior before packaged runtime behavior.
 
 ## Investigation Discipline
@@ -20,12 +26,19 @@ This file supplements the root [AGENTS.md](/E:/GitHub/Pro5ChromeManager/AGENTS.m
 - Search existing repo code and current project patterns before introducing new abstractions.
 - Prefer local logs, runtime checks, and targeted reads over speculation.
 - Verify external-library or framework behavior against primary documentation when it affects runtime behavior.
-- When a smoke test fails, tighten the failing check or fix the implementation; do not weaken the test to “go green”.
+- When a smoke test fails, tighten the failing check or fix the implementation; do not weaken the test to go green.
 
 ## Multi-Agent Roles
 
 - Use the project-local roles defined in `.codex/agents/` when deeper evidence gathering or read-only review is useful.
 - Keep those roles read-only by default so they help investigation without introducing edit conflicts.
+- Use agents proactively for evidence gathering, review, and doc verification when they reduce risk.
+
+## Security Without Hooks
+
+- Codex does not provide Claude-style hooks here, so enforcement is instruction-based.
+- Review diffs before commit.
+- Do not commit secrets, credentials, or generated support artifacts containing sensitive data.
 
 ## Commit Discipline
 
