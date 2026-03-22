@@ -387,6 +387,7 @@ const en: TranslationKeys = {
     visibleTopSourceShareLabel: 'Top source share',
     visibleTopSourcesConcentrationLabel: 'Top 3 concentration',
     visibleTopSourceFreshnessLabel: 'Top source freshness',
+    visibleTopSourceTimestampLabel: 'Top source timestamp',
     visibleTopSourceLatestLevelLabel: 'Top source level',
     visibleTopSourceLatestLabel: 'Top source latest',
     visibleSourceModeLabel: 'Source mode',

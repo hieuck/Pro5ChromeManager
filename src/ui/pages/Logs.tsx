@@ -348,6 +348,11 @@ const Logs: React.FC = () => {
     });
   }, [t.logs.daysAgo, t.logs.hoursAgo, t.logs.justNow, t.logs.minutesAgo, visibleTopSource?.latestEntry.timestamp]);
 
+  const visibleTopSourceTimestamp = useMemo(
+    () => formatTimestamp(visibleTopSource?.latestEntry.timestamp ?? null),
+    [visibleTopSource?.latestEntry.timestamp],
+  );
+
   const visibleTopSourcesConcentration = useMemo(() => {
     if (!matchedEntries.length) return 0;
     const visibleTopCount = visibleSources.reduce((sum, source) => sum + source.count, 0);
@@ -790,6 +795,7 @@ const Logs: React.FC = () => {
       `Source: ${source.source}`,
       `Visible lines: ${source.count}`,
       `Suggested action: ${visibleSourceActionHint}`,
+      `Top source timestamp: ${visibleTopSourceTimestamp}`,
       `Level: ${entry.level.toUpperCase()}`,
       `Timestamp: ${entry.timestamp ?? 'unknown'}`,
       `Message: ${entry.message}`,
@@ -802,7 +808,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable, visibleSourceActionHint]);
+  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable, visibleSourceActionHint, visibleTopSourceTimestamp]);
 
   const handleCopyVisibleSourceDigest = useCallback(async (
     source: {
@@ -826,6 +832,7 @@ const Logs: React.FC = () => {
       `Source hint: ${visibleSourceMode.hint}`,
       `Suggested action: ${visibleSourceActionHint}`,
       `Top source freshness: ${visibleTopSourceFreshness}`,
+      `Top source timestamp: ${visibleTopSourceTimestamp}`,
       `Latest level: ${source.latestEntry.level.toUpperCase()}`,
       `Latest timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
       `Latest message: ${source.latestEntry.message}`,
@@ -846,6 +853,7 @@ const Logs: React.FC = () => {
     visibleSourceMode.label,
     visibleSourceActionHint,
     visibleTopSourceFreshness,
+    visibleTopSourceTimestamp,
     visibleTopSourceShare,
     visibleTopSourcesConcentration,
   ]);
@@ -1199,6 +1207,9 @@ const Logs: React.FC = () => {
             </Typography.Text>
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
               {`${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              {`${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`}
             </Typography.Text>
             <Button
               size="small"
