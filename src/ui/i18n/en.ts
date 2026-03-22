@@ -1,13 +1,12 @@
 import type { TranslationKeys } from './vi';
 
 const en: TranslationKeys = {
-  // Navigation
   nav: {
     profiles: 'Profiles',
+    proxies: 'Proxies',
     settings: 'Settings',
     logs: 'Logs',
   },
-  // Common
   common: {
     save: 'Save',
     cancel: 'Cancel',
@@ -33,7 +32,6 @@ const en: TranslationKeys = {
     duplicate: 'Duplicate',
     showingResults: 'Showing {filtered}/{total} profiles',
   },
-  // Profile
   profile: {
     title: 'Profile Manager',
     newProfile: 'New Profile',
@@ -65,7 +63,28 @@ const en: TranslationKeys = {
     tagFilter: 'Filter by tag',
     ownerFilter: 'Filter by owner',
   },
-  // Settings
+  proxy: {
+    title: 'Proxy Workspace',
+    subtitle: 'Import in bulk, test quickly, and manage your proxy pool from one place.',
+    total: 'Total Proxies',
+    authenticated: 'Authenticated',
+    socks: 'SOCKS',
+    newProxy: 'New Proxy',
+    importBulk: 'Bulk Import',
+    importPlaceholder: 'One proxy per line, for example:\n10.0.0.1:8080\n10.0.0.2:9000:user:pass\nsocks5://alice:secret@10.0.0.3:1080',
+    importAction: 'Import Proxies',
+    importResult: 'Imported {created} proxies, skipped {skipped}',
+    host: 'Host',
+    port: 'Port',
+    type: 'Type',
+    credentials: 'Credentials',
+    lastCheck: 'Latest Check',
+    test: 'Test',
+    testSuccess: 'IP {ip}',
+    testFailed: 'Proxy test failed',
+    deleteConfirm: 'Delete this proxy?',
+    noProxies: 'No proxies yet',
+  },
   settings: {
     title: 'Settings',
     general: 'General',
@@ -83,7 +102,6 @@ const en: TranslationKeys = {
     saveSettings: 'Save Settings',
     settingsSaved: 'Settings saved',
   },
-  // License
   license: {
     free: 'Free',
     pro: 'Pro',
@@ -92,7 +110,6 @@ const en: TranslationKeys = {
     activate: 'Activate',
     deactivate: 'Deactivate',
   },
-  // Logs
   logs: {
     title: 'System Logs',
     noLogs: 'No logs yet',

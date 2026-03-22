@@ -161,3 +161,44 @@ describe('ProxyManager CRUD', () => {
     await expect(manager.updateProxy('no-such-id', { port: 1 })).rejects.toThrow('not found');
   });
 });
+
+describe('ProxyManager bulk import', () => {
+  it('parses mixed proxy formats', () => {
+    const manager = new ProxyManager();
+    const parsed = manager.parseProxyInput([
+      '10.0.0.1:8080',
+      '10.0.0.2:9000:user:pass',
+      'socks5://alice:secret@10.0.0.3:1080',
+    ].join('\n'));
+
+    expect(parsed).toEqual([
+      { type: 'http', host: '10.0.0.1', port: 8080 },
+      { type: 'http', host: '10.0.0.2', port: 9000, username: 'user', password: 'pass' },
+      { type: 'socks5', host: '10.0.0.3', port: 1080, username: 'alice', password: 'secret' },
+    ]);
+  });
+
+  it('imports unique proxies and skips duplicates', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'proxy-import-'));
+    const manager = new ProxyManager(path.join(tmpDir, 'proxies.json'));
+
+    const firstImport = await manager.importProxyList([
+      '10.0.0.1:8080',
+      '10.0.0.2:9000:user:pass',
+    ].join('\n'));
+    const secondImport = await manager.importProxyList([
+      '10.0.0.1:8080',
+      '',
+      '# comment',
+      'socks5://alice:secret@10.0.0.3:1080',
+    ].join('\n'));
+
+    expect(firstImport.created).toHaveLength(2);
+    expect(firstImport.skipped).toBe(0);
+    expect(secondImport.created).toHaveLength(1);
+    expect(secondImport.skipped).toBe(1);
+    expect(manager.listProxies()).toHaveLength(3);
+
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+});

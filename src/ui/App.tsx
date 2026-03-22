@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Badge, Button, Typography, notification } from 'antd';
 import {
+  ApiOutlined,
   UserOutlined,
   SettingOutlined,
   FileTextOutlined,
@@ -10,6 +11,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { useTranslation } from './hooks/useTranslation';
 import { apiClient } from './api/client';
 import ProfileList from './pages/ProfileList';
+import Proxies from './pages/Proxies';
 import Settings from './pages/Settings';
 import Logs from './pages/Logs';
 
@@ -39,6 +41,8 @@ const App: React.FC = () => {
 
   const selectedKey = location.pathname.startsWith('/settings')
     ? 'settings'
+    : location.pathname.startsWith('/proxies')
+      ? 'proxies'
     : location.pathname.startsWith('/logs')
       ? 'logs'
       : 'profiles';
@@ -126,6 +130,7 @@ const App: React.FC = () => {
           onClick={({ key }) => navigate(`/${key}`)}
           items={[
             { key: 'profiles', icon: <UserOutlined />, label: t.nav.profiles },
+            { key: 'proxies', icon: <ApiOutlined />, label: t.nav.proxies },
             { key: 'settings', icon: <SettingOutlined />, label: t.nav.settings },
             { key: 'logs', icon: <FileTextOutlined />, label: t.nav.logs },
           ]}
@@ -168,6 +173,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/profiles" replace />} />
             <Route path="/profiles" element={<ProfileList />} />
+            <Route path="/proxies" element={<Proxies />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/logs" element={<Logs />} />
           </Routes>

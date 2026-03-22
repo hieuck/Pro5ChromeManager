@@ -1,11 +1,10 @@
 const vi = {
-  // Navigation
   nav: {
     profiles: 'Hồ sơ',
+    proxies: 'Proxy',
     settings: 'Cài đặt',
     logs: 'Nhật ký',
   },
-  // Common
   common: {
     save: 'Lưu',
     cancel: 'Hủy',
@@ -31,7 +30,6 @@ const vi = {
     duplicate: 'Nhân bản',
     showingResults: 'Hiển thị {filtered}/{total} hồ sơ',
   },
-  // Profile
   profile: {
     title: 'Quản lý hồ sơ',
     newProfile: 'Tạo hồ sơ mới',
@@ -63,7 +61,28 @@ const vi = {
     tagFilter: 'Lọc theo nhãn',
     ownerFilter: 'Lọc theo phụ trách',
   },
-  // Settings
+  proxy: {
+    title: 'Trung tâm proxy',
+    subtitle: 'Nhập hàng loạt, kiểm tra nhanh và quản lý pool proxy từ một nơi.',
+    total: 'Tổng proxy',
+    authenticated: 'Có xác thực',
+    socks: 'SOCKS',
+    newProxy: 'Thêm proxy',
+    importBulk: 'Import hàng loạt',
+    importPlaceholder: 'Mỗi dòng một proxy, ví dụ:\n10.0.0.1:8080\n10.0.0.2:9000:user:pass\nsocks5://alice:secret@10.0.0.3:1080',
+    importAction: 'Import proxy',
+    importResult: 'Đã import {created} proxy, bỏ qua {skipped}',
+    host: 'Host',
+    port: 'Port',
+    type: 'Loại',
+    credentials: 'Xác thực',
+    lastCheck: 'Kiểm tra gần nhất',
+    test: 'Test',
+    testSuccess: 'IP {ip}',
+    testFailed: 'Test thất bại',
+    deleteConfirm: 'Xóa proxy này?',
+    noProxies: 'Chưa có proxy nào',
+  },
   settings: {
     title: 'Cài đặt',
     general: 'Chung',
@@ -81,7 +100,6 @@ const vi = {
     saveSettings: 'Lưu cài đặt',
     settingsSaved: 'Đã lưu cài đặt',
   },
-  // License
   license: {
     free: 'Miễn phí',
     pro: 'Pro',
@@ -90,7 +108,6 @@ const vi = {
     activate: 'Kích hoạt',
     deactivate: 'Hủy kích hoạt',
   },
-  // Logs
   logs: {
     title: 'Nhật ký hệ thống',
     noLogs: 'Chưa có nhật ký',

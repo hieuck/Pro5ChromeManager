@@ -12,6 +12,11 @@ const ProxyBodySchema = z.object({
   password: z.string().optional(),
 });
 
+const BulkImportSchema = z.object({
+  text: z.string().min(1),
+  defaultType: z.enum(['http', 'https', 'socks4', 'socks5']).optional(),
+});
+
 // GET /api/proxies
 router.get('/proxies', (_req: Request, res: Response) => {
   const proxies = proxyManager.listProxies().map((p) => ({
@@ -33,6 +38,27 @@ router.post('/proxies', async (req: Request, res: Response) => {
     res.status(201).json({ success: true, data: { ...proxy, password: proxy.password ? '***' : undefined } });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.post('/proxies/import-bulk', async (req: Request, res: Response) => {
+  const parsed = BulkImportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: 'Invalid proxy import data', details: parsed.error.issues });
+    return;
+  }
+
+  try {
+    const result = await proxyManager.importProxyList(parsed.data.text, parsed.data.defaultType ?? 'http');
+    res.status(201).json({
+      success: true,
+      data: {
+        created: result.created.map((proxy) => ({ ...proxy, password: proxy.password ? '***' : undefined })),
+        skipped: result.skipped,
+      },
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });
 
