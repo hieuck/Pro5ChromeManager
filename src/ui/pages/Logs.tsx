@@ -287,6 +287,14 @@ const Logs: React.FC = () => {
     }
   }, [latestIssue, t.logs.copyFailed, t.logs.latestIssueCopied]);
 
+  const handleFocusLatestIssue = useCallback(() => {
+    if (!latestIssue) return;
+
+    setFilter('issues');
+    setQuery(latestIssue.message);
+    void message.success(t.logs.focusLatestIssueApplied);
+  }, [latestIssue, t.logs.focusLatestIssueApplied]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -389,6 +397,9 @@ const Logs: React.FC = () => {
               <Space size={4}>
                 <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyLatestIssue(); }}>
                   {t.logs.copyLatestIssue}
+                </Button>
+                <Button type="link" onClick={handleFocusLatestIssue}>
+                  {t.logs.focusLatestIssue}
                 </Button>
                 <Button type="link" onClick={() => setFilter('issues')}>
                   {t.logs.issuesOnly}

@@ -262,6 +262,8 @@ const en: TranslationKeys = {
     issueStreak: 'Issue streak {count}',
     copyLatestIssue: 'Copy latest issue',
     latestIssueCopied: 'Latest issue copied',
+    focusLatestIssue: 'Filter similar issues',
+    focusLatestIssueApplied: 'Filtered by latest issue',
     allClear: 'No active incidents',
     allClearHint: 'Recent logs do not contain warnings or errors.',
     exportDiagnostics: 'Export diagnostics',

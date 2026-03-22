@@ -260,6 +260,8 @@ const vi = {
     issueStreak: 'Chuỗi sự cố {count}',
     copyLatestIssue: 'Sao chép vấn đề mới nhất',
     latestIssueCopied: 'Đã sao chép vấn đề mới nhất',
+    focusLatestIssue: 'Lọc sự cố tương tự',
+    focusLatestIssueApplied: 'Đã lọc theo vấn đề mới nhất',
     allClear: 'Không có sự cố hoạt động',
     allClearHint: 'Các dòng log gần đây không chứa cảnh báo hoặc lỗi.',
     exportDiagnostics: 'Xuất diagnostics',
