@@ -95,6 +95,13 @@ interface BackupEntry {
   sizeBytes: number;
 }
 
+interface RuntimeEntry {
+  key: string;
+  name: string;
+  available: boolean;
+  executablePath?: string | null;
+}
+
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
@@ -116,6 +123,7 @@ const Dashboard: React.FC = () => {
   const [selfTest, setSelfTest] = useState<SelfTestResult | null>(null);
   const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
+  const [runtimes, setRuntimes] = useState<RuntimeEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
   const [startingAllReady, setStartingAllReady] = useState(false);
@@ -130,7 +138,7 @@ const Dashboard: React.FC = () => {
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
-    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes] = await Promise.all([
+    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes, runtimesRes] = await Promise.all([
       apiClient.get<DashboardProfile[]>('/api/profiles'),
       apiClient.get<DashboardProxy[]>('/api/proxies'),
       apiClient.get<DashboardInstance[]>('/api/instances'),
@@ -138,6 +146,7 @@ const Dashboard: React.FC = () => {
       apiClient.get<{ count: number; incidents: IncidentEntry[] }>('/api/support/incidents?limit=5'),
       apiClient.get<{ count: number; entries: FeedbackEntry[] }>('/api/support/feedback?limit=3'),
       apiClient.get<BackupEntry[]>('/api/backups'),
+      apiClient.get<RuntimeEntry[]>('/api/runtimes'),
     ]);
 
     if (profilesRes.success) setProfiles(profilesRes.data);
@@ -149,6 +158,7 @@ const Dashboard: React.FC = () => {
     if (incidentsRes.success) setIncidents(incidentsRes.data.incidents);
     if (feedbackRes.success) setFeedbackEntries(feedbackRes.data.entries);
     if (backupsRes.success) setBackups(backupsRes.data.slice(0, 3));
+    if (runtimesRes.success) setRuntimes(runtimesRes.data);
     setLoading(false);
   }, []);
 
@@ -174,6 +184,11 @@ const Dashboard: React.FC = () => {
   const healthyProxies = useMemo(
     () => proxies.filter((proxy) => proxy.lastCheckStatus === 'healthy').length,
     [proxies],
+  );
+
+  const availableRuntimes = useMemo(
+    () => runtimes.filter((runtime) => runtime.available),
+    [runtimes],
   );
 
   const profilesNeedingAttention = useMemo(
@@ -476,6 +491,29 @@ const Dashboard: React.FC = () => {
             </Card>
           </Col>
         </Row>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.runtimeTitle}
+          extra={<Button type="link" onClick={() => navigate('/settings')}>{t.dashboard.openSettings}</Button>}
+        >
+          {runtimes.length ? (
+            <Space wrap>
+              {runtimes.map((runtime) => (
+                <Tag key={runtime.key} color={runtime.available ? 'green' : 'default'}>
+                  {`${runtime.name}: ${runtime.available ? t.dashboard.runtimeReady : t.dashboard.runtimeMissing}`}
+                </Tag>
+              ))}
+            </Space>
+          ) : (
+            <Empty description={t.dashboard.noRuntimeConfigured} />
+          )}
+          <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
+            {availableRuntimes.length
+              ? `${t.dashboard.runtimeReadyCount}: ${availableRuntimes.length}/${runtimes.length}`
+              : t.dashboard.runtimeActionHint}
+          </Typography.Paragraph>
+        </Card>
 
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={8}>
