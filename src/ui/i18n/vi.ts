@@ -264,6 +264,8 @@ const vi = {
     repeatedRecentIssueTitle: 'Vấn đề lặp lại nhiều nhất gần đây',
     topRepeatedRecentIssues: 'Các vấn đề lặp lại gần đây',
     repeatedRecentIssueCount: 'xuất hiện {count} lần',
+    copyRepeatedRecentIssues: 'Sao chép cụm lặp lại',
+    repeatedRecentIssuesCopied: 'Đã sao chép các vấn đề lặp lại gần đây',
     focusRepeatedRecentIssue: 'Lọc vấn đề lặp lại',
     focusRepeatedRecentIssueApplied: 'Đã lọc theo vấn đề lặp lại gần đây',
     latestIssue: 'Vấn đề mới nhất',

@@ -336,6 +336,20 @@ const Logs: React.FC = () => {
     void message.success(t.logs.focusRepeatedRecentIssueApplied);
   }, [t.logs.focusRepeatedRecentIssueApplied]);
 
+  const handleCopyRepeatedRecentIssues = useCallback(async () => {
+    const lines = [
+      'Pro5 repeated recent issues',
+      ...repeatedRecentIssues.map((issue) => `${issue.level.toUpperCase()} | ${issue.count}x | ${issue.message}`),
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.repeatedRecentIssuesCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [repeatedRecentIssues, t.logs.copyFailed, t.logs.repeatedRecentIssuesCopied]);
+
   const activeFilterTags = useMemo(() => {
     const tags: Array<{ key: string; label: string; onClose: () => void }> = [];
 
@@ -514,7 +528,15 @@ const Logs: React.FC = () => {
         ) : null}
 
         {repeatedRecentIssues.length > 1 ? (
-          <Card title={t.logs.topRepeatedRecentIssues} size="small">
+          <Card
+            title={t.logs.topRepeatedRecentIssues}
+            size="small"
+            extra={(
+              <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRepeatedRecentIssues(); }}>
+                {t.logs.copyRepeatedRecentIssues}
+              </Button>
+            )}
+          >
             <List
               size="small"
               dataSource={repeatedRecentIssues}
