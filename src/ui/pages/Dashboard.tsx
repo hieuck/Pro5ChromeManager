@@ -572,6 +572,21 @@ const Dashboard: React.FC = () => {
     });
   }, [navigate]);
 
+  const handleOpenTopIncidentSource = useCallback(() => {
+    if (!incidentDigest?.topSource) {
+      return;
+    }
+
+    navigate('/logs', {
+      state: {
+        presetQuery: incidentDigest.topSource[0],
+        presetFilter: 'issues',
+        presetRecentWindowOnly: true,
+        presetSortOrder: 'newest',
+      },
+    });
+  }, [incidentDigest, navigate]);
+
   const handleOpenRecentLogs = useCallback(() => {
     navigate('/logs', {
       state: {
@@ -1260,7 +1275,14 @@ const Dashboard: React.FC = () => {
                   <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
                   <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`}</Tag>
                   {incidentDigest.topSource ? (
-                    <Tag color="purple">{`${t.dashboard.topSourceLabel}: ${incidentDigest.topSource[0]} ×${incidentDigest.topSource[1]}`}</Tag>
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ paddingInline: 0 }}
+                      onClick={handleOpenTopIncidentSource}
+                    >
+                      <Tag color="purple">{`${t.dashboard.topSourceLabel}: ${incidentDigest.topSource[0]} ×${incidentDigest.topSource[1]}`}</Tag>
+                    </Button>
                   ) : null}
                 </Space>
               ) : null}
