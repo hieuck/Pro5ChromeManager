@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 import { useWebSocket } from '../hooks/useWebSocket';
+import OnboardingWizard from '../components/OnboardingWizard';
 
 interface DashboardProfile {
   id: string;
@@ -141,6 +142,7 @@ const Dashboard: React.FC = () => {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [copyingSummary, setCopyingSummary] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
   const loadDashboard = useCallback(async () => {
@@ -417,6 +419,11 @@ const Dashboard: React.FC = () => {
     await loadDashboard();
   }, [loadDashboard, t.dashboard.backupCreated]);
 
+  const handleOpenOnboarding = useCallback(async () => {
+    await apiClient.put('/api/config', { onboardingCompleted: false });
+    setOnboardingOpen(true);
+  }, []);
+
   const handleSubmitFeedback = useCallback(async () => {
     const values = await feedbackForm.validateFields() as {
       category: 'bug' | 'feedback' | 'question';
@@ -477,6 +484,9 @@ const Dashboard: React.FC = () => {
                 </Button>
                 <Button loading={creatingBackup} onClick={() => { void handleCreateBackup(); }}>
                   {t.dashboard.createBackup}
+                </Button>
+                <Button onClick={() => { void handleOpenOnboarding(); }}>
+                  {support?.onboardingCompleted ? t.dashboard.reviewOnboarding : t.dashboard.continueOnboarding}
                 </Button>
                 <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { void loadDashboard(); }}>
                   {t.dashboard.refresh}
@@ -563,6 +573,11 @@ const Dashboard: React.FC = () => {
               ? `${t.dashboard.runtimeReadyCount}: ${availableRuntimes.length}/${runtimes.length}`
               : t.dashboard.runtimeActionHint}
           </Typography.Paragraph>
+          {!availableRuntimes.length ? (
+            <Button style={{ marginTop: 12 }} onClick={() => { void handleOpenOnboarding(); }}>
+              {t.dashboard.fixRuntimeSetup}
+            </Button>
+          ) : null}
         </Card>
 
         <Row gutter={[16, 16]}>
@@ -1021,8 +1036,18 @@ const Dashboard: React.FC = () => {
                 {`${t.dashboard.draftProfile}: ${support.onboardingState.draftProfileName}`}
               </Typography.Text>
             ) : null}
+            <Button type="primary" onClick={() => { void handleOpenOnboarding(); }}>
+              {support?.onboardingCompleted ? t.dashboard.reviewOnboarding : t.dashboard.continueOnboarding}
+            </Button>
           </Space>
         </Card>
+        <OnboardingWizard
+          open={onboardingOpen}
+          onFinish={() => {
+            setOnboardingOpen(false);
+            void loadDashboard();
+          }}
+        />
       </Space>
     </div>
   );
