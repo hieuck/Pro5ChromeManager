@@ -161,6 +161,25 @@ const Logs: React.FC = () => {
     }
   }, [t.logs.copyFailed, t.logs.singleCopied]);
 
+  const handleExportVisibleLogs = useCallback(() => {
+    const content = filteredEntries.map((entry) => entry.raw).join('\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    anchor.href = url;
+    anchor.download = `pro5-logs-${filter}-${stamp}.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    void message.success(t.logs.exported);
+  }, [filteredEntries, filter, t.logs.exported]);
+
+  const handleResetFilters = useCallback(() => {
+    setFilter('all');
+    setQuery('');
+    void message.success(t.logs.filtersReset);
+  }, [t.logs.filtersReset]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -197,6 +216,9 @@ const Logs: React.FC = () => {
               <Button icon={<CopyOutlined />} disabled={!filteredEntries.length} onClick={() => { void handleCopyVisibleLogs(); }}>
                 {t.logs.copyVisible}
               </Button>
+              <Button disabled={!filteredEntries.length} onClick={handleExportVisibleLogs}>
+                {t.logs.exportVisible}
+              </Button>
               <Button disabled={!issueEntries.length} onClick={() => { void handleCopyIssues(); }}>
                 {t.logs.copyIssues}
               </Button>
@@ -209,6 +231,9 @@ const Logs: React.FC = () => {
               </Space>
               <Button onClick={() => { void handleRunSelfTest(); }}>
                 {t.logs.runSelfTest}
+              </Button>
+              <Button onClick={handleResetFilters}>
+                {t.logs.resetFilters}
               </Button>
             </Space>
             <Typography.Text type="secondary">
