@@ -190,6 +190,68 @@ const ProfileList: React.FC = () => {
     void fetchProfiles();
   }
 
+  function getProfilesWithFailingProxy(ids: string[]): Profile[] {
+    return ids
+      .map((id) => profiles.find((profile) => profile.id === id))
+      .filter((profile): profile is Profile => Boolean(profile))
+      .filter((profile) => profile.proxy?.lastCheckStatus === 'failing');
+  }
+
+  async function confirmAndStartProfiles(ids: string[]): Promise<void> {
+    const failingProxyProfiles = getProfilesWithFailingProxy(ids);
+    if (!failingProxyProfiles.length) {
+      await Promise.all(ids.map(async (id) => handleStart(id)));
+      return;
+    }
+
+    Modal.confirm({
+      title: 'Proxy cần kiểm tra trước khi mở',
+      icon: <QuestionCircleOutlined />,
+      okText: 'Vẫn khởi động',
+      cancelText: 'Kiểm tra lại proxy',
+      content: (
+        <Space direction="vertical" size={4}>
+          <Typography.Text>
+            {`Có ${failingProxyProfiles.length} hồ sơ đang dùng proxy ở trạng thái Needs check.`}
+          </Typography.Text>
+          <Typography.Text type="secondary">
+            {failingProxyProfiles.slice(0, 3).map((profile) => profile.name).join(', ')}
+            {failingProxyProfiles.length > 3 ? '...' : ''}
+          </Typography.Text>
+        </Space>
+      ),
+      onOk: async () => {
+        await Promise.all(ids.map(async (id) => handleStart(id)));
+      },
+      onCancel: async () => {
+        const failingProxyIds = Array.from(new Set(
+          failingProxyProfiles
+            .map((profile) => getProfileProxyId(profile))
+            .filter((proxyId): proxyId is string => Boolean(proxyId)),
+        ));
+
+        if (!failingProxyIds.length) {
+          return;
+        }
+
+        const res = await apiClient.post<{
+          total: number;
+          healthy: number;
+          failing: number;
+        }>('/api/proxies/test-bulk', { ids: failingProxyIds });
+
+        if (!res.success) {
+          void message.error(res.error);
+          return;
+        }
+
+        void message.success(`Đã test ${res.data.total} proxy · OK ${res.data.healthy} · FAIL ${res.data.failing}`);
+        await fetchProfiles();
+        await fetchProxies();
+      },
+    });
+  }
+
   async function handleStop(profileId: string): Promise<void> {
     const res = await apiClient.post(`/api/profiles/${profileId}/stop`);
     if (!res.success) {
@@ -227,7 +289,7 @@ const ProfileList: React.FC = () => {
   }
 
   async function handleBulkStart(): Promise<void> {
-    await Promise.all(selectedIds.map(async (id) => handleStart(id)));
+    await confirmAndStartProfiles(selectedIds);
     setSelectedIds([]);
   }
 
@@ -556,7 +618,7 @@ const ProfileList: React.FC = () => {
               </Tooltip>
             ) : (
               <Tooltip title={t.profile.startProfile}>
-                <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleStart(record.id)} />
+                <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void confirmAndStartProfiles([record.id])} />
               </Tooltip>
             )}
             <Tooltip title={t.profile.duplicateProfile}>
