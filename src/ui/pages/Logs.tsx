@@ -38,6 +38,30 @@ function formatTimestamp(value: string | null): string {
   return new Date(value).toLocaleString('vi-VN');
 }
 
+function formatRelativeTime(
+  value: string | null,
+  labels: {
+    justNow: string;
+    minutesAgo: (count: number) => string;
+    hoursAgo: (count: number) => string;
+    daysAgo: (count: number) => string;
+  },
+): string {
+  if (!value) return '—';
+
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+
+  if (diffMinutes < 1) return labels.justNow;
+  if (diffMinutes < 60) return labels.minutesAgo(diffMinutes);
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return labels.hoursAgo(diffHours);
+
+  const diffDays = Math.round(diffHours / 24);
+  return labels.daysAgo(diffDays);
+}
+
 const Logs: React.FC = () => {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<ParsedLogEntry[]>([]);
@@ -180,6 +204,15 @@ const Logs: React.FC = () => {
           </Col>
         </Row>
 
+        {(counts.warn || counts.error) ? (
+          <Alert
+            type={counts.error ? 'error' : 'warning'}
+            showIcon
+            message={`${t.logs.incidentSummary}: ${counts.error} ${t.logs.filterError.toLowerCase()} · ${counts.warn} ${t.logs.filterWarn.toLowerCase()}`}
+            description={t.logs.incidentHint}
+          />
+        ) : null}
+
         {entries.length ? (
           <Card>
             <List
@@ -194,6 +227,14 @@ const Logs: React.FC = () => {
                           {entry.level.toUpperCase()}
                         </Tag>
                         <Typography.Text type="secondary">{formatTimestamp(entry.timestamp)}</Typography.Text>
+                        <Typography.Text type="secondary">
+                          {formatRelativeTime(entry.timestamp, {
+                            justNow: t.logs.justNow,
+                            minutesAgo: (count) => t.logs.minutesAgo.replace('{count}', String(count)),
+                            hoursAgo: (count) => t.logs.hoursAgo.replace('{count}', String(count)),
+                            daysAgo: (count) => t.logs.daysAgo.replace('{count}', String(count)),
+                          })}
+                        </Typography.Text>
                       </Space>
                     )}
                     description={(

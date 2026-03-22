@@ -234,6 +234,12 @@ const vi = {
     copyFailed: 'Không thể sao chép log',
     autoRefresh: 'Tự làm mới',
     issuesOnly: 'Chỉ lỗi/cảnh báo',
+    incidentSummary: 'Tóm tắt sự cố',
+    incidentHint: 'Ưu tiên xem lỗi và cảnh báo gần đây trước khi đọc toàn bộ dòng log.',
+    justNow: 'vừa xong',
+    minutesAgo: '{count} phút trước',
+    hoursAgo: '{count} giờ trước',
+    daysAgo: '{count} ngày trước',
   },
 } as const;
 

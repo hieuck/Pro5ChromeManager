@@ -236,6 +236,12 @@ const en: TranslationKeys = {
     copyFailed: 'Failed to copy logs',
     autoRefresh: 'Auto refresh',
     issuesOnly: 'Issues only',
+    incidentSummary: 'Incident summary',
+    incidentHint: 'Focus on recent errors and warnings first before reading the full stream.',
+    justNow: 'just now',
+    minutesAgo: '{count} minutes ago',
+    hoursAgo: '{count} hours ago',
+    daysAgo: '{count} days ago',
   },
 };
 
