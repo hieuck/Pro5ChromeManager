@@ -410,6 +410,12 @@ const Dashboard: React.FC = () => {
         : topSourcesConcentration >= 50
           ? { color: 'gold', label: t.dashboard.incidentSourceModeMixed }
           : { color: 'green', label: t.dashboard.incidentSourceModeDistributed };
+    const sourceModeHint =
+      topSourcesConcentration >= 80
+        ? t.dashboard.incidentSourceModeFocusedHint
+        : topSourcesConcentration >= 50
+          ? t.dashboard.incidentSourceModeMixedHint
+          : t.dashboard.incidentSourceModeDistributedHint;
 
     return {
       total: incidents.length,
@@ -420,6 +426,7 @@ const Dashboard: React.FC = () => {
       heat,
       trend,
       sourceMode,
+      sourceModeHint,
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
@@ -747,6 +754,7 @@ const Dashboard: React.FC = () => {
       incidentDigest.topSource ? `Top source share: ${incidentDigest.topSource[0]} (${incidentDigest.topSourceRatio}%)` : null,
       `Top source concentration: ${incidentDigest.topSourcesConcentration}%`,
       `Source mode: ${incidentDigest.sourceMode.label}`,
+      `Source mode hint: ${incidentDigest.sourceModeHint}`,
       incidentDigest.topSourceLatestIncident
         ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
         : null,
@@ -1669,6 +1677,9 @@ const Dashboard: React.FC = () => {
                   </Space>
                   <Typography.Text type="secondary">
                     {`${t.dashboard.latestMessageLabel}: ${summarizeIssueMessage(incidentDigest.latestIncident.message, 120)}`}
+                  </Typography.Text>
+                  <Typography.Text type="secondary">
+                    {`${t.dashboard.incidentSourceModeHintLabel}: ${incidentDigest.sourceModeHint}`}
                   </Typography.Text>
                   {incidentDigest.topSourceLatestIncident ? (
                     <Button
