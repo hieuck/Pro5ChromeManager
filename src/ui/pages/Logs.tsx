@@ -5,11 +5,20 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 
+const LOGS_VIEW_STORAGE_KEY = 'pro5.logs.view';
+
 interface ParsedLogEntry {
   timestamp: string | null;
   level: 'info' | 'warn' | 'error';
   message: string;
   raw: string;
+}
+
+interface StoredLogsViewState {
+  filter: 'all' | 'issues' | 'info' | 'warn' | 'error';
+  query: string;
+  recentWindowOnly: boolean;
+  sortOrder: 'newest' | 'oldest';
 }
 
 function parseLogEntry(line: string): ParsedLogEntry {
@@ -72,13 +81,53 @@ function isWithinLastMinutes(value: string | null, minutes: number): boolean {
 const Logs: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const initialViewState = useMemo<StoredLogsViewState>(() => {
+    if (typeof window === 'undefined') {
+      return {
+        filter: 'all',
+        query: '',
+        recentWindowOnly: false,
+        sortOrder: 'newest',
+      };
+    }
+
+    try {
+      const rawValue = window.localStorage.getItem(LOGS_VIEW_STORAGE_KEY);
+      if (!rawValue) {
+        return {
+          filter: 'all',
+          query: '',
+          recentWindowOnly: false,
+          sortOrder: 'newest',
+        };
+      }
+
+      const parsed = JSON.parse(rawValue) as Partial<StoredLogsViewState>;
+
+      return {
+        filter: parsed.filter === 'issues' || parsed.filter === 'info' || parsed.filter === 'warn' || parsed.filter === 'error' ? parsed.filter : 'all',
+        query: typeof parsed.query === 'string' ? parsed.query : '',
+        recentWindowOnly: Boolean(parsed.recentWindowOnly),
+        sortOrder: parsed.sortOrder === 'oldest' ? 'oldest' : 'newest',
+      };
+    } catch {
+      return {
+        filter: 'all',
+        query: '',
+        recentWindowOnly: false,
+        sortOrder: 'newest',
+      };
+    }
+  }, []);
+
   const [entries, setEntries] = useState<ParsedLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>('all');
-  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>(initialViewState.filter);
+  const [query, setQuery] = useState(initialViewState.query);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [recentWindowOnly, setRecentWindowOnly] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [recentWindowOnly, setRecentWindowOnly] = useState(initialViewState.recentWindowOnly);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(initialViewState.sortOrder);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
 
   const loadLogs = useCallback(async () => {
@@ -108,6 +157,19 @@ const Logs: React.FC = () => {
 
     return () => window.clearInterval(intervalId);
   }, [autoRefresh, loadLogs]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const nextState: StoredLogsViewState = {
+      filter,
+      query,
+      recentWindowOnly,
+      sortOrder,
+    };
+
+    window.localStorage.setItem(LOGS_VIEW_STORAGE_KEY, JSON.stringify(nextState));
+  }, [filter, query, recentWindowOnly, sortOrder]);
 
   const matchedEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
