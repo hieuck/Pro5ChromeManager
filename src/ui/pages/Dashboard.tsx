@@ -1508,34 +1508,39 @@ const Dashboard: React.FC = () => {
           {incidents.length ? (
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               {incidentDigest ? (
-                <Space wrap>
-                  <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
-                  <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
-                  <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`}</Tag>
-                  <Button
-                    type="link"
-                    size="small"
-                    style={{ paddingInline: 0 }}
-                    onClick={handleOpenLatestIncident}
-                  >
-                    <Tag color={incidentDigest.latestIncident.level === 'error' ? 'red' : 'orange'}>
-                      {`${t.dashboard.latestIncidentLabel}: ${formatTime(incidentDigest.latestIncident.timestamp)}`}
-                    </Tag>
-                  </Button>
-                  {incidentDigest.topSources.map(([source, count], index) => (
+                <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                  <Space wrap>
+                    <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
+                    <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
+                    <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`}</Tag>
                     <Button
-                      key={`${source}-${count}`}
                       type="link"
                       size="small"
-                      title={source}
                       style={{ paddingInline: 0 }}
-                      onClick={() => handleOpenIncidentSource(source)}
+                      onClick={handleOpenLatestIncident}
                     >
-                      <Tag color={index === 0 ? 'purple' : 'geekblue'}>
-                        {`${index === 0 ? t.dashboard.topSourceLabel : t.dashboard.topSourcesLabel}: ${source} ×${count}`}
+                      <Tag color={incidentDigest.latestIncident.level === 'error' ? 'red' : 'orange'}>
+                        {`${t.dashboard.latestIncidentLabel}: ${formatTime(incidentDigest.latestIncident.timestamp)}`}
                       </Tag>
                     </Button>
-                  ))}
+                    {incidentDigest.topSources.map(([source, count], index) => (
+                      <Button
+                        key={`${source}-${count}`}
+                        type="link"
+                        size="small"
+                        title={source}
+                        style={{ paddingInline: 0 }}
+                        onClick={() => handleOpenIncidentSource(source)}
+                      >
+                        <Tag color={index === 0 ? 'purple' : 'geekblue'}>
+                          {`${index === 0 ? t.dashboard.topSourceLabel : t.dashboard.topSourcesLabel}: ${source} ×${count}`}
+                        </Tag>
+                      </Button>
+                    ))}
+                  </Space>
+                  <Typography.Text type="secondary">
+                    {`${t.dashboard.latestMessageLabel}: ${summarizeIssueMessage(incidentDigest.latestIncident.message, 120)}`}
+                  </Typography.Text>
                 </Space>
               ) : null}
               <List
@@ -1630,34 +1635,41 @@ const Dashboard: React.FC = () => {
           {logs.length ? (
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               {activityDigest ? (
-                <Space wrap>
-                  <Tag color="blue">{`${t.dashboard.activityEntriesLabel}: ${activityDigest.total}`}</Tag>
-                  <Tag color="gold">{`${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`}</Tag>
-                  <Tag color="orange">{`${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`}</Tag>
-                  <Button
-                    type="link"
-                    size="small"
-                    style={{ paddingInline: 0 }}
-                    onClick={handleOpenLatestActivity}
-                  >
-                    <Tag color={activityDigest.latestEntry.level === 'error' ? 'red' : activityDigest.latestEntry.level === 'warn' ? 'gold' : 'blue'}>
-                      {`${t.dashboard.latestActivityLabel}: ${formatTime(activityDigest.latestEntry.timestamp)}`}
-                    </Tag>
-                  </Button>
-                  {activityDigest.topRecentIssues.map((issue, index) => (
+                <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                  <Space wrap>
+                    <Tag color="blue">{`${t.dashboard.activityEntriesLabel}: ${activityDigest.total}`}</Tag>
+                    <Tag color="gold">{`${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`}</Tag>
+                    <Tag color="orange">{`${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`}</Tag>
                     <Button
-                      key={`${issue.entry.message}-${issue.count}`}
                       type="link"
                       size="small"
-                      title={issue.entry.message}
                       style={{ paddingInline: 0 }}
-                      onClick={() => handleOpenActivityIssue(issue.entry.message)}
+                      onClick={handleOpenLatestActivity}
                     >
-                      <Tag color={index === 0 ? 'magenta' : 'purple'}>
-                        {`${index === 0 ? t.dashboard.hottestIssueLabel : t.dashboard.topIssuesLabel}: ${summarizeIssueMessage(issue.entry.message)} ×${issue.count}`}
+                      <Tag color={activityDigest.latestEntry.level === 'error' ? 'red' : activityDigest.latestEntry.level === 'warn' ? 'gold' : 'blue'}>
+                        {`${t.dashboard.latestActivityLabel}: ${formatTime(activityDigest.latestEntry.timestamp)}`}
                       </Tag>
                     </Button>
-                  ))}
+                    {activityDigest.topRecentIssues.map((issue, index) => (
+                      <Button
+                        key={`${issue.entry.message}-${issue.count}`}
+                        type="link"
+                        size="small"
+                        title={issue.entry.message}
+                        style={{ paddingInline: 0 }}
+                        onClick={() => handleOpenActivityIssue(issue.entry.message)}
+                      >
+                        <Tag color={index === 0 ? 'magenta' : 'purple'}>
+                          {`${index === 0 ? t.dashboard.hottestIssueLabel : t.dashboard.topIssuesLabel}: ${summarizeIssueMessage(issue.entry.message)} ×${issue.count}`}
+                        </Tag>
+                      </Button>
+                    ))}
+                  </Space>
+                  {activityDigest.topRecentIssues[0] ? (
+                    <Typography.Text type="secondary">
+                      {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
+                    </Typography.Text>
+                  ) : null}
                 </Space>
               ) : null}
               <List
