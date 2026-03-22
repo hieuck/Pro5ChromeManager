@@ -379,11 +379,15 @@ const Dashboard: React.FC = () => {
     ).sort((a, b) => b[1] - a[1]);
 
     const topSource = topSources[0] ?? null;
+    const incidents15 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 15)).length;
+    const incidents60 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 60)).length;
 
     return {
       total: incidents.length,
       errors: incidents.filter((incident) => incident.level === 'error').length,
       warnings: incidents.filter((incident) => incident.level === 'warn').length,
+      incidents15,
+      incidents60,
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
@@ -691,6 +695,8 @@ const Dashboard: React.FC = () => {
     const summaryLines = [
       'Pro5 recent incident digest',
       `Total incidents: ${incidentDigest.total}`,
+      `Incidents (15m): ${incidentDigest.incidents15}`,
+      `Incidents (60m): ${incidentDigest.incidents60}`,
       `Errors: ${incidentDigest.errors}`,
       `Warnings: ${incidentDigest.warnings}`,
       `Error ratio: ${incidentDigest.errorRatio}%`,
@@ -1523,6 +1529,8 @@ const Dashboard: React.FC = () => {
                 <Space direction="vertical" size={6} style={{ width: '100%' }}>
                   <Space wrap>
                     <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
+                    <Tag color="gold">{`${t.dashboard.incidentIssues15Label}: ${incidentDigest.incidents15}`}</Tag>
+                    <Tag color="orange">{`${t.dashboard.incidentIssues60Label}: ${incidentDigest.incidents60}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`}</Tag>
                     <Tag color={incidentDigest.errorRatio >= 60 ? 'red' : incidentDigest.errorRatio >= 30 ? 'gold' : 'green'}>
