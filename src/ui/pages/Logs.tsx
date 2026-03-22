@@ -412,6 +412,24 @@ const Logs: React.FC = () => {
     void message.success(t.logs.focusVisibleIssueApplied);
   }, [latestVisibleIssue, t.logs.focusVisibleIssueApplied]);
 
+  const handleCopyVisibleIssue = useCallback(async () => {
+    if (!latestVisibleIssue) return;
+
+    const lines = [
+      `Level: ${latestVisibleIssue.level.toUpperCase()}`,
+      `Timestamp: ${latestVisibleIssue.timestamp ?? 'unknown'}`,
+      `Message: ${latestVisibleIssue.message}`,
+      `Raw: ${latestVisibleIssue.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.visibleIssueCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [latestVisibleIssue, t.logs.copyFailed, t.logs.visibleIssueCopied]);
+
   const handleFocusRepeatedRecentIssue = useCallback((messageText: string) => {
     if (!messageText) return;
 
@@ -626,9 +644,14 @@ const Logs: React.FC = () => {
             size="small"
             title={t.logs.visibleLatestIssue}
             extra={(
-              <Button type="link" onClick={handleFocusVisibleIssue}>
-                {t.logs.focusVisibleIssue}
-              </Button>
+              <Space size={4}>
+                <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleIssue(); }}>
+                  {t.logs.copyVisibleIssue}
+                </Button>
+                <Button type="link" onClick={handleFocusVisibleIssue}>
+                  {t.logs.focusVisibleIssue}
+                </Button>
+              </Space>
             )}
           >
             <Space direction="vertical" size={6} style={{ width: '100%' }}>

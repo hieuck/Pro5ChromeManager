@@ -232,6 +232,8 @@ const vi = {
     visibleBreakdown: 'Phân rã phần đang xem',
     visibleEntries: 'dòng đang hiển thị',
     visibleLatestIssue: 'Vấn đề mới nhất trong phần đang xem',
+    copyVisibleIssue: 'Sao chép vấn đề này',
+    visibleIssueCopied: 'Đã sao chép vấn đề trong phần đang xem',
     focusVisibleIssue: 'Tập trung vào vấn đề này',
     focusVisibleIssueApplied: 'Đã lọc theo vấn đề mới nhất trong phần đang xem',
     noMatch: 'Không có dòng nhật ký nào khớp bộ lọc hiện tại.',

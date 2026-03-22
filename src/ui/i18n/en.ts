@@ -234,6 +234,8 @@ const en: TranslationKeys = {
     visibleBreakdown: 'Visible breakdown',
     visibleEntries: 'visible entries',
     visibleLatestIssue: 'Latest issue in view',
+    copyVisibleIssue: 'Copy this issue',
+    visibleIssueCopied: 'Visible issue copied',
     focusVisibleIssue: 'Focus this issue',
     focusVisibleIssueApplied: 'Filtered by latest issue in view',
     noMatch: 'No log entries match this filter.',
