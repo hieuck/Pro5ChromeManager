@@ -485,6 +485,7 @@ const Logs: React.FC = () => {
       `Visible warnings: ${filteredCounts.warn}`,
       `Visible info: ${filteredCounts.info}`,
       `Visible heat: ${visibleTrendStatus.label}`,
+      `Level filter: ${filter}`,
       `Recent window only: ${recentWindowOnly ? 'yes' : 'no'}`,
       `Sort order: ${sortOrder}`,
       `Search: ${query.trim() || 'none'}`,
