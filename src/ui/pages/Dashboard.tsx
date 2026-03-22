@@ -482,6 +482,12 @@ const Dashboard: React.FC = () => {
     const latestEntry = logs
       .slice()
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    const activityActionHint =
+      logHeat.incidents15 >= 3 && hottestRecentIssue
+        ? t.dashboard.activityActionHottest
+        : logHeat.incidents60 >= 5
+          ? t.dashboard.activityActionRecent
+          : t.dashboard.activityActionLatest;
 
     return {
       total: logs.length,
@@ -494,6 +500,7 @@ const Dashboard: React.FC = () => {
       latestEntry,
       hottestRecentIssue,
       topRecentIssues,
+      activityActionHint,
     };
   }, [hottestRecentIssue, logHeat.incidents15, logHeat.incidents60, logs, topRecentIssues]);
 
@@ -1110,6 +1117,56 @@ const Dashboard: React.FC = () => {
 
     handleOpenLogEntry(activityDigest.latestEntry);
   }, [activityDigest, handleOpenLogEntry]);
+
+  const handleActivitySuggestedAction = useCallback(() => {
+    if (!activityDigest) {
+      return;
+    }
+
+    if (activityDigest.activityActionHint === t.dashboard.activityActionHottest && hottestRecentIssue) {
+      handleOpenHottestIssueLogs();
+      return;
+    }
+
+    if (activityDigest.activityActionHint === t.dashboard.activityActionRecent) {
+      handleOpenRecentLogs();
+      return;
+    }
+
+    handleOpenLatestActivity();
+  }, [
+    activityDigest,
+    handleOpenHottestIssueLogs,
+    handleOpenLatestActivity,
+    handleOpenRecentLogs,
+    hottestRecentIssue,
+    t.dashboard.activityActionHottest,
+    t.dashboard.activityActionRecent,
+  ]);
+
+  const activitySuggestedActionLabel = useMemo(() => {
+    if (!activityDigest) {
+      return t.dashboard.openLatestActivity;
+    }
+
+    if (activityDigest.activityActionHint === t.dashboard.activityActionHottest && hottestRecentIssue) {
+      return t.dashboard.openHottestIssue;
+    }
+
+    if (activityDigest.activityActionHint === t.dashboard.activityActionRecent) {
+      return t.dashboard.openRecentLogs;
+    }
+
+    return t.dashboard.openLatestActivity;
+  }, [
+    activityDigest,
+    hottestRecentIssue,
+    t.dashboard.activityActionHottest,
+    t.dashboard.activityActionRecent,
+    t.dashboard.openHottestIssue,
+    t.dashboard.openLatestActivity,
+    t.dashboard.openRecentLogs,
+  ]);
 
   const handleOpenActivityIssue = useCallback((messageText?: string | null) => {
     if (!messageText) {
@@ -1948,6 +2005,17 @@ const Dashboard: React.FC = () => {
                       {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
                     </Typography.Text>
                   ) : null}
+                  <Typography.Text type="secondary">
+                    {`${t.dashboard.activityActionHintLabel}: ${activityDigest.activityActionHint}`}
+                  </Typography.Text>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ paddingInline: 0, justifyContent: 'flex-start' }}
+                    onClick={handleActivitySuggestedAction}
+                  >
+                    {`${t.dashboard.activityActionButtonLabel}: ${activitySuggestedActionLabel}`}
+                  </Button>
                 </Space>
               ) : null}
               <List
