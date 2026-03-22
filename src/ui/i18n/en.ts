@@ -264,6 +264,7 @@ const en: TranslationKeys = {
     recentErrors: '{count} recent errors',
     recentWarnings: '{count} recent warnings',
     repeatedRecentIssueTitle: 'Most repeated recent issue',
+    topRepeatedRecentIssues: 'Top repeated recent issues',
     repeatedRecentIssueCount: 'seen {count} times',
     focusRepeatedRecentIssue: 'Filter repeated issue',
     focusRepeatedRecentIssueApplied: 'Filtered by repeated recent issue',

@@ -180,7 +180,7 @@ const Logs: React.FC = () => {
     [entries],
   );
 
-  const repeatedRecentIssue = useMemo(() => {
+  const repeatedRecentIssues = useMemo(() => {
     const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
 
     for (const entry of recentIssueEntries) {
@@ -199,8 +199,12 @@ const Logs: React.FC = () => {
     }
 
     return Array.from(countsByMessage.values())
-      .sort((left, right) => right.count - left.count)[0] ?? null;
+      .filter((entry) => entry.count > 1)
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 3);
   }, [recentIssueEntries]);
+
+  const repeatedRecentIssue = repeatedRecentIssues[0] ?? null;
 
   const handleCopyIssues = useCallback(async () => {
     try {
@@ -323,14 +327,14 @@ const Logs: React.FC = () => {
     void message.success(t.logs.focusLatestIssueApplied);
   }, [latestIssue, t.logs.focusLatestIssueApplied]);
 
-  const handleFocusRepeatedRecentIssue = useCallback(() => {
-    if (!repeatedRecentIssue) return;
+  const handleFocusRepeatedRecentIssue = useCallback((messageText: string) => {
+    if (!messageText) return;
 
     setFilter('issues');
     setRecentWindowOnly(true);
-    setQuery(repeatedRecentIssue.message);
+    setQuery(messageText);
     void message.success(t.logs.focusRepeatedRecentIssueApplied);
-  }, [repeatedRecentIssue, t.logs.focusRepeatedRecentIssueApplied]);
+  }, [t.logs.focusRepeatedRecentIssueApplied]);
 
   const activeFilterTags = useMemo(() => {
     const tags: Array<{ key: string; label: string; onClose: () => void }> = [];
@@ -495,18 +499,48 @@ const Logs: React.FC = () => {
           />
         ) : null}
 
-        {repeatedRecentIssue && repeatedRecentIssue.count > 1 ? (
+        {repeatedRecentIssue ? (
           <Alert
             type={repeatedRecentIssue.level === 'error' ? 'error' : 'warning'}
             showIcon
             message={t.logs.repeatedRecentIssueTitle}
             description={`${repeatedRecentIssue.message} · ${t.logs.repeatedRecentIssueCount.replace('{count}', String(repeatedRecentIssue.count))}`}
             action={(
-              <Button size="small" onClick={handleFocusRepeatedRecentIssue}>
+              <Button size="small" onClick={() => handleFocusRepeatedRecentIssue(repeatedRecentIssue.message)}>
                 {t.logs.focusRepeatedRecentIssue}
               </Button>
             )}
           />
+        ) : null}
+
+        {repeatedRecentIssues.length > 1 ? (
+          <Card title={t.logs.topRepeatedRecentIssues} size="small">
+            <List
+              size="small"
+              dataSource={repeatedRecentIssues}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <Button key={`focus-${item.message}`} type="link" onClick={() => handleFocusRepeatedRecentIssue(item.message)}>
+                      {t.logs.focusRepeatedRecentIssue}
+                    </Button>,
+                  ]}
+                >
+                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <Space wrap>
+                      <Tag color={item.level === 'error' ? 'red' : 'gold'}>
+                        {item.level.toUpperCase()}
+                      </Tag>
+                      <Typography.Text strong>{item.message}</Typography.Text>
+                    </Space>
+                    <Typography.Text type="secondary">
+                      {t.logs.repeatedRecentIssueCount.replace('{count}', String(item.count))}
+                    </Typography.Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </Card>
         ) : null}
 
         {latestIssue ? (

@@ -262,6 +262,7 @@ const vi = {
     recentErrors: '{count} lỗi gần đây',
     recentWarnings: '{count} cảnh báo gần đây',
     repeatedRecentIssueTitle: 'Vấn đề lặp lại nhiều nhất gần đây',
+    topRepeatedRecentIssues: 'Các vấn đề lặp lại gần đây',
     repeatedRecentIssueCount: 'xuất hiện {count} lần',
     focusRepeatedRecentIssue: 'Lọc vấn đề lặp lại',
     focusRepeatedRecentIssueApplied: 'Đã lọc theo vấn đề lặp lại gần đây',
