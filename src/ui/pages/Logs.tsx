@@ -138,6 +138,15 @@ const Logs: React.FC = () => {
     }
   }, [issueEntries, t.logs.copyFailed, t.logs.issuesCopied]);
 
+  const handleRunSelfTest = useCallback(async () => {
+    const res = await apiClient.post('/api/support/self-test');
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void message.success(t.logs.selfTestRan);
+  }, [t.logs.selfTestRan]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -146,6 +155,9 @@ const Logs: React.FC = () => {
             <Typography.Title level={3} style={{ margin: 0 }}>{t.logs.title}</Typography.Title>
             <Typography.Text type="secondary">{t.logs.subtitle}</Typography.Text>
             <Space wrap>
+              <Button onClick={() => navigate('/dashboard')}>
+                {t.logs.openDashboard}
+              </Button>
               <Select
                 value={filter}
                 style={{ minWidth: 180 }}
@@ -181,6 +193,9 @@ const Logs: React.FC = () => {
                 <Typography.Text type="secondary">{t.logs.autoRefresh}</Typography.Text>
                 <Switch checked={autoRefresh} onChange={setAutoRefresh} />
               </Space>
+              <Button onClick={() => { void handleRunSelfTest(); }}>
+                {t.logs.runSelfTest}
+              </Button>
             </Space>
             <Typography.Text type="secondary">
               {`${t.logs.showing}: ${filteredEntries.length}/${entries.length}`}
@@ -219,6 +234,9 @@ const Logs: React.FC = () => {
                 </Button>
                 <Button size="small" onClick={() => navigate('/settings')}>
                   {t.logs.openSettings}
+                </Button>
+                <Button size="small" onClick={() => { void handleRunSelfTest(); }}>
+                  {t.logs.runSelfTest}
                 </Button>
               </Space>
             )}
