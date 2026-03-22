@@ -511,6 +511,8 @@ const Dashboard: React.FC = () => {
     const activityActionHint =
       logHeat.incidents15 >= 3 && hottestRecentIssue
         ? t.dashboard.activityActionHottest
+        : topSourceShare >= 50 && topSource
+          ? t.dashboard.activityActionSource
         : logHeat.incidents60 >= 5
           ? t.dashboard.activityActionRecent
           : t.dashboard.activityActionLatest;
@@ -1286,6 +1288,11 @@ const Dashboard: React.FC = () => {
       return;
     }
 
+    if (activityDigest.activityActionHint === t.dashboard.activityActionSource && activityDigest.topSource) {
+      handleOpenActivitySource(activityDigest.topSource[0]);
+      return;
+    }
+
     if (activityDigest.activityActionHint === t.dashboard.activityActionRecent) {
       handleOpenRecentLogs();
       return;
@@ -1294,9 +1301,11 @@ const Dashboard: React.FC = () => {
     handleOpenLatestActivity();
   }, [
     activityDigest,
+    handleOpenActivitySource,
     handleOpenHottestIssueLogs,
     handleOpenLatestActivity,
     handleOpenRecentLogs,
+    t.dashboard.activityActionSource,
     hottestRecentIssue,
     t.dashboard.activityActionHottest,
     t.dashboard.activityActionRecent,
@@ -1311,6 +1320,10 @@ const Dashboard: React.FC = () => {
       return t.dashboard.openHottestIssue;
     }
 
+    if (activityDigest.activityActionHint === t.dashboard.activityActionSource && activityDigest.topSource) {
+      return t.dashboard.openTopActivitySource;
+    }
+
     if (activityDigest.activityActionHint === t.dashboard.activityActionRecent) {
       return t.dashboard.openRecentLogs;
     }
@@ -1319,10 +1332,12 @@ const Dashboard: React.FC = () => {
   }, [
     activityDigest,
     hottestRecentIssue,
+    t.dashboard.activityActionSource,
     t.dashboard.activityActionHottest,
     t.dashboard.activityActionRecent,
     t.dashboard.openHottestIssue,
     t.dashboard.openLatestActivity,
+    t.dashboard.openTopActivitySource,
     t.dashboard.openRecentLogs,
   ]);
 
