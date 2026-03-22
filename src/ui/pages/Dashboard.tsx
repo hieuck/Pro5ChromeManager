@@ -387,6 +387,7 @@ const Dashboard: React.FC = () => {
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
+      topSourceRatio: topSource ? Math.round((topSource[1] / incidents.length) * 100) : 0,
       topSources: topSources.slice(0, 3),
     };
   }, [incidents]);
@@ -693,6 +694,7 @@ const Dashboard: React.FC = () => {
       `Errors: ${incidentDigest.errors}`,
       `Warnings: ${incidentDigest.warnings}`,
       `Error ratio: ${incidentDigest.errorRatio}%`,
+      incidentDigest.topSource ? `Top source share: ${incidentDigest.topSource[0]} (${incidentDigest.topSourceRatio}%)` : null,
       `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
       `Latest source: ${incidentDigest.latestIncident.source}`,
       `Latest message: ${incidentDigest.latestIncident.message}`,
@@ -1526,6 +1528,11 @@ const Dashboard: React.FC = () => {
                     <Tag color={incidentDigest.errorRatio >= 60 ? 'red' : incidentDigest.errorRatio >= 30 ? 'gold' : 'green'}>
                       {`${t.dashboard.errorRatioLabel}: ${incidentDigest.errorRatio}%`}
                     </Tag>
+                    {incidentDigest.topSource ? (
+                      <Tag color={incidentDigest.topSourceRatio >= 60 ? 'volcano' : incidentDigest.topSourceRatio >= 35 ? 'gold' : 'geekblue'}>
+                        {`${t.dashboard.topSourceShareLabel}: ${incidentDigest.topSourceRatio}%`}
+                      </Tag>
+                    ) : null}
                     <Button
                       type="link"
                       size="small"

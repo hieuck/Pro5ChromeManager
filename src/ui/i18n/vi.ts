@@ -101,6 +101,7 @@ const vi = {
       incidentDigestUnavailable: 'Hiện chưa có incident gần đây để sao chép',
       errorCountLabel: 'Lỗi',
       errorRatioLabel: 'Tỷ lệ lỗi',
+      topSourceShareLabel: 'Tỷ trọng nguồn chính',
       warningCountLabel: 'Cảnh báo',
       infoCountLabel: 'Info',
       issueRatioLabel: 'Tỷ lệ issue',
