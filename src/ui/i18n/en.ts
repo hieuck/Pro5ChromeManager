@@ -111,6 +111,7 @@ const en: TranslationKeys = {
       incidentIssues15Label: 'Incidents 15m',
       incidentIssues60Label: 'Incidents 60m',
       topSourceShareLabel: 'Top source share',
+      topSourcesConcentrationLabel: 'Top 3 concentration',
       warningCountLabel: 'Warnings',
       infoCountLabel: 'Info',
       issueRatioLabel: 'Issue ratio',

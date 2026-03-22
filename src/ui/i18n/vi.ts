@@ -109,6 +109,7 @@ const vi = {
       incidentIssues15Label: 'Incident 15p',
       incidentIssues60Label: 'Incident 60p',
       topSourceShareLabel: 'Tỷ trọng nguồn chính',
+      topSourcesConcentrationLabel: 'Độ tập trung top 3',
       warningCountLabel: 'Cảnh báo',
       infoCountLabel: 'Info',
       issueRatioLabel: 'Tỷ lệ issue',

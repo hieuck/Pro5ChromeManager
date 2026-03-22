@@ -380,6 +380,10 @@ const Dashboard: React.FC = () => {
     ).sort((a, b) => b[1] - a[1]);
 
     const topSource = topSources[0] ?? null;
+    const topSourcesSlice = topSources.slice(0, 3);
+    const topSourcesConcentration = incidents.length
+      ? Math.round((topSourcesSlice.reduce((sum, [, count]) => sum + count, 0) / incidents.length) * 100)
+      : 0;
     const topSourceLatestIncident = topSource
       ? incidents
           .filter((incident) => incident.source === topSource[0])
@@ -414,7 +418,8 @@ const Dashboard: React.FC = () => {
       topSource,
       topSourceLatestIncident,
       topSourceRatio: topSource ? Math.round((topSource[1] / incidents.length) * 100) : 0,
-      topSources: topSources.slice(0, 3),
+      topSourcesConcentration,
+      topSources: topSourcesSlice,
     };
   }, [incidents, t.dashboard.logHeatCalm, t.dashboard.logHeatElevated, t.dashboard.logHeatHot]);
 
@@ -733,6 +738,7 @@ const Dashboard: React.FC = () => {
       `Warnings: ${incidentDigest.warnings}`,
       `Error ratio: ${incidentDigest.errorRatio}%`,
       incidentDigest.topSource ? `Top source share: ${incidentDigest.topSource[0]} (${incidentDigest.topSourceRatio}%)` : null,
+      `Top source concentration: ${incidentDigest.topSourcesConcentration}%`,
       incidentDigest.topSourceLatestIncident
         ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
         : null,
@@ -1622,6 +1628,9 @@ const Dashboard: React.FC = () => {
                         {`${t.dashboard.topSourceShareLabel}: ${incidentDigest.topSourceRatio}%`}
                       </Tag>
                     ) : null}
+                    <Tag color={incidentDigest.topSourcesConcentration >= 80 ? 'volcano' : incidentDigest.topSourcesConcentration >= 60 ? 'gold' : 'green'}>
+                      {`${t.dashboard.topSourcesConcentrationLabel}: ${incidentDigest.topSourcesConcentration}%`}
+                    </Tag>
                     <Button
                       type="link"
                       size="small"
