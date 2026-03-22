@@ -77,6 +77,7 @@ const Logs: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>('all');
   const [query, setQuery] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [recentWindowOnly, setRecentWindowOnly] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
 
   const loadLogs = useCallback(async () => {
@@ -112,10 +113,11 @@ const Logs: React.FC = () => {
     return entries.filter((entry) => {
       const levelMatches = filter === 'all'
         || (filter === 'issues' ? entry.level === 'warn' || entry.level === 'error' : entry.level === filter);
+      const windowMatches = !recentWindowOnly || isWithinLastMinutes(entry.timestamp, 60);
       const queryMatches = !normalizedQuery || entry.raw.toLowerCase().includes(normalizedQuery);
-      return levelMatches && queryMatches;
+      return levelMatches && windowMatches && queryMatches;
     });
-  }, [entries, filter, query]);
+  }, [entries, filter, query, recentWindowOnly]);
 
   const counts = useMemo(() => ({
     info: entries.filter((entry) => entry.level === 'info').length,
@@ -210,6 +212,7 @@ const Logs: React.FC = () => {
   const handleResetFilters = useCallback(() => {
     setFilter('all');
     setQuery('');
+    setRecentWindowOnly(false);
     void message.success(t.logs.filtersReset);
   }, [t.logs.filtersReset]);
 
@@ -301,6 +304,9 @@ const Logs: React.FC = () => {
               <Button onClick={() => setFilter('issues')}>
                 {t.logs.issuesOnly}
               </Button>
+              <Button type={recentWindowOnly ? 'primary' : 'default'} onClick={() => setRecentWindowOnly((value) => !value)}>
+                {t.logs.recentWindowOnly}
+              </Button>
               <Space size={6}>
                 <Typography.Text type="secondary">{t.logs.autoRefresh}</Typography.Text>
                 <Switch checked={autoRefresh} onChange={setAutoRefresh} />
@@ -313,7 +319,7 @@ const Logs: React.FC = () => {
               </Button>
             </Space>
             <Typography.Text type="secondary">
-              {`${t.logs.showing}: ${filteredEntries.length}/${entries.length}`}
+              {`${t.logs.showing}: ${filteredEntries.length}/${entries.length}${recentWindowOnly ? ` · ${t.logs.recentWindowOnlyActive}` : ''}`}
             </Typography.Text>
             <Typography.Text type="secondary">
               {`${t.logs.lastRefreshed}: ${formatTimestamp(lastRefreshedAt)}${autoRefresh ? ` · ${t.logs.autoRefreshOn}` : ''}`}
