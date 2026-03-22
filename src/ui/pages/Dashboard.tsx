@@ -177,6 +177,7 @@ const Dashboard: React.FC = () => {
   const [copyingLatestIncident, setCopyingLatestIncident] = useState(false);
   const [copyingTopIncidentSource, setCopyingTopIncidentSource] = useState(false);
   const [copyingLatestActivity, setCopyingLatestActivity] = useState(false);
+  const [copyingTopActivityIssues, setCopyingTopActivityIssues] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
@@ -825,6 +826,35 @@ const Dashboard: React.FC = () => {
     t.dashboard.latestActivityCopied,
     t.dashboard.latestActivityCopyFailed,
     t.dashboard.latestActivityUnavailable,
+  ]);
+
+  const handleCopyTopActivityIssues = useCallback(async () => {
+    if (!activityDigest?.topRecentIssues.length) {
+      void message.warning(t.dashboard.topActivityIssuesUnavailable);
+      return;
+    }
+
+    setCopyingTopActivityIssues(true);
+    const summaryLines = [
+      'Pro5 top dashboard activity issues',
+      `Log heat: ${logHeat.label}`,
+      ...activityDigest.topRecentIssues.map((issue, index) => `${index + 1}. ${issue.entry.message} (${issue.count})`),
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.topActivityIssuesCopied);
+    } catch {
+      void message.error(t.dashboard.topActivityIssuesCopyFailed);
+    } finally {
+      setCopyingTopActivityIssues(false);
+    }
+  }, [
+    activityDigest,
+    logHeat.label,
+    t.dashboard.topActivityIssuesCopied,
+    t.dashboard.topActivityIssuesCopyFailed,
+    t.dashboard.topActivityIssuesUnavailable,
   ]);
 
   const handleOpenLatestActivity = useCallback(() => {
@@ -1507,6 +1537,16 @@ const Dashboard: React.FC = () => {
                   onClick={() => { void handleCopyLatestActivity(); }}
                 >
                   {t.dashboard.copyLatestActivity}
+                </Button>
+              ) : null}
+              {activityDigest?.topRecentIssues.length ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingTopActivityIssues}
+                  onClick={() => { void handleCopyTopActivityIssues(); }}
+                >
+                  {t.dashboard.copyTopActivityIssues}
                 </Button>
               ) : null}
               {activityDigest ? (
