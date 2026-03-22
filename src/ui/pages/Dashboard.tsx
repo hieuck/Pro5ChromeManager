@@ -172,6 +172,7 @@ const Dashboard: React.FC = () => {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [copyingSummary, setCopyingSummary] = useState(false);
+  const [copyingIncidentDigest, setCopyingIncidentDigest] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
@@ -342,6 +343,31 @@ const Dashboard: React.FC = () => {
         return new Date(b.entry.timestamp).getTime() - new Date(a.entry.timestamp).getTime();
       })[0] ?? null;
   }, [logs]);
+
+  const incidentDigest = useMemo(() => {
+    if (!incidents.length) {
+      return null;
+    }
+
+    const latestIncident = incidents
+      .slice()
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+    const topSource = Array.from(
+      incidents.reduce((acc, incident) => {
+        acc.set(incident.source, (acc.get(incident.source) ?? 0) + 1);
+        return acc;
+      }, new Map<string, number>()),
+    ).sort((a, b) => b[1] - a[1])[0] ?? null;
+
+    return {
+      total: incidents.length,
+      errors: incidents.filter((incident) => incident.level === 'error').length,
+      warnings: incidents.filter((incident) => incident.level === 'warn').length,
+      latestIncident,
+      topSource,
+    };
+  }, [incidents]);
 
   const handleStartProfile = useCallback(async (profileId: string) => {
     setStartingProfileId(profileId);
@@ -580,6 +606,39 @@ const Dashboard: React.FC = () => {
     t.dashboard.hottestIssueCopied,
     t.dashboard.hottestIssueCopyFailed,
     t.dashboard.hottestIssueUnavailable,
+  ]);
+
+  const handleCopyIncidentDigest = useCallback(async () => {
+    if (!incidentDigest) {
+      void message.warning(t.dashboard.incidentDigestUnavailable);
+      return;
+    }
+
+    setCopyingIncidentDigest(true);
+    const summaryLines = [
+      'Pro5 recent incident digest',
+      `Total incidents: ${incidentDigest.total}`,
+      `Errors: ${incidentDigest.errors}`,
+      `Warnings: ${incidentDigest.warnings}`,
+      `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
+      `Latest source: ${incidentDigest.latestIncident.source}`,
+      `Latest message: ${incidentDigest.latestIncident.message}`,
+      incidentDigest.topSource ? `Top source: ${incidentDigest.topSource[0]} (${incidentDigest.topSource[1]})` : null,
+    ].filter(Boolean);
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.incidentDigestCopied);
+    } catch {
+      void message.error(t.dashboard.incidentDigestCopyFailed);
+    } finally {
+      setCopyingIncidentDigest(false);
+    }
+  }, [
+    incidentDigest,
+    t.dashboard.incidentDigestCopied,
+    t.dashboard.incidentDigestCopyFailed,
+    t.dashboard.incidentDigestUnavailable,
   ]);
 
   const handleCreateBackup = useCallback(async () => {
@@ -1124,7 +1183,21 @@ const Dashboard: React.FC = () => {
         <Card
           style={cardStyle}
           title={t.dashboard.incidentsTitle}
-          extra={<Button type="link" onClick={() => navigate('/settings')}>{t.dashboard.openSettings}</Button>}
+          extra={(
+            <Space size={8}>
+              {incidentDigest ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingIncidentDigest}
+                  onClick={() => { void handleCopyIncidentDigest(); }}
+                >
+                  {t.dashboard.copyIncidentDigest}
+                </Button>
+              ) : null}
+              <Button type="link" onClick={() => navigate('/settings')}>{t.dashboard.openSettings}</Button>
+            </Space>
+          )}
         >
           {incidents.length ? (
             <List
