@@ -1,0 +1,28 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+# Project-local Codex defaults for Pro5 Chrome Manager.
+# Keep this lean and focused on local product execution.
+
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+web_search = "live"
+
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.explorer]
+description = "Read-only codebase explorer for tracing execution paths before changes."
+config_file = "agents/explorer.toml"
+
+[agents.reviewer]
+description = "Read-only reviewer focused on correctness, regressions, and missing verification."
+config_file = "agents/reviewer.toml"
+
+[agents.docs_researcher]
+description = "Read-only documentation verifier for unstable or external APIs."
+config_file = "agents/docs-researcher.toml"
+
