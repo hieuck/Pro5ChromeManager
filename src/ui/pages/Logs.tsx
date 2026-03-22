@@ -4,15 +4,9 @@ import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
+import { parseStoredLogLine, type ParsedLogEntry } from '../utils/logParsing';
 
 const LOGS_VIEW_STORAGE_KEY = 'pro5.logs.view';
-
-interface ParsedLogEntry {
-  timestamp: string | null;
-  level: 'info' | 'warn' | 'error';
-  message: string;
-  raw: string;
-}
 
 interface StoredLogsViewState {
   filter: 'all' | 'issues' | 'info' | 'warn' | 'error';
@@ -26,28 +20,6 @@ interface LogsRouteState {
   presetFilter?: 'all' | 'issues' | 'info' | 'warn' | 'error';
   presetRecentWindowOnly?: boolean;
   presetSortOrder?: 'newest' | 'oldest';
-}
-
-function parseLogEntry(line: string): ParsedLogEntry {
-  const match = line.match(/^(\S+)\s+\[(\w+)\]\s+(.*)$/);
-  if (!match) {
-    return {
-      timestamp: null,
-      level: 'info',
-      message: line,
-      raw: line,
-    };
-  }
-
-  const [, timestamp, level, message] = match;
-  const normalizedLevel = level.toLowerCase();
-
-  return {
-    timestamp,
-    level: normalizedLevel === 'error' || normalizedLevel === 'warn' ? normalizedLevel : 'info',
-    message,
-    raw: line,
-  };
 }
 
 function formatTimestamp(value: string | null): string {
@@ -164,7 +136,7 @@ const Logs: React.FC = () => {
       return;
     }
 
-    setEntries(res.data.slice().reverse().map(parseLogEntry));
+    setEntries(res.data.slice().reverse().map(parseStoredLogLine));
     setLastRefreshedAt(new Date().toISOString());
   }, []);
 
@@ -444,7 +416,8 @@ const Logs: React.FC = () => {
       latestVisibleIssue
         ? `Latest visible issue: ${latestVisibleIssue.level.toUpperCase()} | ${latestVisibleIssue.timestamp ?? 'unknown'} | ${latestVisibleIssue.message}`
         : 'Latest visible issue: none',
-    ];
+      latestVisibleIssue?.source ? `Latest visible source: ${latestVisibleIssue.source}` : null,
+    ].filter(Boolean);
 
     try {
       await navigator.clipboard.writeText(digestLines.join('\n'));
@@ -523,7 +496,8 @@ const Logs: React.FC = () => {
       latestVisibleIssue
         ? `Latest visible issue: ${latestVisibleIssue.level.toUpperCase()} | ${latestVisibleIssue.timestamp ?? 'unknown'} | ${latestVisibleIssue.message}`
         : 'Latest visible issue: none',
-    ];
+      latestVisibleIssue?.source ? `Latest visible source: ${latestVisibleIssue.source}` : null,
+    ].filter(Boolean);
 
     try {
       await navigator.clipboard.writeText(lines.join('\n'));
@@ -997,10 +971,11 @@ const Logs: React.FC = () => {
                     <List.Item.Meta
                       title={(
                         <Space wrap>
-                          <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
-                            {entry.level.toUpperCase()}
-                          </Tag>
-                          <Typography.Text type="secondary">{formatTimestamp(entry.timestamp)}</Typography.Text>
+                        <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
+                          {entry.level.toUpperCase()}
+                        </Tag>
+                        {entry.source ? <Tag color="cyan">{entry.source}</Tag> : null}
+                        <Typography.Text type="secondary">{formatTimestamp(entry.timestamp)}</Typography.Text>
                           <Typography.Text type="secondary">
                             {formatRelativeTime(entry.timestamp, {
                               justNow: t.logs.justNow,

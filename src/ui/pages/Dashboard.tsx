@@ -6,6 +6,7 @@ import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import OnboardingWizard from '../components/OnboardingWizard';
+import { parseStoredLogLine } from '../utils/logParsing';
 
 interface DashboardProfile {
   id: string;
@@ -114,6 +115,7 @@ interface LogEntry {
   level: string;
   message: string;
   raw: string;
+  source: string | null;
 }
 
 interface SetupChecklistItem {
@@ -229,20 +231,10 @@ const Dashboard: React.FC = () => {
           .slice(-8)
           .reverse()
           .map((line) => {
-            const match = line.match(/^(\S+)\s+\[(\w+)\]\s+(.*)$/);
-            if (!match) {
-              return {
-                timestamp: '',
-                level: 'info',
-                message: line,
-                raw: line,
-              };
-            }
+            const parsed = parseStoredLogLine(line);
             return {
-              timestamp: match[1],
-              level: match[2].toLowerCase(),
-              message: match[3],
-              raw: line,
+              ...parsed,
+              timestamp: parsed.timestamp ?? '',
             };
           }),
       );
@@ -521,6 +513,16 @@ const Dashboard: React.FC = () => {
         : logHeat.incidents60 >= 5
           ? t.dashboard.activityActionRecent
           : t.dashboard.activityActionLatest;
+    const topSources = Array.from(
+      logs.reduce((acc, entry) => {
+        if (!entry.source) return acc;
+        acc.set(entry.source, (acc.get(entry.source) ?? 0) + 1);
+        return acc;
+      }, new Map<string, number>()),
+    )
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+    const topSource = topSources[0] ?? null;
 
     return {
       total: logs.length,
@@ -538,6 +540,8 @@ const Dashboard: React.FC = () => {
       activitySignalMode,
       hottestRecentIssue,
       topRecentIssues,
+      topSources,
+      topSource,
       activityActionHint,
     };
   }, [hottestRecentIssue, logHeat.incidents15, logHeat.incidents60, logs, topRecentIssues]);
@@ -712,6 +716,21 @@ const Dashboard: React.FC = () => {
         presetQuery: entry.message,
         presetFilter: entry.level === 'error' || entry.level === 'warn' ? 'issues' : 'all',
         presetRecentWindowOnly: entry.level === 'error' || entry.level === 'warn',
+      },
+    });
+  }, [navigate]);
+
+  const handleOpenActivitySource = useCallback((source?: string | null) => {
+    if (!source) {
+      return;
+    }
+
+    navigate('/logs', {
+      state: {
+        presetQuery: source,
+        presetFilter: 'all',
+        presetRecentWindowOnly: false,
+        presetSortOrder: 'newest',
       },
     });
   }, [navigate]);
@@ -1069,13 +1088,18 @@ const Dashboard: React.FC = () => {
       `Signal hint: ${activityDigest.activitySignalMode.hint}`,
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
       `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
+      activityDigest.topSource ? `Top activity source: ${activityDigest.topSource[0]} (${activityDigest.topSource[1]})` : null,
       activityDigest.hottestRecentIssue ? `Hottest issue repeats: ${activityDigest.hottestRecentIssue.count}` : null,
       activityDigest.hottestRecentIssue ? `Hottest issue freshness: ${activityDigest.hottestIssueFreshness.label}` : null,
       activityDigest.hottestRecentIssue ? `Hottest issue level: ${activityDigest.hottestIssueLevel.label}` : null,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
       `Latest message: ${activityDigest.latestEntry.message}`,
+      activityDigest.latestEntry.source ? `Latest source: ${activityDigest.latestEntry.source}` : null,
       activityDigest.topRecentIssues.length
         ? `Top issues: ${activityDigest.topRecentIssues.map((issue) => `${issue.entry.message} (${issue.count})`).join(', ')}`
+        : null,
+      activityDigest.topSources.length
+        ? `Top activity sources: ${activityDigest.topSources.map(([source, count]) => `${source} (${count})`).join(', ')}`
         : null,
     ].filter(Boolean);
 
@@ -2033,6 +2057,20 @@ const Dashboard: React.FC = () => {
                         {`${t.dashboard.latestActivityLabel}: ${formatTime(activityDigest.latestEntry.timestamp)}`}
                       </Tag>
                     </Button>
+                    {activityDigest.topSources.map(([source, count], index) => (
+                      <Button
+                        key={`${source}-${count}`}
+                        type="link"
+                        size="small"
+                        title={source}
+                        style={{ paddingInline: 0 }}
+                        onClick={() => handleOpenActivitySource(source)}
+                      >
+                        <Tag color={index === 0 ? 'cyan' : 'blue'}>
+                          {`${index === 0 ? t.dashboard.topActivitySourceLabel : t.dashboard.topActivitySourcesLabel}: ${summarizeIssueMessage(source)} ×${count}`}
+                        </Tag>
+                      </Button>
+                    ))}
                     {activityDigest.topRecentIssues.map((issue, index) => (
                       <Button
                         key={`${issue.entry.message}-${issue.count}`}
@@ -2069,6 +2107,11 @@ const Dashboard: React.FC = () => {
                   <Typography.Text type="secondary">
                     {`${t.dashboard.activitySignalHintLabel}: ${activityDigest.activitySignalMode.hint}`}
                   </Typography.Text>
+                  {activityDigest.latestEntry.source ? (
+                    <Typography.Text type="secondary">
+                      {`${t.dashboard.topActivitySourceLabel}: ${activityDigest.latestEntry.source}`}
+                    </Typography.Text>
+                  ) : null}
                   <Typography.Text type="secondary">
                     {`${t.dashboard.activityActionHintLabel}: ${activityDigest.activityActionHint}`}
                   </Typography.Text>
@@ -2095,12 +2138,13 @@ const Dashboard: React.FC = () => {
                     <List.Item.Meta
                       title={(
                         <Space wrap>
-                          <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
-                            {entry.level.toUpperCase()}
-                          </Tag>
-                          {entry.timestamp ? (
-                            <Typography.Text type="secondary">{formatTime(entry.timestamp)}</Typography.Text>
-                          ) : null}
+                        <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
+                          {entry.level.toUpperCase()}
+                        </Tag>
+                        {entry.source ? <Tag color="cyan">{entry.source}</Tag> : null}
+                        {entry.timestamp ? (
+                          <Typography.Text type="secondary">{formatTime(entry.timestamp)}</Typography.Text>
+                        ) : null}
                         </Space>
                       )}
                       description={entry.message}

@@ -159,6 +159,8 @@ const en: TranslationKeys = {
       activityEntriesLabel: 'Entries',
       activityIssues15Label: 'Issues 15m',
       activityIssues60Label: 'Issues 60m',
+      topActivitySourceLabel: 'Top activity source',
+      topActivitySourcesLabel: 'More sources',
       latestActivityLabel: 'Latest activity',
       hottestPatternLabel: 'Hottest pattern',
       topIssuesLabel: 'Also repeating',

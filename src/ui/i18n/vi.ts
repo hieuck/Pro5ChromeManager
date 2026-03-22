@@ -157,6 +157,8 @@ const vi = {
       activityEntriesLabel: 'Số entry',
       activityIssues15Label: 'Issue 15p',
       activityIssues60Label: 'Issue 60p',
+      topActivitySourceLabel: 'Nguồn hoạt động chính',
+      topActivitySourcesLabel: 'Nguồn hoạt động khác',
       latestActivityLabel: 'Hoạt động mới nhất',
       hottestPatternLabel: 'Cụm nóng nhất',
       topIssuesLabel: 'Issue lặp khác',
