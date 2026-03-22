@@ -198,6 +198,7 @@ const Dashboard: React.FC = () => {
   const [copyingTopSourceLatestIncident, setCopyingTopSourceLatestIncident] = useState(false);
   const [copyingLatestActivity, setCopyingLatestActivity] = useState(false);
   const [copyingTopActivityIssues, setCopyingTopActivityIssues] = useState(false);
+  const [copyingTopActivitySourceLatest, setCopyingTopActivitySourceLatest] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
@@ -523,6 +524,12 @@ const Dashboard: React.FC = () => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3);
     const topSource = topSources[0] ?? null;
+    const topSourceLatestEntry = topSource
+      ? logs
+          .filter((entry) => entry.source === topSource[0])
+          .slice()
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null
+      : null;
     const topSourceShare = topSource ? Math.round((topSource[1] / logs.length) * 100) : 0;
     const topSourcesConcentration = logs.length
       ? Math.round((topSources.reduce((sum, [, count]) => sum + count, 0) / logs.length) * 100)
@@ -552,6 +559,7 @@ const Dashboard: React.FC = () => {
       topRecentIssues,
       topSources,
       topSource,
+      topSourceLatestEntry,
       topSourceShare,
       topSourcesConcentration,
       activitySourceMode,
@@ -747,6 +755,14 @@ const Dashboard: React.FC = () => {
       },
     });
   }, [navigate]);
+
+  const handleOpenTopActivitySourceLatest = useCallback(() => {
+    if (!activityDigest?.topSourceLatestEntry) {
+      return;
+    }
+
+    handleOpenLogEntry(activityDigest.topSourceLatestEntry);
+  }, [activityDigest, handleOpenLogEntry]);
 
   const handleOpenIncidentInLogs = useCallback((incident: IncidentEntry) => {
     navigate('/logs', {
@@ -1102,6 +1118,10 @@ const Dashboard: React.FC = () => {
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
       `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
       activityDigest.topSource ? `Top activity source: ${activityDigest.topSource[0]} (${activityDigest.topSource[1]})` : null,
+      activityDigest.topSourceLatestEntry
+        ? `Top source latest: ${activityDigest.topSourceLatestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.topSourceLatestEntry.timestamp)}`
+        : null,
+      activityDigest.topSourceLatestEntry ? `Top source latest message: ${activityDigest.topSourceLatestEntry.message}` : null,
       `Top activity source share: ${activityDigest.topSourceShare}%`,
       `Top activity concentration: ${activityDigest.topSourcesConcentration}%`,
       `Activity source mode: ${activityDigest.activitySourceMode.label}`,
@@ -1194,6 +1214,39 @@ const Dashboard: React.FC = () => {
     t.dashboard.topActivityIssuesCopied,
     t.dashboard.topActivityIssuesCopyFailed,
     t.dashboard.topActivityIssuesUnavailable,
+  ]);
+
+  const handleCopyTopActivitySourceLatest = useCallback(async () => {
+    if (!activityDigest?.topSourceLatestEntry || !activityDigest.topSource) {
+      void message.warning(t.dashboard.topActivitySourceLatestUnavailable);
+      return;
+    }
+
+    setCopyingTopActivitySourceLatest(true);
+    const entry = activityDigest.topSourceLatestEntry;
+    const summaryLines = [
+      'Pro5 top activity source latest',
+      `Source: ${activityDigest.topSource[0]}`,
+      `Count: ${activityDigest.topSource[1]}`,
+      `Level: ${entry.level.toUpperCase()}`,
+      `Timestamp: ${formatTime(entry.timestamp)}`,
+      `Message: ${entry.message}`,
+      `Raw: ${entry.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.topActivitySourceLatestCopied);
+    } catch {
+      void message.error(t.dashboard.topActivitySourceLatestCopyFailed);
+    } finally {
+      setCopyingTopActivitySourceLatest(false);
+    }
+  }, [
+    activityDigest,
+    t.dashboard.topActivitySourceLatestCopied,
+    t.dashboard.topActivitySourceLatestCopyFailed,
+    t.dashboard.topActivitySourceLatestUnavailable,
   ]);
 
   const handleOpenLatestActivity = useCallback(() => {
@@ -2137,6 +2190,27 @@ const Dashboard: React.FC = () => {
                     <Typography.Text type="secondary">
                       {`${t.dashboard.topActivitySourceLabel}: ${activityDigest.latestEntry.source}`}
                     </Typography.Text>
+                  ) : null}
+                  {activityDigest.topSourceLatestEntry ? (
+                    <Space wrap>
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ paddingInline: 0 }}
+                        onClick={handleOpenTopActivitySourceLatest}
+                      >
+                        {`${t.dashboard.topActivitySourceLatestLabel}: ${summarizeIssueMessage(activityDigest.topSourceLatestEntry.message, 120)}`}
+                      </Button>
+                      <Button
+                        type="link"
+                        icon={<CopyOutlined />}
+                        size="small"
+                        loading={copyingTopActivitySourceLatest}
+                        onClick={() => { void handleCopyTopActivitySourceLatest(); }}
+                      >
+                        {t.dashboard.copyTopActivitySourceLatest}
+                      </Button>
+                    </Space>
                   ) : null}
                   <Typography.Text type="secondary">
                     {`${t.dashboard.activitySourceModeHintLabel}: ${activityDigest.activitySourceMode.hint}`}
