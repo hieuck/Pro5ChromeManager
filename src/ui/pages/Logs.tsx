@@ -301,6 +301,38 @@ const Logs: React.FC = () => {
     };
   }, [t.logs.visibleTrendCalm, t.logs.visibleTrendElevated, t.logs.visibleTrendHot, visibleIssueTrend.last15m, visibleIssueTrend.last60m]);
 
+  const visibleSources = useMemo(() => {
+    const countsBySource = new Map<string, {
+      count: number;
+      source: string;
+      latestEntry: ParsedLogEntry;
+    }>();
+
+    for (const entry of matchedEntries) {
+      const sourceKey = entry.source ?? 'unknown';
+      const current = countsBySource.get(sourceKey);
+      if (current) {
+        current.count += 1;
+        if ((entry.timestamp ?? '') > (current.latestEntry.timestamp ?? '')) {
+          current.latestEntry = entry;
+        }
+        continue;
+      }
+
+      countsBySource.set(sourceKey, {
+        count: 1,
+        source: sourceKey,
+        latestEntry: entry,
+      });
+    }
+
+    return Array.from(countsBySource.values())
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 3);
+  }, [matchedEntries]);
+
+  const visibleTopSource = visibleSources[0] ?? null;
+
   const repeatedRecentIssues = useMemo(() => {
     const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
 
@@ -633,6 +665,67 @@ const Logs: React.FC = () => {
     }
   }, [repeatedRecentSources, t.logs.copyFailed, t.logs.recentIssueSourcesCopied]);
 
+  const handleFocusVisibleSource = useCallback((sourceText: string) => {
+    if (!sourceText) return;
+    setQuery(sourceText === 'unknown' ? '' : sourceText);
+    void message.success(t.logs.focusVisibleSourceApplied);
+  }, [t.logs.focusVisibleSourceApplied]);
+
+  const handleOpenVisibleSourceLatest = useCallback((entry: ParsedLogEntry | null | undefined) => {
+    if (!entry) return;
+    setQuery(entry.message);
+    void message.success(t.logs.openVisibleSourceLatestApplied);
+  }, [t.logs.openVisibleSourceLatestApplied]);
+
+  const handleCopyVisibleSourceDigest = useCallback(async (
+    source: {
+      count: number;
+      source: string;
+      latestEntry: ParsedLogEntry;
+    } | null | undefined,
+  ) => {
+    if (!source) {
+      void message.error(t.logs.visibleSourceDigestUnavailable);
+      return;
+    }
+
+    const lines = [
+      'Pro5 visible source digest',
+      `Source: ${source.source}`,
+      `Visible lines: ${source.count}`,
+      `Latest level: ${source.latestEntry.level.toUpperCase()}`,
+      `Latest timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
+      `Latest message: ${source.latestEntry.message}`,
+      `Latest raw: ${source.latestEntry.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.visibleSourceDigestCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [t.logs.copyFailed, t.logs.visibleSourceDigestCopied, t.logs.visibleSourceDigestUnavailable]);
+
+  const handleCopyVisibleSources = useCallback(async () => {
+    if (!visibleSources.length) {
+      void message.error(t.logs.visibleSourcesUnavailable);
+      return;
+    }
+
+    const lines = [
+      'Pro5 visible sources',
+      ...visibleSources.map((source) => `${source.count}x | ${source.source} | ${source.latestEntry.level.toUpperCase()} | ${source.latestEntry.message}`),
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.visibleSourcesCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [t.logs.copyFailed, t.logs.visibleSourcesCopied, t.logs.visibleSourcesUnavailable, visibleSources]);
+
   const handleCopyRecentIssueSourceDigest = useCallback(async (
     source: {
       count: number;
@@ -922,6 +1015,56 @@ const Logs: React.FC = () => {
                 message={latestVisibleIssue.message}
               />
             </Space>
+          </Card>
+        ) : null}
+
+        {(query.trim() || filter !== 'all' || recentWindowOnly) && visibleTopSource ? (
+          <Card
+            size="small"
+            title={t.logs.visibleSourcesTitle}
+            extra={(
+              <Space size={4}>
+                <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSources(); }}>
+                  {t.logs.copyVisibleSources}
+                </Button>
+                <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceDigest(visibleTopSource); }}>
+                  {t.logs.copyVisibleSourceDigest}
+                </Button>
+              </Space>
+            )}
+          >
+            <List
+              size="small"
+              dataSource={visibleSources}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <Button key={`focus-visible-source-${item.source}`} type="link" onClick={() => handleFocusVisibleSource(item.source)}>
+                      {t.logs.focusVisibleSource}
+                    </Button>,
+                    <Button key={`open-visible-source-${item.source}`} type="link" onClick={() => handleOpenVisibleSourceLatest(item.latestEntry)}>
+                      {t.logs.openVisibleSourceLatest}
+                    </Button>,
+                    <Button key={`copy-visible-source-${item.source}`} type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceDigest(item); }}>
+                      {t.logs.copyVisibleSourceDigest}
+                    </Button>,
+                  ]}
+                >
+                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <Space wrap>
+                      <Typography.Text strong>{item.source}</Typography.Text>
+                      <Tag>{t.logs.visibleSourceCount.replace('{count}', String(item.count))}</Tag>
+                      <Tag color={item.latestEntry.level === 'error' ? 'red' : item.latestEntry.level === 'warn' ? 'gold' : 'blue'}>
+                        {item.latestEntry.level.toUpperCase()}
+                      </Tag>
+                    </Space>
+                    <Typography.Text type="secondary">
+                      {item.latestEntry.message}
+                    </Typography.Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
           </Card>
         ) : null}
 
