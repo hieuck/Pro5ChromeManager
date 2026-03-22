@@ -637,4 +637,59 @@ describe('Operations endpoints', () => {
       proxyManager.detectTimezoneFromProxy = originalDetectTimezone;
     }
   });
+
+  it('restarts profiles through the restart endpoint', async () => {
+    const { instanceManager } = await import('../managers/InstanceManager');
+    const originalGetStatus = instanceManager.getStatus.bind(instanceManager);
+    const originalStopInstance = instanceManager.stopInstance.bind(instanceManager);
+    const originalLaunchInstance = instanceManager.launchInstance.bind(instanceManager);
+
+    const calls: string[] = [];
+
+    instanceManager.getStatus = ((profileId: string) => (
+      profileId === 'running-profile' ? 'running' : 'not_running'
+    )) as typeof instanceManager.getStatus;
+
+    instanceManager.stopInstance = (async (profileId: string) => {
+      calls.push(`stop:${profileId}`);
+    }) as typeof instanceManager.stopInstance;
+
+    instanceManager.launchInstance = (async (profileId: string) => {
+      calls.push(`launch:${profileId}`);
+      return {
+        profileId,
+        profileName: `Profile ${profileId}`,
+        runtime: 'test-runtime',
+        pid: 1234,
+        remoteDebuggingPort: 9222,
+        userDataDir: '/tmp/profile',
+        launchMode: 'native',
+        status: 'running',
+        startedAt: new Date().toISOString(),
+        lastHealthCheckAt: null,
+      };
+    }) as typeof instanceManager.launchInstance;
+
+    try {
+      const runningRes = await fetch(`${baseUrl}/api/profiles/running-profile/restart`, {
+        method: 'POST',
+      });
+      expect(runningRes.status).toBe(201);
+
+      const stoppedRes = await fetch(`${baseUrl}/api/profiles/stopped-profile/restart`, {
+        method: 'POST',
+      });
+      expect(stoppedRes.status).toBe(201);
+
+      expect(calls).toEqual([
+        'stop:running-profile',
+        'launch:running-profile',
+        'launch:stopped-profile',
+      ]);
+    } finally {
+      instanceManager.getStatus = originalGetStatus;
+      instanceManager.stopInstance = originalStopInstance;
+      instanceManager.launchInstance = originalLaunchInstance;
+    }
+  });
 });

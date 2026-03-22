@@ -32,6 +32,23 @@ router.post('/profiles/:id/stop', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/profiles/:id/restart
+router.post('/profiles/:id/restart', async (req: Request, res: Response) => {
+  try {
+    const profileId = req.params['id'] as string;
+    const status = instanceManager.getStatus(profileId);
+    if (status !== 'not_running') {
+      await instanceManager.stopInstance(profileId);
+    }
+    const instance = await instanceManager.launchInstance(profileId);
+    res.status(201).json({ success: true, data: instance });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const status = msg.includes('not found') ? 404 : 500;
+    res.status(status).json({ success: false, error: msg });
+  }
+});
+
 // GET /api/instances
 router.get('/instances', (_req: Request, res: Response) => {
   res.json({ success: true, data: instanceManager.listInstances() });

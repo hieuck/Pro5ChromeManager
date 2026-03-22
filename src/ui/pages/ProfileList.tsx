@@ -27,6 +27,7 @@ import {
   PlusOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
+  RedoOutlined,
   SearchOutlined,
   StopOutlined,
   TagsOutlined,
@@ -261,6 +262,16 @@ const ProfileList: React.FC = () => {
     void fetchInstances();
   }
 
+  async function handleRestart(profileId: string): Promise<void> {
+    const res = await apiClient.post(`/api/profiles/${profileId}/restart`);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void fetchInstances();
+    void fetchProfiles();
+  }
+
   async function handleDelete(profileId: string): Promise<void> {
     const res = await apiClient.delete(`/api/profiles/${profileId}`);
     if (!res.success) {
@@ -301,6 +312,19 @@ const ProfileList: React.FC = () => {
   async function handleBulkDelete(): Promise<void> {
     await Promise.all(selectedIds.map(async (id) => handleDelete(id)));
     setSelectedIds([]);
+  }
+
+  async function handleBulkRestart(): Promise<void> {
+    const results = await Promise.all(selectedIds.map(async (id) => apiClient.post(`/api/profiles/${id}/restart`)));
+    const failed = results.find((result) => !result.success);
+    if (failed) {
+      void message.error(failed.error);
+      return;
+    }
+    void message.success(`Đã restart ${selectedIds.length} hồ sơ`);
+    setSelectedIds([]);
+    void fetchInstances();
+    void fetchProfiles();
   }
 
   async function handleBulkAssignProxy(): Promise<void> {
@@ -621,6 +645,9 @@ const ProfileList: React.FC = () => {
                 <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void confirmAndStartProfiles([record.id])} />
               </Tooltip>
             )}
+            <Tooltip title="Khởi động lại">
+              <Button size="small" icon={<RedoOutlined />} onClick={() => void handleRestart(record.id)} />
+            </Tooltip>
             <Tooltip title={t.profile.duplicateProfile}>
               <Button size="small" icon={<CopyOutlined />} onClick={() => void handleClone(record)} />
             </Tooltip>
@@ -797,6 +824,9 @@ const ProfileList: React.FC = () => {
                   disabled={bulkProxySelection === undefined}
                 >
                   Áp dụng proxy
+                </Button>
+                <Button size="small" icon={<RedoOutlined />} onClick={() => void handleBulkRestart()}>
+                  Restart đã chọn
                 </Button>
                 <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleBulkStart()}>
                   {t.profile.bulkStart}
