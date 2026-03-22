@@ -252,71 +252,6 @@ const Dashboard: React.FC = () => {
     [profiles],
   );
 
-  const setupChecklist = useMemo<SetupChecklistItem[]>(() => [
-    {
-      key: 'runtime',
-      label: t.dashboard.checkRuntime,
-      done: availableRuntimes.length > 0,
-      detail: availableRuntimes.length
-        ? `${t.dashboard.runtimeReadyCount}: ${availableRuntimes.length}/${runtimes.length}`
-        : t.dashboard.runtimeActionHint,
-      actionLabel: availableRuntimes.length ? t.dashboard.reviewOnboarding : t.dashboard.fixRuntimeSetup,
-      onAction: () => { void handleOpenOnboarding(); },
-    },
-    {
-      key: 'profile',
-      label: t.dashboard.checkProfile,
-      done: profiles.length > 0,
-      detail: profiles.length
-        ? `${t.dashboard.totalProfiles}: ${profiles.length}`
-        : t.dashboard.checkProfileHint,
-      actionLabel: profiles.length ? t.dashboard.openProfiles : t.dashboard.createFirstProfile,
-      onAction: () => { profiles.length ? navigate('/profiles') : handleOpenCreateProfile(); },
-    },
-    {
-      key: 'proxy',
-      label: t.dashboard.checkProxy,
-      done: healthyProxies > 0,
-      detail: healthyProxies
-        ? `${t.dashboard.healthyProxies}: ${healthyProxies}/${proxies.length}`
-        : t.dashboard.checkProxyHint,
-      actionLabel: failingProxyIds.length ? t.dashboard.retestAllFailing : t.dashboard.openProxies,
-      onAction: () => {
-        if (failingProxyIds.length) {
-          void handleRetestAllFailingProxies();
-          return;
-        }
-        navigate('/proxies');
-      },
-    },
-  ], [
-    availableRuntimes.length,
-    failingProxyIds.length,
-    handleOpenCreateProfile,
-    handleOpenOnboarding,
-    handleRetestAllFailingProxies,
-    healthyProxies,
-    navigate,
-    profiles.length,
-    proxies.length,
-    runtimes.length,
-    t.dashboard.checkProfile,
-    t.dashboard.checkProfileHint,
-    t.dashboard.checkProxy,
-    t.dashboard.checkProxyHint,
-    t.dashboard.checkRuntime,
-    t.dashboard.createFirstProfile,
-    t.dashboard.fixRuntimeSetup,
-    t.dashboard.healthyProxies,
-    t.dashboard.openProfiles,
-    t.dashboard.openProxies,
-    t.dashboard.reviewOnboarding,
-    t.dashboard.retestAllFailing,
-    t.dashboard.runtimeActionHint,
-    t.dashboard.runtimeReadyCount,
-    t.dashboard.totalProfiles,
-  ]);
-
   const handleStartProfile = useCallback(async (profileId: string) => {
     setStartingProfileId(profileId);
     const res = await apiClient.post(`/api/profiles/${profileId}/start`);
@@ -522,6 +457,71 @@ const Dashboard: React.FC = () => {
     void message.success(t.dashboard.feedbackSaved);
     await loadDashboard();
   }, [feedbackForm, loadDashboard, t.dashboard.feedbackSaved]);
+
+  const setupChecklist = useMemo<SetupChecklistItem[]>(() => [
+    {
+      key: 'runtime',
+      label: t.dashboard.checkRuntime,
+      done: availableRuntimes.length > 0,
+      detail: availableRuntimes.length
+        ? `${t.dashboard.runtimeReadyCount}: ${availableRuntimes.length}/${runtimes.length}`
+        : t.dashboard.runtimeActionHint,
+      actionLabel: availableRuntimes.length ? t.dashboard.reviewOnboarding : t.dashboard.fixRuntimeSetup,
+      onAction: () => { void handleOpenOnboarding(); },
+    },
+    {
+      key: 'profile',
+      label: t.dashboard.checkProfile,
+      done: profiles.length > 0,
+      detail: profiles.length
+        ? `${t.dashboard.totalProfiles}: ${profiles.length}`
+        : t.dashboard.checkProfileHint,
+      actionLabel: profiles.length ? t.dashboard.openProfiles : t.dashboard.createFirstProfile,
+      onAction: () => { profiles.length ? navigate('/profiles') : handleOpenCreateProfile(); },
+    },
+    {
+      key: 'proxy',
+      label: t.dashboard.checkProxy,
+      done: healthyProxies > 0,
+      detail: healthyProxies
+        ? `${t.dashboard.healthyProxies}: ${healthyProxies}/${proxies.length}`
+        : t.dashboard.checkProxyHint,
+      actionLabel: failingProxyIds.length ? t.dashboard.retestAllFailing : t.dashboard.openProxies,
+      onAction: () => {
+        if (failingProxyIds.length) {
+          void handleRetestAllFailingProxies();
+          return;
+        }
+        navigate('/proxies');
+      },
+    },
+  ], [
+    availableRuntimes.length,
+    failingProxyIds.length,
+    handleOpenCreateProfile,
+    handleOpenOnboarding,
+    handleRetestAllFailingProxies,
+    healthyProxies,
+    navigate,
+    profiles.length,
+    proxies.length,
+    runtimes.length,
+    t.dashboard.checkProfile,
+    t.dashboard.checkProfileHint,
+    t.dashboard.checkProxy,
+    t.dashboard.checkProxyHint,
+    t.dashboard.checkRuntime,
+    t.dashboard.createFirstProfile,
+    t.dashboard.fixRuntimeSetup,
+    t.dashboard.healthyProxies,
+    t.dashboard.openProfiles,
+    t.dashboard.openProxies,
+    t.dashboard.reviewOnboarding,
+    t.dashboard.retestAllFailing,
+    t.dashboard.runtimeActionHint,
+    t.dashboard.runtimeReadyCount,
+    t.dashboard.totalProfiles,
+  ]);
 
   return (
     <div style={{ padding: 24 }}>
