@@ -404,6 +404,12 @@ const Dashboard: React.FC = () => {
         : incidents15 > 0
           ? { color: 'gold', label: t.dashboard.incidentTrendActive }
           : { color: 'blue', label: t.dashboard.incidentTrendCooling };
+    const sourceMode =
+      topSourcesConcentration >= 80
+        ? { color: 'volcano', label: t.dashboard.incidentSourceModeFocused }
+        : topSourcesConcentration >= 50
+          ? { color: 'gold', label: t.dashboard.incidentSourceModeMixed }
+          : { color: 'green', label: t.dashboard.incidentSourceModeDistributed };
 
     return {
       total: incidents.length,
@@ -413,6 +419,7 @@ const Dashboard: React.FC = () => {
       incidents60,
       heat,
       trend,
+      sourceMode,
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
@@ -739,6 +746,7 @@ const Dashboard: React.FC = () => {
       `Error ratio: ${incidentDigest.errorRatio}%`,
       incidentDigest.topSource ? `Top source share: ${incidentDigest.topSource[0]} (${incidentDigest.topSourceRatio}%)` : null,
       `Top source concentration: ${incidentDigest.topSourcesConcentration}%`,
+      `Source mode: ${incidentDigest.sourceMode.label}`,
       incidentDigest.topSourceLatestIncident
         ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
         : null,
@@ -1630,6 +1638,9 @@ const Dashboard: React.FC = () => {
                     ) : null}
                     <Tag color={incidentDigest.topSourcesConcentration >= 80 ? 'volcano' : incidentDigest.topSourcesConcentration >= 60 ? 'gold' : 'green'}>
                       {`${t.dashboard.topSourcesConcentrationLabel}: ${incidentDigest.topSourcesConcentration}%`}
+                    </Tag>
+                    <Tag color={incidentDigest.sourceMode.color}>
+                      {`${t.dashboard.incidentSourceModeLabel}: ${incidentDigest.sourceMode.label}`}
                     </Tag>
                     <Button
                       type="link"
