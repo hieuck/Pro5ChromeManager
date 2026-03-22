@@ -847,6 +847,47 @@ const Logs: React.FC = () => {
     }
   }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable, visibleSourceActionHint, visibleTopSourceTimestamp, visibleTopSourceTrend.label, visibleTopSourceTrend.last15m, visibleTopSourceTrend.last60m]);
 
+  const handleCopyVisibleTopSourceSummary = useCallback(async () => {
+    if (!visibleTopSource?.latestEntry) {
+      void message.error(t.logs.visibleTopSourceSummaryUnavailable);
+      return;
+    }
+
+    const lines = [
+      'Pro5 visible top source summary',
+      `Source: ${visibleTopSource.source}`,
+      `Visible lines: ${visibleTopSource.count}`,
+      `Top source share: ${visibleTopSourceShare}%`,
+      `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
+      `Source mode: ${visibleSourceMode.label}`,
+      `Suggested action: ${visibleSourceActionHint}`,
+      `Top source timestamp: ${visibleTopSourceTimestamp}`,
+      `Top source trend: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
+      `Latest level: ${visibleTopSource.latestEntry.level.toUpperCase()}`,
+      `Latest message: ${visibleTopSource.latestEntry.message}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.visibleTopSourceSummaryCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [
+    t.logs.copyFailed,
+    t.logs.visibleTopSourceSummaryCopied,
+    t.logs.visibleTopSourceSummaryUnavailable,
+    visibleSourceActionHint,
+    visibleSourceMode.label,
+    visibleTopSource,
+    visibleTopSourceShare,
+    visibleTopSourceTimestamp,
+    visibleTopSourceTrend.label,
+    visibleTopSourceTrend.last15m,
+    visibleTopSourceTrend.last60m,
+    visibleTopSourcesConcentration,
+  ]);
+
   const handleCopyVisibleSourceDigest = useCallback(async (
     source: {
       count: number;
@@ -1293,6 +1334,9 @@ const Logs: React.FC = () => {
                   </Button>
                   <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceLatest(visibleTopSource); }}>
                     {t.logs.copyVisibleSourceLatest}
+                  </Button>
+                  <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleTopSourceSummary(); }}>
+                    {t.logs.copyVisibleTopSourceSummary}
                   </Button>
                   <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceDigest(visibleTopSource); }}>
                     {t.logs.copyVisibleSourceDigest}
