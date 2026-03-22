@@ -226,6 +226,8 @@ const vi = {
     filterError: 'Lỗi',
     searchPlaceholder: 'Tìm trong nhật ký',
       showing: 'Đang hiển thị',
+      visibleBreakdown: 'Phân rã phần đang xem',
+      visibleEntries: 'dòng đang hiển thị',
       noMatch: 'Không có dòng nhật ký nào khớp bộ lọc hiện tại.',
       copyVisible: 'Sao chép log đang thấy',
       exportVisible: 'Xuất log đang thấy',

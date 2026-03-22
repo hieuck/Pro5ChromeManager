@@ -228,6 +228,8 @@ const en: TranslationKeys = {
     filterError: 'Errors',
     searchPlaceholder: 'Search logs',
       showing: 'Showing',
+      visibleBreakdown: 'Visible breakdown',
+      visibleEntries: 'visible entries',
       noMatch: 'No log entries match this filter.',
       copyVisible: 'Copy visible logs',
       exportVisible: 'Export visible logs',

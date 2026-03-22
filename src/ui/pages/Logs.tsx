@@ -125,6 +125,12 @@ const Logs: React.FC = () => {
     error: entries.filter((entry) => entry.level === 'error').length,
   }), [entries]);
 
+  const filteredCounts = useMemo(() => ({
+    info: filteredEntries.filter((entry) => entry.level === 'info').length,
+    warn: filteredEntries.filter((entry) => entry.level === 'warn').length,
+    error: filteredEntries.filter((entry) => entry.level === 'error').length,
+  }), [filteredEntries]);
+
   const latestIssue = useMemo(
     () => entries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
     [entries],
@@ -389,6 +395,15 @@ const Logs: React.FC = () => {
             </Card>
           </Col>
         </Row>
+
+        {(query.trim() || filter !== 'all' || recentWindowOnly) ? (
+          <Alert
+            type={(filteredCounts.error || filteredCounts.warn) ? 'warning' : 'info'}
+            showIcon
+            message={t.logs.visibleBreakdown}
+            description={`${filteredEntries.length} ${t.logs.visibleEntries} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
+          />
+        ) : null}
 
         {latestIssue ? (
           <Card
