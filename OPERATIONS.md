@@ -51,6 +51,7 @@ When a user reports a problem:
 3. Review:
    - app version
    - `support-status.json`, `self-test.json`, and `incidents.json` from the diagnostics bundle
+   - `support-feedback.json` to see the user's latest written feedback or bug report
    - usage snapshot in `support-status.json` to confirm whether the user is creating, importing, launching, or session-checking profiles
    - runtime in use
    - diagnostics bundle
@@ -59,6 +60,7 @@ When a user reports a problem:
    - `logs/exceptions-YYYY-MM-DD.log` and `logs/rejections-YYYY-MM-DD.log` for fatal server events
 4. Reproduce locally with the same runtime or proxy mode.
 5. If UI does not open, verify `GET /readyz` and compare it with `electron-main.log` startup entries.
+6. If the issue is still vague, ask the user to save a note in `Settings -> Support -> Feedback inbox` before exporting diagnostics again.
 
 ## Health / Readiness
 

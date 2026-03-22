@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { createWriteStream } from 'fs';
 import archiver from 'archiver';
+import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { dataPath } from '../utils/dataPaths';
 
@@ -48,6 +49,8 @@ interface SupportStatusPayload {
   profileCount: number;
   proxyCount: number;
   backupCount: number;
+  feedbackCount: number;
+  lastFeedbackAt: string | null;
   usageMetrics: {
     profileCreates: number;
     profileImports: number;
@@ -67,6 +70,14 @@ interface SupportStatusPayload {
   releaseReady: boolean;
   warnings: string[];
 }
+
+const SupportFeedbackSchema = z.object({
+  category: z.enum(['bug', 'feedback', 'question']),
+  sentiment: z.enum(['negative', 'neutral', 'positive']),
+  message: z.string().trim().min(10).max(5000),
+  email: z.string().email().optional().or(z.literal('')).optional(),
+  appVersion: z.string().max(64).optional().or(z.literal('')).optional(),
+});
 
 interface SupportSelfTestPayload {
   status: 'pass' | 'warn' | 'fail';
@@ -154,6 +165,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const { proxyManager } = await import('../managers/ProxyManager');
   const { backupManager } = await import('../managers/BackupManager');
   const { usageMetricsManager } = await import('../managers/UsageMetricsManager');
+  const { supportInboxManager } = await import('../managers/SupportInboxManager');
 
   const config = configManager.get();
   const profiles = profileManager.listProfiles();
@@ -161,6 +173,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const backups = await backupManager.listBackups();
   await usageMetricsManager.initialize();
   const usageMetrics = usageMetricsManager.getSnapshot();
+  const feedbackEntries = await supportInboxManager.listFeedback(50);
   const logFiles = await listLogFiles();
   const recentIncidents = await loadIncidentEntries(20);
   const diagnosticsReady = await fileExists(dataPath('config.json'));
@@ -191,6 +204,8 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     profileCount: profiles.length,
     proxyCount: proxies.length,
     backupCount: backups.length,
+    feedbackCount: feedbackEntries.length,
+    lastFeedbackAt: feedbackEntries[0]?.createdAt ?? null,
     usageMetrics,
     recentIncidentCount: recentIncidents.length,
     recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
@@ -314,6 +329,48 @@ router.post('/support/self-test', async (_req: Request, res: Response) => {
   }
 });
 
+router.get('/support/feedback', async (req: Request, res: Response) => {
+  try {
+    const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
+    const { supportInboxManager } = await import('../managers/SupportInboxManager');
+    const entries = await supportInboxManager.listFeedback(limit);
+    res.json({
+      success: true,
+      data: {
+        count: entries.length,
+        entries,
+      },
+    });
+  } catch (err) {
+    logger.error('GET /api/support/feedback error', { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ success: false, error: 'Failed to load support feedback' });
+  }
+});
+
+router.post('/support/feedback', async (req: Request, res: Response) => {
+  const parsed = SupportFeedbackSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: 'Invalid feedback payload', details: parsed.error.issues });
+    return;
+  }
+
+  try {
+    const { supportInboxManager } = await import('../managers/SupportInboxManager');
+    const entry = await supportInboxManager.createFeedback({
+      category: parsed.data.category,
+      sentiment: parsed.data.sentiment,
+      message: parsed.data.message,
+      email: parsed.data.email ?? null,
+      appVersion: parsed.data.appVersion ?? null,
+    });
+    res.status(201).json({ success: true, data: entry });
+  } catch (err) {
+    logger.error('POST /api/support/feedback error', { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ success: false, error: 'Failed to save support feedback' });
+  }
+});
+
 function redactLicenseKey(value: unknown): unknown {
   if (typeof value !== 'string') return value;
   return value.length > 8 ? `${value.slice(0, 4)}...${value.slice(-4)}` : '****';
@@ -393,6 +450,7 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
         appendIfExists(archive, dataPath('instances.json'), 'instances.json', sanitizeJsonText),
         appendIfExists(archive, dataPath('proxies.json'), 'proxies.json', sanitizeJsonText),
         appendIfExists(archive, dataPath('activity.log'), 'activity.log'),
+        appendIfExists(archive, dataPath('support-feedback.json'), 'support-feedback.json', sanitizeJsonText),
       ]).then(async () => {
         try {
           const encryptedLicense = await fs.readFile(dataPath('license.dat'), 'utf-8');

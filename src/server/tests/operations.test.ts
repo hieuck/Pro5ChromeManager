@@ -103,6 +103,8 @@ describe('Operations endpoints', () => {
         profileCount: number;
         proxyCount: number;
         backupCount: number;
+        feedbackCount: number;
+        lastFeedbackAt: string | null;
         usageMetrics: {
           profileCreates: number;
           profileImports: number;
@@ -129,6 +131,8 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.profileCount).toBe(0);
     expect(statusJson.data.proxyCount).toBe(0);
     expect(statusJson.data.backupCount).toBe(0);
+    expect(statusJson.data.feedbackCount).toBe(0);
+    expect(statusJson.data.lastFeedbackAt).toBeNull();
     expect(statusJson.data.usageMetrics.profileCreates).toBe(0);
     expect(statusJson.data.usageMetrics.profileImports).toBe(0);
     expect(statusJson.data.usageMetrics.profileLaunches).toBe(0);
@@ -246,6 +250,63 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.usageMetrics.lastSessionCheckAt).toBeTruthy();
   });
 
+  it('accepts support feedback and exposes it in support status', async () => {
+    const feedbackRes = await fetch(`${baseUrl}/api/support/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category: 'bug',
+        sentiment: 'negative',
+        message: 'The launch flow is confusing when no runtime is configured yet.',
+        email: 'tester@example.com',
+        appVersion: '1.2.3',
+      }),
+    });
+    expect(feedbackRes.status).toBe(201);
+    const feedbackJson = await feedbackRes.json() as {
+      success: boolean;
+      data: {
+        id: string;
+        category: string;
+        sentiment: string;
+        message: string;
+        email: string | null;
+        appVersion: string | null;
+      };
+    };
+    expect(feedbackJson.success).toBe(true);
+    expect(feedbackJson.data.id).toBeTruthy();
+    expect(feedbackJson.data.category).toBe('bug');
+
+    const listRes = await fetch(`${baseUrl}/api/support/feedback?limit=5`);
+    expect(listRes.status).toBe(200);
+    const listJson = await listRes.json() as {
+      success: boolean;
+      data: {
+        count: number;
+        entries: Array<{ message: string; email: string | null }>;
+      };
+    };
+    expect(listJson.success).toBe(true);
+    expect(listJson.data.count).toBeGreaterThan(0);
+    expect(listJson.data.entries.some((entry) =>
+      entry.message === 'The launch flow is confusing when no runtime is configured yet.' &&
+      entry.email === 'tester@example.com')).toBe(true);
+
+    const statusRes = await fetch(`${baseUrl}/api/support/status`);
+    expect(statusRes.status).toBe(200);
+    const statusJson = await statusRes.json() as {
+      success: boolean;
+      data: {
+        feedbackCount: number;
+        lastFeedbackAt: string | null;
+      };
+    };
+    expect(statusJson.success).toBe(true);
+    expect(statusJson.data.feedbackCount).toBeGreaterThan(0);
+    expect(statusJson.data.lastFeedbackAt).toBeTruthy();
+  });
+
   it('exports diagnostics bundles with support snapshots', async () => {
     await fs.mkdir(path.join(tmpDir, 'logs'), { recursive: true });
     await fs.writeFile(
@@ -304,6 +365,10 @@ describe('Operations endpoints', () => {
       count: number;
       incidents: Array<{ message: string }>;
     };
+    const feedbackEntries = JSON.parse(await fs.readFile(path.join(extractDir, 'support-feedback.json'), 'utf-8')) as Array<{
+      message: string;
+      email: string | null;
+    }>;
 
     expect(summary.dataDir).toBe(tmpDir);
     expect(supportStatus.diagnosticsReady).toBe(true);
@@ -320,5 +385,8 @@ describe('Operations endpoints', () => {
     expect(selfTest.checks.some((check) => check.key === 'diagnostics')).toBe(true);
     expect(incidents.count).toBeGreaterThan(0);
     expect(incidents.incidents.some((incident) => incident.message === 'Test warning for diagnostics export')).toBe(true);
+    expect(feedbackEntries.some((entry) =>
+      entry.message === 'The launch flow is confusing when no runtime is configured yet.' &&
+      entry.email === 'tester@example.com')).toBe(true);
   });
 });

@@ -53,6 +53,8 @@ interface SupportStatus {
   profileCount: number;
   proxyCount: number;
   backupCount: number;
+  feedbackCount: number;
+  lastFeedbackAt: string | null;
   usageMetrics: {
     profileCreates: number;
     profileImports: number;
@@ -96,6 +98,21 @@ interface IncidentEntry {
 interface SupportIncidentsResult {
   count: number;
   incidents: IncidentEntry[];
+}
+
+interface SupportFeedbackEntry {
+  id: string;
+  createdAt: string;
+  category: 'bug' | 'feedback' | 'question';
+  sentiment: 'negative' | 'neutral' | 'positive';
+  message: string;
+  email: string | null;
+  appVersion: string | null;
+}
+
+interface SupportFeedbackResult {
+  count: number;
+  entries: SupportFeedbackEntry[];
 }
 
 // ─── Tab: General ─────────────────────────────────────────────────────────────
@@ -486,9 +503,13 @@ const SupportTab: React.FC = () => {
   const [status, setStatus] = useState<SupportStatus | null>(null);
   const [selfTest, setSelfTest] = useState<SupportSelfTestResult | null>(null);
   const [incidentState, setIncidentState] = useState<SupportIncidentsResult | null>(null);
+  const [feedbackState, setFeedbackState] = useState<SupportFeedbackResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [selfTesting, setSelfTesting] = useState(false);
   const [incidentLoading, setIncidentLoading] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackForm] = Form.useForm();
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -508,6 +529,15 @@ const SupportTab: React.FC = () => {
 
   useEffect(() => { void fetchIncidents(); }, [fetchIncidents]);
 
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    const res = await apiClient.get<SupportFeedbackResult>('/api/support/feedback?limit=5');
+    if (res.success) setFeedbackState(res.data);
+    setFeedbackLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchFeedback(); }, [fetchFeedback]);
+
   async function handleCopySupportSummary(): Promise<void> {
     if (!status) {
       void message.warning('Support status is not available yet');
@@ -526,6 +556,7 @@ const SupportTab: React.FC = () => {
       `Profiles: ${status.profileCount}`,
       `Proxies: ${status.proxyCount}`,
       `Backups: ${status.backupCount}`,
+      `Feedback inbox: ${status.feedbackCount} entries`,
       `Usage: ${status.usageMetrics.profileCreates} created / ${status.usageMetrics.profileImports} imported / ${status.usageMetrics.profileLaunches} launches`,
       `Session checks: ${status.usageMetrics.sessionChecks} total / ${status.usageMetrics.sessionCheckLoggedIn} logged in / ${status.usageMetrics.sessionCheckLoggedOut} logged out / ${status.usageMetrics.sessionCheckErrors} errors`,
       `Offline secret: ${status.offlineSecretConfigured ? 'configured' : 'missing'}`,
@@ -547,6 +578,9 @@ const SupportTab: React.FC = () => {
     }
     if (status.usageMetrics.lastSessionCheckAt) {
       summaryLines.push(`Last session check: ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`);
+    }
+    if (status.lastFeedbackAt) {
+      summaryLines.push(`Last feedback: ${new Date(status.lastFeedbackAt).toLocaleString()}`);
     }
 
     if (status.warnings.length > 0) {
@@ -583,6 +617,30 @@ const SupportTab: React.FC = () => {
     if (res.success) {
       setSelfTest(res.data);
       void message.success('Support self-test completed');
+    } else {
+      void message.error(res.error);
+    }
+  }
+
+  async function handleSubmitFeedback(): Promise<void> {
+    const values = await feedbackForm.validateFields() as {
+      category: 'bug' | 'feedback' | 'question';
+      sentiment: 'negative' | 'neutral' | 'positive';
+      message: string;
+      email?: string;
+    };
+
+    setSubmittingFeedback(true);
+    const res = await apiClient.post<SupportFeedbackEntry>('/api/support/feedback', {
+      ...values,
+      appVersion: status?.appVersion ?? '',
+    });
+    setSubmittingFeedback(false);
+
+    if (res.success) {
+      feedbackForm.resetFields();
+      void message.success('Feedback saved locally');
+      await Promise.all([fetchStatus(), fetchFeedback()]);
     } else {
       void message.error(res.error);
     }
@@ -628,6 +686,8 @@ const SupportTab: React.FC = () => {
           <Typography.Text><strong>Profiles:</strong> {status.profileCount}</Typography.Text>
           <Typography.Text><strong>Proxies:</strong> {status.proxyCount}</Typography.Text>
           <Typography.Text><strong>Backups:</strong> {status.backupCount}</Typography.Text>
+          <Typography.Text><strong>Feedback inbox:</strong> {status.feedbackCount}</Typography.Text>
+          <Typography.Text><strong>Last feedback:</strong> {status.lastFeedbackAt ? new Date(status.lastFeedbackAt).toLocaleString() : 'None'}</Typography.Text>
           <Typography.Text>
             <strong>Usage:</strong> {status.usageMetrics.profileCreates} created / {status.usageMetrics.profileImports} imported / {status.usageMetrics.profileLaunches} launches
           </Typography.Text>
@@ -696,6 +756,82 @@ const SupportTab: React.FC = () => {
               </div>
             </div>
           ) : null}
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+              Feedback inbox
+            </Typography.Text>
+            <Form form={feedbackForm} layout="vertical">
+              <Row gutter={12}>
+                <Col span={8}>
+                  <Form.Item name="category" label="Category" initialValue="feedback" rules={[{ required: true }]}>
+                    <Select
+                      options={[
+                        { label: 'Feedback', value: 'feedback' },
+                        { label: 'Bug', value: 'bug' },
+                        { label: 'Question', value: 'question' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="sentiment" label="Sentiment" initialValue="neutral" rules={[{ required: true }]}>
+                    <Select
+                      options={[
+                        { label: 'Neutral', value: 'neutral' },
+                        { label: 'Positive', value: 'positive' },
+                        { label: 'Negative', value: 'negative' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="email" label="Contact email">
+                    <Input placeholder="optional@example.com" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item
+                name="message"
+                label="Message"
+                rules={[{ required: true, min: 10, message: 'Write at least 10 characters' }]}
+              >
+                <Input.TextArea rows={4} placeholder="What is working, broken, or confusing?" />
+              </Form.Item>
+              <Space style={{ marginBottom: 12 }}>
+                <Button type="primary" loading={submittingFeedback} onClick={() => void handleSubmitFeedback()}>
+                  Save feedback
+                </Button>
+                <Button loading={feedbackLoading} onClick={() => void fetchFeedback()}>
+                  Refresh feedback
+                </Button>
+              </Space>
+            </Form>
+            {feedbackState && feedbackState.entries.length > 0 ? (
+              <div style={{ marginBottom: 12 }}>
+                {feedbackState.entries.map((entry) => (
+                  <div key={entry.id} style={{ marginBottom: 10 }}>
+                    <Tag color={entry.category === 'bug' ? 'error' : entry.category === 'question' ? 'processing' : 'default'}>
+                      {entry.category.toUpperCase()}
+                    </Tag>
+                    <Tag color={entry.sentiment === 'negative' ? 'error' : entry.sentiment === 'positive' ? 'success' : 'default'}>
+                      {entry.sentiment.toUpperCase()}
+                    </Tag>
+                    <Typography.Text type="secondary">{new Date(entry.createdAt).toLocaleString()}</Typography.Text>
+                    <div>
+                      <Typography.Text>{entry.message}</Typography.Text>
+                    </div>
+                    <Typography.Text type="secondary">
+                      {entry.email ? `Contact: ${entry.email}` : 'No contact email'}{entry.appVersion ? ` | App ${entry.appVersion}` : ''}
+                    </Typography.Text>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                {feedbackLoading ? 'Loading feedback...' : 'No feedback saved yet'}
+              </Typography.Text>
+            )}
+          </div>
           <div style={{ marginTop: 8 }}>
             <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
               Recent incidents
