@@ -583,6 +583,14 @@ const Logs: React.FC = () => {
       });
     }
 
+    if (sortOrder === 'oldest') {
+      tags.push({
+        key: 'sort-order',
+        label: `${t.logs.sortFilterLabel}: ${t.logs.sortOldest}`,
+        onClose: () => setSortOrder('newest'),
+      });
+    }
+
     if (query.trim()) {
       tags.push({
         key: 'query',
@@ -592,7 +600,7 @@ const Logs: React.FC = () => {
     }
 
     return tags;
-  }, [filter, query, recentWindowOnly, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly, t.logs.levelFilterLabel, t.logs.recentWindowOnly, t.logs.searchFilterLabel]);
+  }, [filter, query, recentWindowOnly, sortOrder, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly, t.logs.levelFilterLabel, t.logs.recentWindowOnly, t.logs.searchFilterLabel, t.logs.sortFilterLabel, t.logs.sortOldest]);
 
   return (
     <div style={{ padding: 24 }}>

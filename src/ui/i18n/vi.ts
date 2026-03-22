@@ -227,6 +227,7 @@ const vi = {
     activeFilters: 'Bộ lọc đang bật',
     levelFilterLabel: 'Mức độ',
     searchFilterLabel: 'Tìm kiếm',
+    sortFilterLabel: 'Thứ tự',
     searchPlaceholder: 'Tìm trong nhật ký',
       showing: 'Đang hiển thị',
     visibleBreakdown: 'Phân rã phần đang xem',

@@ -229,6 +229,7 @@ const en: TranslationKeys = {
     activeFilters: 'Active filters',
     levelFilterLabel: 'Level',
     searchFilterLabel: 'Search',
+    sortFilterLabel: 'Sort',
     searchPlaceholder: 'Search logs',
       showing: 'Showing',
     visibleBreakdown: 'Visible breakdown',
