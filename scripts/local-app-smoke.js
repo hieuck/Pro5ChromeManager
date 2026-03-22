@@ -7,7 +7,7 @@ const electronBinary = require('electron');
 const electronEntry = path.resolve(__dirname, '../dist/electron-main/main.js');
 const appUrl = 'http://127.0.0.1:3210/ui/';
 const readyUrl = 'http://127.0.0.1:3210/readyz';
-const timeoutMs = 20000;
+const timeoutMs = 30000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,6 +56,7 @@ function runTaskkill(imageName) {
 
 async function clearConflictingAppProcesses() {
   await runTaskkill('Pro5 Chrome Manager.exe');
+  await runTaskkill('electron.exe');
 }
 
 async function main() {

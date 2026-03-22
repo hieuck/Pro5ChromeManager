@@ -89,6 +89,8 @@ const vi = {
       logHeatCalm: 'Yên',
       logHeatElevated: 'Tăng nhiệt',
       logHeatHot: 'Đang nóng',
+      hottestIssueLabel: 'Issue nóng nhất',
+      openHottestIssue: 'Mở issue nóng nhất',
       openRecentLogs: 'Mở sự cố gần đây',
       openInLogs: 'Mở trong Logs',
       noActivity: 'Chưa có hoạt động gần đây.',

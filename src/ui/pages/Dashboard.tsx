@@ -313,6 +313,36 @@ const Dashboard: React.FC = () => {
     return { color: 'green', label: t.dashboard.logHeatCalm, incidents15, incidents60 };
   }, [logs, t.dashboard.logHeatCalm, t.dashboard.logHeatElevated, t.dashboard.logHeatHot]);
 
+  const hottestRecentIssue = useMemo(() => {
+    const recentIssues = logs.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60));
+    const issueCounts = new Map<string, { entry: LogEntry; count: number }>();
+
+    recentIssues.forEach((entry) => {
+      const key = entry.message.trim().toLowerCase();
+      const current = issueCounts.get(key);
+      if (!current) {
+        issueCounts.set(key, { entry, count: 1 });
+        return;
+      }
+
+      const nextCount = current.count + 1;
+      const shouldReplaceEntry = new Date(entry.timestamp).getTime() > new Date(current.entry.timestamp).getTime();
+      issueCounts.set(key, {
+        entry: shouldReplaceEntry ? entry : current.entry,
+        count: nextCount,
+      });
+    });
+
+    return Array.from(issueCounts.values())
+      .sort((a, b) => {
+        if (b.count !== a.count) {
+          return b.count - a.count;
+        }
+
+        return new Date(b.entry.timestamp).getTime() - new Date(a.entry.timestamp).getTime();
+      })[0] ?? null;
+  }, [logs]);
+
   const handleStartProfile = useCallback(async (profileId: string) => {
     setStartingProfileId(profileId);
     const res = await apiClient.post(`/api/profiles/${profileId}/start`);
@@ -506,6 +536,21 @@ const Dashboard: React.FC = () => {
       },
     });
   }, [navigate]);
+
+  const handleOpenHottestIssueLogs = useCallback(() => {
+    if (!hottestRecentIssue) {
+      return;
+    }
+
+    navigate('/logs', {
+      state: {
+        presetQuery: hottestRecentIssue.entry.message,
+        presetFilter: 'issues',
+        presetRecentWindowOnly: true,
+        presetSortOrder: 'newest',
+      },
+    });
+  }, [hottestRecentIssue, navigate]);
 
   const handleCreateBackup = useCallback(async () => {
     setCreatingBackup(true);
@@ -1090,6 +1135,16 @@ const Dashboard: React.FC = () => {
           extra={(
             <Space size={8}>
               <Tag color={logHeat.color}>{`${t.dashboard.logHeatLabel}: ${logHeat.label}`}</Tag>
+              {hottestRecentIssue ? (
+                <Tag color="magenta">
+                  {`${t.dashboard.hottestIssueLabel} ×${hottestRecentIssue.count}`}
+                </Tag>
+              ) : null}
+              {hottestRecentIssue ? (
+                <Button type="link" onClick={handleOpenHottestIssueLogs}>
+                  {t.dashboard.openHottestIssue}
+                </Button>
+              ) : null}
               <Button type="link" onClick={handleOpenRecentLogs}>{t.dashboard.openRecentLogs}</Button>
               <Button type="link" onClick={() => navigate('/logs')}>{t.nav.logs}</Button>
             </Space>
