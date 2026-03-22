@@ -430,6 +430,13 @@ const Dashboard: React.FC = () => {
         : latestIncidentMinutes !== null && latestIncidentMinutes <= 30
           ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
           : { color: 'green', label: t.dashboard.incidentFreshnessStale };
+    const topSourceLatestMinutes = minutesSince(topSourceLatestIncident?.timestamp ?? null);
+    const topSourceFreshness =
+      topSourceLatestMinutes !== null && topSourceLatestMinutes <= 5
+        ? { color: 'volcano', label: t.dashboard.incidentFreshnessHot }
+        : topSourceLatestMinutes !== null && topSourceLatestMinutes <= 30
+          ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
+          : { color: 'green', label: t.dashboard.incidentFreshnessStale };
 
     return {
       total: incidents.length,
@@ -446,6 +453,7 @@ const Dashboard: React.FC = () => {
       latestIncident,
       topSource,
       topSourceLatestIncident,
+      topSourceFreshness,
       topSourceRatio: topSource ? Math.round((topSource[1] / incidents.length) * 100) : 0,
       topSourcesConcentration,
       topSources: topSourcesSlice,
@@ -774,6 +782,7 @@ const Dashboard: React.FC = () => {
       incidentDigest.topSourceLatestIncident
         ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
         : null,
+      incidentDigest.topSourceLatestIncident ? `Top source freshness: ${incidentDigest.topSourceFreshness.label}` : null,
       incidentDigest.topSourceLatestIncident ? `Top source message: ${incidentDigest.topSourceLatestIncident.message}` : null,
       `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
       `Latest source: ${incidentDigest.latestIncident.source}`,
@@ -1699,14 +1708,19 @@ const Dashboard: React.FC = () => {
                     {`${t.dashboard.incidentSourceModeHintLabel}: ${incidentDigest.sourceModeHint}`}
                   </Typography.Text>
                   {incidentDigest.topSourceLatestIncident ? (
-                    <Button
-                      type="link"
-                      size="small"
-                      style={{ paddingInline: 0, justifyContent: 'flex-start' }}
-                      onClick={handleOpenTopSourceLatestIncident}
-                    >
-                      {`${t.dashboard.topSourceLatestMessageLabel}: ${summarizeIssueMessage(incidentDigest.topSourceLatestIncident.message, 120)}`}
-                    </Button>
+                    <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Tag color={incidentDigest.topSourceFreshness.color}>
+                        {`${t.dashboard.topSourceFreshnessLabel}: ${incidentDigest.topSourceFreshness.label}`}
+                      </Tag>
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ paddingInline: 0, justifyContent: 'flex-start' }}
+                        onClick={handleOpenTopSourceLatestIncident}
+                      >
+                        {`${t.dashboard.topSourceLatestMessageLabel}: ${summarizeIssueMessage(incidentDigest.topSourceLatestIncident.message, 120)}`}
+                      </Button>
+                    </Space>
                   ) : null}
                 </Space>
               ) : null}

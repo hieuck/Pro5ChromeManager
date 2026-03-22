@@ -135,6 +135,7 @@ const en: TranslationKeys = {
       latestIncidentUnavailable: 'No latest incident is available right now',
       topSourceLabel: 'Top source',
       topSourcesLabel: 'Also hot',
+      topSourceFreshnessLabel: 'Top source freshness',
       topSourceLatestMessageLabel: 'Open top source latest',
       copyTopSourceLatestIncident: 'Copy top source latest',
       topSourceLatestIncidentCopied: 'Top source latest incident copied',
