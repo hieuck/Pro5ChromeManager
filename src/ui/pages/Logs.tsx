@@ -384,6 +384,28 @@ const Logs: React.FC = () => {
     visibleTopSourcesConcentration,
   ]);
 
+  const visibleSourceActionHint = useMemo(() => {
+    if (!visibleTopSource) return '';
+
+    if (visibleTopSource.latestEntry.level === 'error' || visibleTopSourceShare >= 60) {
+      return t.logs.visibleSourceActionFocus;
+    }
+
+    if (visibleSourceMode.label === t.logs.visibleSourceModeMixed) {
+      return t.logs.visibleSourceActionInspect;
+    }
+
+    return t.logs.visibleSourceActionMonitor;
+  }, [
+    t.logs.visibleSourceActionFocus,
+    t.logs.visibleSourceActionInspect,
+    t.logs.visibleSourceActionMonitor,
+    t.logs.visibleSourceModeMixed,
+    visibleSourceMode.label,
+    visibleTopSource,
+    visibleTopSourceShare,
+  ]);
+
   const repeatedRecentIssues = useMemo(() => {
     const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
 
@@ -745,6 +767,7 @@ const Logs: React.FC = () => {
       'Pro5 visible source latest',
       `Source: ${source.source}`,
       `Visible lines: ${source.count}`,
+      `Suggested action: ${visibleSourceActionHint}`,
       `Level: ${entry.level.toUpperCase()}`,
       `Timestamp: ${entry.timestamp ?? 'unknown'}`,
       `Message: ${entry.message}`,
@@ -757,7 +780,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable]);
+  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable, visibleSourceActionHint]);
 
   const handleCopyVisibleSourceDigest = useCallback(async (
     source: {
@@ -779,6 +802,7 @@ const Logs: React.FC = () => {
       `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
       `Source mode: ${visibleSourceMode.label}`,
       `Source hint: ${visibleSourceMode.hint}`,
+      `Suggested action: ${visibleSourceActionHint}`,
       `Top source freshness: ${visibleTopSourceFreshness}`,
       `Latest level: ${source.latestEntry.level.toUpperCase()}`,
       `Latest timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
@@ -798,6 +822,7 @@ const Logs: React.FC = () => {
     t.logs.visibleSourceDigestUnavailable,
     visibleSourceMode.hint,
     visibleSourceMode.label,
+    visibleSourceActionHint,
     visibleTopSourceFreshness,
     visibleTopSourceShare,
     visibleTopSourcesConcentration,
@@ -1149,6 +1174,9 @@ const Logs: React.FC = () => {
             </Space>
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
               {`${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              {`${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`}
             </Typography.Text>
             <Typography.Text style={{ display: 'block', marginBottom: 8 }}>
               {visibleTopSource.latestEntry.message}
