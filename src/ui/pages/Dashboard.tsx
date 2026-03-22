@@ -766,7 +766,8 @@ const Dashboard: React.FC = () => {
 
     navigate('/logs', {
       state: {
-        presetQuery: source,
+        presetQuery: '',
+        presetSourceFilter: source,
         presetFilter: 'all',
         presetRecentWindowOnly: false,
         presetSortOrder: 'newest',
@@ -799,7 +800,8 @@ const Dashboard: React.FC = () => {
 
     navigate('/logs', {
       state: {
-        presetQuery: source,
+        presetQuery: '',
+        presetSourceFilter: source,
         presetFilter: 'issues',
         presetRecentWindowOnly: true,
         presetSortOrder: 'newest',
