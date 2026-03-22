@@ -381,6 +381,7 @@ const en: TranslationKeys = {
     visibleLatestIssue: 'Latest issue in view',
     visibleSourcesTitle: 'Top sources in view',
     visibleSourceCount: '{count} visible lines',
+    sourceFilterLabel: 'Source',
     copyVisibleSources: 'Copy visible sources',
     visibleSourcesCopied: 'Visible sources copied',
     visibleSourcesUnavailable: 'No visible sources are available right now',

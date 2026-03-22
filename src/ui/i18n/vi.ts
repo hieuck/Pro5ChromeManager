@@ -379,6 +379,7 @@ const vi = {
     visibleLatestIssue: 'Vấn đề mới nhất trong phần đang xem',
     visibleSourcesTitle: 'Nguồn nổi bật trong phần đang xem',
     visibleSourceCount: '{count} dòng đang hiển thị',
+    sourceFilterLabel: 'Nguồn',
     copyVisibleSources: 'Sao chép các nguồn đang thấy',
     visibleSourcesCopied: 'Đã sao chép các nguồn trong phần đang xem',
     visibleSourcesUnavailable: 'Hiện chưa có nguồn nào trong phần đang xem để sao chép',

@@ -11,6 +11,7 @@ const LOGS_VIEW_STORAGE_KEY = 'pro5.logs.view';
 interface StoredLogsViewState {
   filter: 'all' | 'issues' | 'info' | 'warn' | 'error';
   query: string;
+  sourceFilter: string;
   recentWindowOnly: boolean;
   sortOrder: 'newest' | 'oldest';
 }
@@ -18,6 +19,7 @@ interface StoredLogsViewState {
 interface LogsRouteState {
   presetQuery?: string;
   presetFilter?: 'all' | 'issues' | 'info' | 'warn' | 'error';
+  presetSourceFilter?: string;
   presetRecentWindowOnly?: boolean;
   presetSortOrder?: 'newest' | 'oldest';
 }
@@ -71,6 +73,7 @@ const Logs: React.FC = () => {
       return {
         filter: 'all',
         query: '',
+        sourceFilter: '',
         recentWindowOnly: false,
         sortOrder: 'newest',
       };
@@ -82,6 +85,7 @@ const Logs: React.FC = () => {
         return {
           filter: 'all',
           query: '',
+          sourceFilter: '',
           recentWindowOnly: false,
           sortOrder: 'newest',
         };
@@ -92,6 +96,7 @@ const Logs: React.FC = () => {
       return {
         filter: parsed.filter === 'issues' || parsed.filter === 'info' || parsed.filter === 'warn' || parsed.filter === 'error' ? parsed.filter : 'all',
         query: typeof parsed.query === 'string' ? parsed.query : '',
+        sourceFilter: typeof parsed.sourceFilter === 'string' ? parsed.sourceFilter : '',
         recentWindowOnly: Boolean(parsed.recentWindowOnly),
         sortOrder: parsed.sortOrder === 'oldest' ? 'oldest' : 'newest',
       };
@@ -99,6 +104,7 @@ const Logs: React.FC = () => {
       return {
         filter: 'all',
         query: '',
+        sourceFilter: '',
         recentWindowOnly: false,
         sortOrder: 'newest',
       };
@@ -109,6 +115,7 @@ const Logs: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>(initialViewState.filter);
   const [query, setQuery] = useState(initialViewState.query);
+  const [sourceFilter, setSourceFilter] = useState(initialViewState.sourceFilter);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [recentWindowOnly, setRecentWindowOnly] = useState(initialViewState.recentWindowOnly);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(initialViewState.sortOrder);
@@ -161,6 +168,7 @@ const Logs: React.FC = () => {
       || (
         routeState.presetQuery === undefined
         && routeState.presetFilter === undefined
+        && routeState.presetSourceFilter === undefined
         && routeState.presetRecentWindowOnly === undefined
         && routeState.presetSortOrder === undefined
       )
@@ -170,6 +178,7 @@ const Logs: React.FC = () => {
 
     setQuery(routeState.presetQuery ?? '');
     setFilter(routeState.presetFilter ?? 'issues');
+    setSourceFilter(routeState.presetSourceFilter ?? '');
     setRecentWindowOnly(routeState.presetRecentWindowOnly ?? true);
     setSortOrder(routeState.presetSortOrder ?? 'newest');
     navigate(location.pathname, { replace: true, state: null });
@@ -181,12 +190,13 @@ const Logs: React.FC = () => {
     const nextState: StoredLogsViewState = {
       filter,
       query,
+      sourceFilter,
       recentWindowOnly,
       sortOrder,
     };
 
     window.localStorage.setItem(LOGS_VIEW_STORAGE_KEY, JSON.stringify(nextState));
-  }, [filter, query, recentWindowOnly, sortOrder]);
+  }, [filter, query, recentWindowOnly, sortOrder, sourceFilter]);
 
   const matchedEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -195,13 +205,22 @@ const Logs: React.FC = () => {
         || (filter === 'issues' ? entry.level === 'warn' || entry.level === 'error' : entry.level === filter);
       const windowMatches = !recentWindowOnly || isWithinLastMinutes(entry.timestamp, 60);
       const queryMatches = !normalizedQuery || entry.raw.toLowerCase().includes(normalizedQuery);
-      return levelMatches && windowMatches && queryMatches;
+      const effectiveSource = entry.source ?? 'unknown';
+      const sourceMatches = !sourceFilter || effectiveSource === sourceFilter;
+      return levelMatches && windowMatches && queryMatches && sourceMatches;
     });
-  }, [entries, filter, query, recentWindowOnly]);
+  }, [entries, filter, query, recentWindowOnly, sourceFilter]);
 
   const filteredEntries = useMemo(
     () => (sortOrder === 'oldest' ? matchedEntries.slice().reverse() : matchedEntries),
     [matchedEntries, sortOrder],
+  );
+
+  const sourceOptions = useMemo(
+    () => Array.from(new Set(entries.map((entry) => entry.source ?? 'unknown')))
+      .sort((left, right) => left.localeCompare(right))
+      .map((source) => ({ label: source, value: source })),
+    [entries],
   );
 
   const counts = useMemo(() => ({
@@ -574,6 +593,7 @@ const Logs: React.FC = () => {
   const handleResetFilters = useCallback(() => {
     setFilter('all');
     setQuery('');
+    setSourceFilter('');
     setRecentWindowOnly(false);
     setSortOrder('newest');
     void message.success(t.logs.filtersReset);
@@ -581,6 +601,8 @@ const Logs: React.FC = () => {
 
   const handleRecentIssuesPreset = useCallback(() => {
     setFilter('issues');
+    setQuery('');
+    setSourceFilter('');
     setRecentWindowOnly(true);
     void message.success(t.logs.recentIssuesPresetApplied);
   }, [t.logs.recentIssuesPresetApplied]);
@@ -740,7 +762,8 @@ const Logs: React.FC = () => {
 
     setFilter('issues');
     setRecentWindowOnly(true);
-    setQuery(sourceText);
+    setQuery('');
+    setSourceFilter(sourceText);
     void message.success(t.logs.focusRecentIssueSourceApplied);
   }, [t.logs.focusRecentIssueSourceApplied]);
 
@@ -803,7 +826,7 @@ const Logs: React.FC = () => {
 
   const handleFocusVisibleSource = useCallback((sourceText: string) => {
     if (!sourceText) return;
-    setQuery(sourceText === 'unknown' ? '' : sourceText);
+    setSourceFilter(sourceText);
     void message.success(t.logs.focusVisibleSourceApplied);
   }, [t.logs.focusVisibleSourceApplied]);
 
@@ -1011,6 +1034,7 @@ const Logs: React.FC = () => {
   const handleResetViewState = useCallback(() => {
     setFilter('all');
     setQuery('');
+    setSourceFilter('');
     setRecentWindowOnly(false);
     setSortOrder('newest');
     if (typeof window !== 'undefined') {
@@ -1066,8 +1090,16 @@ const Logs: React.FC = () => {
       });
     }
 
+    if (sourceFilter) {
+      tags.push({
+        key: 'source',
+        label: `${t.logs.sourceFilterLabel}: ${sourceFilter}`,
+        onClose: () => setSourceFilter(''),
+      });
+    }
+
     return tags;
-  }, [filter, query, recentWindowOnly, sortOrder, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly, t.logs.levelFilterLabel, t.logs.recentWindowOnly, t.logs.searchFilterLabel, t.logs.sortFilterLabel, t.logs.sortOldest]);
+  }, [filter, query, recentWindowOnly, sortOrder, sourceFilter, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly, t.logs.levelFilterLabel, t.logs.recentWindowOnly, t.logs.searchFilterLabel, t.logs.sortFilterLabel, t.logs.sortOldest, t.logs.sourceFilterLabel]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -1123,6 +1155,16 @@ const Logs: React.FC = () => {
               <Button disabled={!recentIssueEntries.length} onClick={() => { void handleCopyRecentIssueDigest(); }}>
                 {t.logs.copyRecentIssueDigest}
               </Button>
+              <Select
+                allowClear
+                showSearch
+                value={sourceFilter || undefined}
+                placeholder={t.logs.sourceFilterLabel}
+                style={{ minWidth: 220 }}
+                onChange={(value) => setSourceFilter(value ?? '')}
+                options={sourceOptions}
+                optionFilterProp="label"
+              />
               <Select
                 value={sortOrder}
                 style={{ minWidth: 180 }}
