@@ -25,6 +25,7 @@ interface LogsRouteState {
   presetQuery?: string;
   presetFilter?: 'all' | 'issues' | 'info' | 'warn' | 'error';
   presetRecentWindowOnly?: boolean;
+  presetSortOrder?: 'newest' | 'oldest';
 }
 
 function parseLogEntry(line: string): ParsedLogEntry {
@@ -183,12 +184,22 @@ const Logs: React.FC = () => {
 
   useEffect(() => {
     const routeState = location.state as LogsRouteState | null;
-    if (!routeState?.presetQuery) return;
+    if (
+      !routeState
+      || (
+        routeState.presetQuery === undefined
+        && routeState.presetFilter === undefined
+        && routeState.presetRecentWindowOnly === undefined
+        && routeState.presetSortOrder === undefined
+      )
+    ) {
+      return;
+    }
 
-    setQuery(routeState.presetQuery);
+    setQuery(routeState.presetQuery ?? '');
     setFilter(routeState.presetFilter ?? 'issues');
     setRecentWindowOnly(routeState.presetRecentWindowOnly ?? true);
-    setSortOrder('newest');
+    setSortOrder(routeState.presetSortOrder ?? 'newest');
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
 

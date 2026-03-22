@@ -142,6 +142,12 @@ function formatTime(value?: string | null): string {
   return new Date(value).toLocaleString('vi-VN');
 }
 
+function isWithinLastMinutes(value?: string | null, minutes = 60): boolean {
+  if (!value) return false;
+  const diffMs = Date.now() - new Date(value).getTime();
+  return diffMs >= 0 && diffMs <= minutes * 60_000;
+}
+
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -291,6 +297,21 @@ const Dashboard: React.FC = () => {
     )),
     [profiles],
   );
+
+  const logHeat = useMemo(() => {
+    const incidents15 = logs.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 15)).length;
+    const incidents60 = logs.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60)).length;
+
+    if (incidents15 >= 3) {
+      return { color: 'red', label: t.dashboard.logHeatHot, incidents15, incidents60 };
+    }
+
+    if (incidents15 > 0 || incidents60 >= 5) {
+      return { color: 'gold', label: t.dashboard.logHeatElevated, incidents15, incidents60 };
+    }
+
+    return { color: 'green', label: t.dashboard.logHeatCalm, incidents15, incidents60 };
+  }, [logs, t.dashboard.logHeatCalm, t.dashboard.logHeatElevated, t.dashboard.logHeatHot]);
 
   const handleStartProfile = useCallback(async (profileId: string) => {
     setStartingProfileId(profileId);
@@ -472,6 +493,16 @@ const Dashboard: React.FC = () => {
         presetQuery: incident.message,
         presetFilter: 'issues',
         presetRecentWindowOnly: true,
+      },
+    });
+  }, [navigate]);
+
+  const handleOpenRecentLogs = useCallback(() => {
+    navigate('/logs', {
+      state: {
+        presetFilter: 'issues',
+        presetRecentWindowOnly: true,
+        presetSortOrder: 'newest',
       },
     });
   }, [navigate]);
@@ -1056,7 +1087,13 @@ const Dashboard: React.FC = () => {
         <Card
           style={cardStyle}
           title={t.dashboard.activityTitle}
-          extra={<Button type="link" onClick={() => navigate('/logs')}>{t.nav.logs}</Button>}
+          extra={(
+            <Space size={8}>
+              <Tag color={logHeat.color}>{`${t.dashboard.logHeatLabel}: ${logHeat.label}`}</Tag>
+              <Button type="link" onClick={handleOpenRecentLogs}>{t.dashboard.openRecentLogs}</Button>
+              <Button type="link" onClick={() => navigate('/logs')}>{t.nav.logs}</Button>
+            </Space>
+          )}
         >
           {logs.length ? (
             <List
