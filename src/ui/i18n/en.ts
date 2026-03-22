@@ -250,6 +250,8 @@ const en: TranslationKeys = {
     recentIssuesPresetApplied: 'Recent incident preset applied',
     copyRecentIssueDigest: 'Copy 60m digest',
     recentIssueDigestCopied: 'Recent incident digest copied',
+    sortNewest: 'Newest first',
+    sortOldest: 'Oldest first',
     recentWindowOnly: 'Last 60 minutes',
     recentWindowOnlyActive: 'last 60 minutes only',
     resetFilters: 'Reset filters',

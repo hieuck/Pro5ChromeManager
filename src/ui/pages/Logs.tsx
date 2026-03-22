@@ -78,6 +78,7 @@ const Logs: React.FC = () => {
   const [query, setQuery] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [recentWindowOnly, setRecentWindowOnly] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
 
   const loadLogs = useCallback(async () => {
@@ -110,14 +111,16 @@ const Logs: React.FC = () => {
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return entries.filter((entry) => {
+    const matchedEntries = entries.filter((entry) => {
       const levelMatches = filter === 'all'
         || (filter === 'issues' ? entry.level === 'warn' || entry.level === 'error' : entry.level === filter);
       const windowMatches = !recentWindowOnly || isWithinLastMinutes(entry.timestamp, 60);
       const queryMatches = !normalizedQuery || entry.raw.toLowerCase().includes(normalizedQuery);
       return levelMatches && windowMatches && queryMatches;
     });
-  }, [entries, filter, query, recentWindowOnly]);
+
+    return sortOrder === 'oldest' ? matchedEntries.slice().reverse() : matchedEntries;
+  }, [entries, filter, query, recentWindowOnly, sortOrder]);
 
   const counts = useMemo(() => ({
     info: entries.filter((entry) => entry.level === 'info').length,
@@ -446,6 +449,15 @@ const Logs: React.FC = () => {
               <Button disabled={!recentIssueEntries.length} onClick={() => { void handleCopyRecentIssueDigest(); }}>
                 {t.logs.copyRecentIssueDigest}
               </Button>
+              <Select
+                value={sortOrder}
+                style={{ minWidth: 180 }}
+                onChange={(value) => setSortOrder(value)}
+                options={[
+                  { label: t.logs.sortNewest, value: 'newest' },
+                  { label: t.logs.sortOldest, value: 'oldest' },
+                ]}
+              />
               <Button type={recentWindowOnly ? 'primary' : 'default'} onClick={() => setRecentWindowOnly((value) => !value)}>
                 {t.logs.recentWindowOnly}
               </Button>
