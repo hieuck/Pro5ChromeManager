@@ -103,6 +103,7 @@ const en: TranslationKeys = {
       incidentDigestUnavailable: 'No recent incidents are available right now',
       errorCountLabel: 'Errors',
       warningCountLabel: 'Warnings',
+      latestIncidentLabel: 'Latest',
       topSourceLabel: 'Top source',
       copyActivityDigest: 'Copy activity digest',
       activityDigestCopied: 'Activity digest copied',

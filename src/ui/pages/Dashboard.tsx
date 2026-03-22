@@ -587,6 +587,14 @@ const Dashboard: React.FC = () => {
     });
   }, [incidentDigest, navigate]);
 
+  const handleOpenLatestIncident = useCallback(() => {
+    if (!incidentDigest?.latestIncident) {
+      return;
+    }
+
+    handleOpenIncidentInLogs(incidentDigest.latestIncident);
+  }, [handleOpenIncidentInLogs, incidentDigest]);
+
   const handleOpenRecentLogs = useCallback(() => {
     navigate('/logs', {
       state: {
@@ -1274,6 +1282,16 @@ const Dashboard: React.FC = () => {
                   <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
                   <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
                   <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`}</Tag>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ paddingInline: 0 }}
+                    onClick={handleOpenLatestIncident}
+                  >
+                    <Tag color={incidentDigest.latestIncident.level === 'error' ? 'red' : 'orange'}>
+                      {`${t.dashboard.latestIncidentLabel}: ${formatTime(incidentDigest.latestIncident.timestamp)}`}
+                    </Tag>
+                  </Button>
                   {incidentDigest.topSource ? (
                     <Button
                       type="link"

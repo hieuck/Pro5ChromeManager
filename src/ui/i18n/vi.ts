@@ -101,6 +101,7 @@ const vi = {
       incidentDigestUnavailable: 'Hiện chưa có incident gần đây để sao chép',
       errorCountLabel: 'Lỗi',
       warningCountLabel: 'Cảnh báo',
+      latestIncidentLabel: 'Mới nhất',
       topSourceLabel: 'Nguồn chính',
       copyActivityDigest: 'Sao chép tóm tắt hoạt động',
       activityDigestCopied: 'Đã sao chép tóm tắt hoạt động',
