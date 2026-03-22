@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Badge, Button, Typography, notification } from 'antd';
 import {
   ApiOutlined,
+  DashboardOutlined,
   UserOutlined,
   SettingOutlined,
   FileTextOutlined,
@@ -14,6 +15,7 @@ import ProfileList from './pages/ProfileList';
 import Proxies from './pages/Proxies';
 import Settings from './pages/Settings';
 import Logs from './pages/Logs';
+import Dashboard from './pages/Dashboard';
 
 const { Sider, Header, Content } = Layout;
 
@@ -45,6 +47,8 @@ const App: React.FC = () => {
       ? 'proxies'
     : location.pathname.startsWith('/logs')
       ? 'logs'
+    : location.pathname.startsWith('/dashboard')
+      ? 'dashboard'
       : 'profiles';
 
   // ─── Load license status ──────────────────────────────────────────────────
@@ -129,6 +133,7 @@ const App: React.FC = () => {
           selectedKeys={[selectedKey]}
           onClick={({ key }) => navigate(`/${key}`)}
           items={[
+            { key: 'dashboard', icon: <DashboardOutlined />, label: t.nav.dashboard },
             { key: 'profiles', icon: <UserOutlined />, label: t.nav.profiles },
             { key: 'proxies', icon: <ApiOutlined />, label: t.nav.proxies },
             { key: 'settings', icon: <SettingOutlined />, label: t.nav.settings },
@@ -171,7 +176,8 @@ const App: React.FC = () => {
 
         <Content style={{ background: '#f5f5f5', overflow: 'auto' }}>
           <Routes>
-            <Route path="/" element={<Navigate to="/profiles" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profiles" element={<ProfileList />} />
             <Route path="/proxies" element={<Proxies />} />
             <Route path="/settings" element={<Settings />} />
