@@ -728,6 +728,28 @@ const Logs: React.FC = () => {
     void message.success(t.logs.openVisibleSourceLatestApplied);
   }, [t.logs.openVisibleSourceLatestApplied]);
 
+  const handleCopyVisibleSourceLatest = useCallback(async (entry: ParsedLogEntry | null | undefined) => {
+    if (!entry) {
+      void message.error(t.logs.visibleSourceLatestUnavailable);
+      return;
+    }
+
+    const lines = [
+      'Pro5 visible source latest',
+      `Level: ${entry.level.toUpperCase()}`,
+      `Timestamp: ${entry.timestamp ?? 'unknown'}`,
+      `Message: ${entry.message}`,
+      `Raw: ${entry.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.visibleSourceLatestCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable]);
+
   const handleCopyVisibleSourceDigest = useCallback(async (
     source: {
       count: number;
@@ -1129,6 +1151,9 @@ const Logs: React.FC = () => {
                 <Space size={4}>
                   <Button size="small" type="link" onClick={() => handleOpenVisibleSourceLatest(visibleTopSource.latestEntry)}>
                     {t.logs.openVisibleSourceLatest}
+                  </Button>
+                  <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceLatest(visibleTopSource.latestEntry); }}>
+                    {t.logs.copyVisibleSourceLatest}
                   </Button>
                   <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceDigest(visibleTopSource); }}>
                     {t.logs.copyVisibleSourceDigest}
