@@ -238,6 +238,7 @@ const en: TranslationKeys = {
     issuesOnly: 'Issues only',
     incidentSummary: 'Incident summary',
     incidentHint: 'Focus on recent errors and warnings first before reading the full stream.',
+    latestIssue: 'Latest issue',
     exportDiagnostics: 'Export diagnostics',
     openSettings: 'Open settings',
     openDashboard: 'Open dashboard',

@@ -236,6 +236,7 @@ const vi = {
     issuesOnly: 'Chỉ lỗi/cảnh báo',
     incidentSummary: 'Tóm tắt sự cố',
     incidentHint: 'Ưu tiên xem lỗi và cảnh báo gần đây trước khi đọc toàn bộ dòng log.',
+    latestIssue: 'Vấn đề mới nhất',
     exportDiagnostics: 'Xuất diagnostics',
     openSettings: 'Mở cài đặt',
     openDashboard: 'Mở dashboard',

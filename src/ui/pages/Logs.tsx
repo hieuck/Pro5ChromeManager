@@ -115,6 +115,11 @@ const Logs: React.FC = () => {
     error: entries.filter((entry) => entry.level === 'error').length,
   }), [entries]);
 
+  const latestIssue = useMemo(
+    () => entries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
+    [entries],
+  );
+
   const handleCopyVisibleLogs = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(filteredEntries.map((entry) => entry.raw).join('\n'));
@@ -205,21 +210,50 @@ const Logs: React.FC = () => {
 
         <Row gutter={[16, 16]}>
           <Col xs={24} md={8}>
-            <Card>
+            <Card hoverable onClick={() => setFilter('info')}>
               <Statistic title={t.logs.filterInfo} value={counts.info} />
             </Card>
           </Col>
           <Col xs={24} md={8}>
-            <Card>
+            <Card hoverable onClick={() => setFilter('warn')}>
               <Statistic title={t.logs.filterWarn} value={counts.warn} />
             </Card>
           </Col>
           <Col xs={24} md={8}>
-            <Card>
+            <Card hoverable onClick={() => setFilter('error')}>
               <Statistic title={t.logs.filterError} value={counts.error} />
             </Card>
           </Col>
         </Row>
+
+        {latestIssue ? (
+          <Card
+            title={t.logs.latestIssue}
+            extra={<Button type="link" onClick={() => setFilter('issues')}>{t.logs.issuesOnly}</Button>}
+          >
+            <Space direction="vertical" size={6} style={{ width: '100%' }}>
+              <Space wrap>
+                <Tag color={latestIssue.level === 'error' ? 'red' : 'gold'}>
+                  {latestIssue.level.toUpperCase()}
+                </Tag>
+                <Typography.Text type="secondary">{formatTimestamp(latestIssue.timestamp)}</Typography.Text>
+                <Typography.Text type="secondary">
+                  {formatRelativeTime(latestIssue.timestamp, {
+                    justNow: t.logs.justNow,
+                    minutesAgo: (count) => t.logs.minutesAgo.replace('{count}', String(count)),
+                    hoursAgo: (count) => t.logs.hoursAgo.replace('{count}', String(count)),
+                    daysAgo: (count) => t.logs.daysAgo.replace('{count}', String(count)),
+                  })}
+                </Typography.Text>
+              </Space>
+              <Alert
+                type={latestIssue.level === 'error' ? 'error' : 'warning'}
+                showIcon
+                message={latestIssue.message}
+              />
+            </Space>
+          </Card>
+        ) : null}
 
         {(counts.warn || counts.error) ? (
           <Alert
