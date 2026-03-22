@@ -532,4 +532,109 @@ describe('Operations endpoints', () => {
     expect(clearedProfileJson.success).toBe(true);
     expect(clearedProfileJson.data.proxy).toBeNull();
   });
+
+  it('bulk tests proxies and persists health snapshots', async () => {
+    const { proxyManager } = await import('../managers/ProxyManager');
+    const originalTestProxy = proxyManager.testProxy.bind(proxyManager);
+    const originalDetectTimezone = proxyManager.detectTimezoneFromProxy.bind(proxyManager);
+
+    proxyManager.testProxy = (async (proxy) => {
+      if (proxy.host === '10.0.0.2') {
+        throw new Error('Proxy timeout');
+      }
+      return '203.0.113.10';
+    }) as typeof proxyManager.testProxy;
+
+    proxyManager.detectTimezoneFromProxy = (async () => 'Asia/Saigon') as typeof proxyManager.detectTimezoneFromProxy;
+
+    try {
+      const createFirstProxyRes = await fetch(`${baseUrl}/api/proxies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'http',
+          host: '10.0.0.1',
+          port: 8080,
+        }),
+      });
+      const firstProxyJson = await createFirstProxyRes.json() as {
+        success: boolean;
+        data: { id: string };
+      };
+
+      const createSecondProxyRes = await fetch(`${baseUrl}/api/proxies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'http',
+          host: '10.0.0.2',
+          port: 8081,
+        }),
+      });
+      const secondProxyJson = await createSecondProxyRes.json() as {
+        success: boolean;
+        data: { id: string };
+      };
+
+      const bulkTestRes = await fetch(`${baseUrl}/api/proxies/test-bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: [firstProxyJson.data.id, secondProxyJson.data.id],
+        }),
+      });
+      expect(bulkTestRes.status).toBe(200);
+      const bulkTestJson = await bulkTestRes.json() as {
+        success: boolean;
+        data: {
+          total: number;
+          healthy: number;
+          failing: number;
+          results: Array<{ id: string; success: boolean; ip?: string; timezone?: string | null; error?: string }>;
+        };
+      };
+      expect(bulkTestJson.success).toBe(true);
+      expect(bulkTestJson.data.total).toBe(2);
+      expect(bulkTestJson.data.healthy).toBe(1);
+      expect(bulkTestJson.data.failing).toBe(1);
+      expect(bulkTestJson.data.results.find((result) => result.id === firstProxyJson.data.id)).toMatchObject({
+        success: true,
+        ip: '203.0.113.10',
+        timezone: 'Asia/Saigon',
+      });
+      expect(bulkTestJson.data.results.find((result) => result.id === secondProxyJson.data.id)).toMatchObject({
+        success: false,
+        error: 'Proxy timeout',
+      });
+
+      const listRes = await fetch(`${baseUrl}/api/proxies`);
+      expect(listRes.status).toBe(200);
+      const listJson = await listRes.json() as {
+        success: boolean;
+        data: Array<{
+          id: string;
+          lastCheckStatus?: 'healthy' | 'failing';
+          lastCheckIp?: string;
+          lastCheckTimezone?: string | null;
+          lastCheckError?: string;
+          lastCheckAt?: string;
+        }>;
+      };
+      expect(listJson.success).toBe(true);
+      expect(listJson.data.find((proxy) => proxy.id === firstProxyJson.data.id)).toMatchObject({
+        lastCheckStatus: 'healthy',
+        lastCheckIp: '203.0.113.10',
+        lastCheckTimezone: 'Asia/Saigon',
+      });
+      expect(listJson.data.find((proxy) => proxy.id === secondProxyJson.data.id)).toMatchObject({
+        lastCheckStatus: 'failing',
+        lastCheckError: 'Proxy timeout',
+      });
+      expect(listJson.data.find((proxy) => proxy.id === firstProxyJson.data.id)?.lastCheckAt).toBeTruthy();
+      expect(listJson.data.find((proxy) => proxy.id === secondProxyJson.data.id)?.lastCheckAt).toBeTruthy();
+    } finally {
+      proxyManager.testProxy = originalTestProxy;
+      proxyManager.detectTimezoneFromProxy = originalDetectTimezone;
+    }
+  });
 });

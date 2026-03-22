@@ -17,6 +17,10 @@ const BulkImportSchema = z.object({
   defaultType: z.enum(['http', 'https', 'socks4', 'socks5']).optional(),
 });
 
+const BulkTestSchema = z.object({
+  ids: z.array(z.string().min(1)).optional(),
+});
+
 // GET /api/proxies
 router.get('/proxies', (_req: Request, res: Response) => {
   const proxies = proxyManager.listProxies().map((p) => ({
@@ -60,6 +64,71 @@ router.post('/proxies/import-bulk', async (req: Request, res: Response) => {
   } catch (err) {
     res.status(400).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
+});
+
+router.post('/proxies/test-bulk', async (req: Request, res: Response) => {
+  const parsed = BulkTestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: 'Invalid proxy test request', details: parsed.error.issues });
+    return;
+  }
+
+  const selectedIds = parsed.data.ids;
+  const proxies = selectedIds
+    ? selectedIds
+      .map((id) => proxyManager.getProxy(id))
+      .filter((proxy): proxy is NonNullable<typeof proxy> => Boolean(proxy))
+    : proxyManager.listProxies();
+
+  const results = await Promise.all(proxies.map(async (proxy) => {
+    try {
+      const ip = await proxyManager.testProxy(proxy);
+      let timezone: string | null = null;
+      try {
+        timezone = await proxyManager.detectTimezoneFromProxy(ip);
+      } catch {
+        // timezone detection is best-effort
+      }
+      const checkedAt = new Date().toISOString();
+      await proxyManager.recordTestSnapshot(proxy.id, {
+        lastCheckAt: checkedAt,
+        lastCheckStatus: 'healthy',
+        lastCheckIp: ip,
+        lastCheckTimezone: timezone,
+        lastCheckError: undefined,
+      });
+      return {
+        id: proxy.id,
+        success: true,
+        ip,
+        timezone,
+      };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      await proxyManager.recordTestSnapshot(proxy.id, {
+        lastCheckAt: new Date().toISOString(),
+        lastCheckStatus: 'failing',
+        lastCheckError: error,
+        lastCheckIp: undefined,
+        lastCheckTimezone: null,
+      });
+      return {
+        id: proxy.id,
+        success: false,
+        error,
+      };
+    }
+  }));
+
+  res.json({
+    success: true,
+    data: {
+      total: proxies.length,
+      healthy: results.filter((result) => result.success).length,
+      failing: results.filter((result) => !result.success).length,
+      results,
+    },
+  });
 });
 
 // PUT /api/proxies/:id

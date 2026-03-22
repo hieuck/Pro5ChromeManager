@@ -71,6 +71,8 @@ const Proxies: React.FC = () => {
   const [importText, setImportText] = useState('');
   const [defaultType, setDefaultType] = useState<ProxyRecord['type']>('http');
   const [testingIds, setTestingIds] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkTesting, setBulkTesting] = useState(false);
 
   const fetchProxies = useCallback(async () => {
     setLoading(true);
@@ -157,8 +159,43 @@ const Proxies: React.FC = () => {
     void fetchProxies();
   }
 
+  async function handleBulkTest(ids?: string[]): Promise<void> {
+    const targetIds = ids?.length ? ids : selectedIds;
+    if (!targetIds.length) {
+      return;
+    }
+
+    setBulkTesting(true);
+    const nextTesting = { ...testingIds };
+    targetIds.forEach((id) => { nextTesting[id] = true; });
+    setTestingIds(nextTesting);
+
+    const res = await apiClient.post<{
+      total: number;
+      healthy: number;
+      failing: number;
+    }>('/api/proxies/test-bulk', { ids: targetIds });
+
+    setBulkTesting(false);
+    setTestingIds((current) => {
+      const cleared = { ...current };
+      targetIds.forEach((id) => { delete cleared[id]; });
+      return cleared;
+    });
+
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+
+    void message.success(`Đã test ${res.data.total} proxy · OK ${res.data.healthy} · FAIL ${res.data.failing}`);
+    void fetchProxies();
+  }
+
   const authenticatedCount = proxies.filter((proxy) => Boolean(proxy.username)).length;
   const socksCount = proxies.filter((proxy) => proxy.type === 'socks4' || proxy.type === 'socks5').length;
+  const healthyCount = proxies.filter((proxy) => proxy.lastCheckStatus === 'healthy').length;
+  const failingCount = proxies.filter((proxy) => proxy.lastCheckStatus === 'failing').length;
 
   const columns: ColumnsType<ProxyRecord> = [
     {
@@ -283,6 +320,16 @@ const Proxies: React.FC = () => {
             <Statistic title={t.proxy.socks} value={socksCount} prefix={<SafetyCertificateOutlined />} />
           </Card>
         </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card style={cardStyle}>
+            <Statistic title="Healthy" value={healthyCount} valueStyle={{ color: '#389e0d' }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card style={cardStyle}>
+            <Statistic title="Needs check" value={failingCount} valueStyle={{ color: '#cf1322' }} />
+          </Card>
+        </Col>
       </Row>
 
       <Row gutter={[16, 16]}>
@@ -314,11 +361,27 @@ const Proxies: React.FC = () => {
 
         <Col xs={24} xl={15}>
           <Card style={cardStyle}>
+            {selectedIds.length > 0 ? (
+              <Space wrap style={{ marginBottom: 12 }}>
+                <Typography.Text type="secondary">Đã chọn {selectedIds.length} proxy</Typography.Text>
+                <Button
+                  type="primary"
+                  loading={bulkTesting}
+                  onClick={() => void handleBulkTest()}
+                >
+                  Test đã chọn
+                </Button>
+              </Space>
+            ) : null}
             <Table
               rowKey="id"
               loading={loading}
               columns={columns}
               dataSource={proxies}
+              rowSelection={{
+                selectedRowKeys: selectedIds,
+                onChange: (keys) => setSelectedIds(keys as string[]),
+              }}
               locale={{
                 emptyText: t.proxy.noProxies,
               }}
