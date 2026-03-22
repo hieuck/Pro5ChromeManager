@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Empty, Input, List, Select, Space, Tag, Typography, message } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, Empty, Input, List, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
+import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -71,6 +71,21 @@ const Logs: React.FC = () => {
     });
   }, [entries, filter, query]);
 
+  const counts = useMemo(() => ({
+    info: entries.filter((entry) => entry.level === 'info').length,
+    warn: entries.filter((entry) => entry.level === 'warn').length,
+    error: entries.filter((entry) => entry.level === 'error').length,
+  }), [entries]);
+
+  const handleCopyVisibleLogs = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(filteredEntries.map((entry) => entry.raw).join('\n'));
+      void message.success(t.logs.copied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [filteredEntries, t.logs.copied, t.logs.copyFailed]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -100,12 +115,33 @@ const Logs: React.FC = () => {
               <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { void loadLogs(); }}>
                 {t.logs.refresh}
               </Button>
+              <Button icon={<CopyOutlined />} disabled={!filteredEntries.length} onClick={() => { void handleCopyVisibleLogs(); }}>
+                {t.logs.copyVisible}
+              </Button>
             </Space>
             <Typography.Text type="secondary">
               {`${t.logs.showing}: ${filteredEntries.length}/${entries.length}`}
             </Typography.Text>
           </Space>
         </Card>
+
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={8}>
+            <Card>
+              <Statistic title={t.logs.filterInfo} value={counts.info} />
+            </Card>
+          </Col>
+          <Col xs={24} md={8}>
+            <Card>
+              <Statistic title={t.logs.filterWarn} value={counts.warn} />
+            </Card>
+          </Col>
+          <Col xs={24} md={8}>
+            <Card>
+              <Statistic title={t.logs.filterError} value={counts.error} />
+            </Card>
+          </Col>
+        </Row>
 
         {entries.length ? (
           <Card>

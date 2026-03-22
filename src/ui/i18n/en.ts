@@ -229,6 +229,9 @@ const en: TranslationKeys = {
     searchPlaceholder: 'Search logs',
     showing: 'Showing',
     noMatch: 'No log entries match this filter.',
+    copyVisible: 'Copy visible logs',
+    copied: 'Visible logs copied',
+    copyFailed: 'Failed to copy logs',
   },
 };
 

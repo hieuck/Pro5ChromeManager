@@ -227,6 +227,9 @@ const vi = {
     searchPlaceholder: 'Tìm trong nhật ký',
     showing: 'Đang hiển thị',
     noMatch: 'Không có dòng nhật ký nào khớp bộ lọc hiện tại.',
+    copyVisible: 'Sao chép log đang thấy',
+    copied: 'Đã sao chép log đang thấy',
+    copyFailed: 'Không thể sao chép log',
   },
 } as const;
 
