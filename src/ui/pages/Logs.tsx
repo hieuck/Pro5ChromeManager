@@ -323,6 +323,7 @@ const Logs: React.FC = () => {
     setFilter('all');
     setQuery('');
     setRecentWindowOnly(false);
+    setSortOrder('newest');
     void message.success(t.logs.filtersReset);
   }, [t.logs.filtersReset]);
 
@@ -433,6 +434,17 @@ const Logs: React.FC = () => {
       void message.error(t.logs.copyFailed);
     }
   }, [repeatedRecentIssues, t.logs.copyFailed, t.logs.repeatedRecentIssuesCopied]);
+
+  const handleResetViewState = useCallback(() => {
+    setFilter('all');
+    setQuery('');
+    setRecentWindowOnly(false);
+    setSortOrder('newest');
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(LOGS_VIEW_STORAGE_KEY);
+    }
+    void message.success(t.logs.viewStateReset);
+  }, [t.logs.viewStateReset]);
 
   const activeFilterTags = useMemo(() => {
     const tags: Array<{ key: string; label: string; onClose: () => void }> = [];
@@ -551,6 +563,9 @@ const Logs: React.FC = () => {
               </Button>
               <Button onClick={handleResetFilters}>
                 {t.logs.resetFilters}
+              </Button>
+              <Button onClick={handleResetViewState}>
+                {t.logs.resetViewState}
               </Button>
             </Space>
             <Typography.Text type="secondary">
