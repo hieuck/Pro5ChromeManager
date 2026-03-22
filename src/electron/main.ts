@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain } from 'electron';
-import fs from 'fs/promises';
+import { existsSync } from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
 import { autoUpdater } from 'electron-updater';
 
@@ -15,7 +16,7 @@ let updateReady = false;
 async function writeMainLog(level: 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>): Promise<void> {
   try {
     const logDir = path.join(app.getPath('userData'), 'logs');
-    await fs.mkdir(logDir, { recursive: true });
+    await fsp.mkdir(logDir, { recursive: true });
     const logPath = path.join(logDir, 'electron-main.log');
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),
@@ -23,7 +24,7 @@ async function writeMainLog(level: 'info' | 'warn' | 'error', message: string, m
       message,
       ...(meta ? { meta } : {}),
     });
-    await fs.appendFile(logPath, `${entry}\n`, 'utf-8');
+    await fsp.appendFile(logPath, `${entry}\n`, 'utf-8');
   } catch {
     // best-effort only
   }
@@ -43,9 +44,9 @@ async function startServer(): Promise<void> {
 
   process.env['DATA_DIR'] = app.getPath('userData');
 
-  const serverPath = IS_DEV
-    ? path.join(__dirname, '../../src/server/index.ts')
-    : path.join(__dirname, '../server/index.js');
+  const builtServerPath = path.join(__dirname, '../server/index.js');
+  const sourceServerPath = path.join(__dirname, '../../src/server/index.ts');
+  const serverPath = existsSync(builtServerPath) ? builtServerPath : sourceServerPath;
 
   try {
     require(serverPath);
