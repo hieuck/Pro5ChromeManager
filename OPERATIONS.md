@@ -50,6 +50,7 @@ When a user reports a problem:
 2. Ask them to export diagnostics from `Settings -> Export Diagnostics`.
 3. Review:
    - app version
+   - `support-status.json`, `self-test.json`, and `incidents.json` from the diagnostics bundle
    - runtime in use
    - diagnostics bundle
    - recent logs

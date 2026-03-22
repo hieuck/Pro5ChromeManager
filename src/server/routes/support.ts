@@ -32,6 +32,31 @@ interface IncidentEntry {
   message: string;
 }
 
+interface SupportStatusPayload {
+  appVersion: string;
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  uptimeSeconds: number;
+  dataDir: string;
+  logFileCount: number;
+  diagnosticsReady: boolean;
+  offlineSecretConfigured: boolean;
+  codeSigningConfigured: boolean;
+  supportPagesReady: boolean;
+  recentIncidentCount: number;
+  recentErrorCount: number;
+  lastIncidentAt: string | null;
+  releaseReady: boolean;
+  warnings: string[];
+}
+
+interface SupportSelfTestPayload {
+  status: 'pass' | 'warn' | 'fail';
+  checkedAt: string;
+  checks: SelfTestCheck[];
+}
+
 function parseIncidentLevel(value: unknown): 'warn' | 'error' | null {
   return value === 'warn' || value === 'error' ? value : null;
 }
@@ -98,47 +123,125 @@ async function loadIncidentEntries(limit: number): Promise<IncidentEntry[]> {
     .slice(0, limit);
 }
 
+async function getSupportPagesReady(): Promise<boolean> {
+  return Promise.all([
+    fileExists(path.resolve(process.cwd(), 'landing', 'support.html')),
+    fileExists(path.resolve(process.cwd(), 'landing', 'privacy.html')),
+    fileExists(path.resolve(process.cwd(), 'landing', 'terms.html')),
+  ]).then((results) => results.every(Boolean));
+}
+
+async function buildSupportStatus(): Promise<SupportStatusPayload> {
+  const logFiles = await listLogFiles();
+  const recentIncidents = await loadIncidentEntries(20);
+  const diagnosticsReady = await fileExists(dataPath('config.json'));
+  const offlineSecretConfigured = Boolean(process.env['PRO5_OFFLINE_SECRET']);
+  const codeSigningConfigured = Boolean(process.env['CSC_LINK']);
+  const supportPagesReady = await getSupportPagesReady();
+
+  const warnings = [
+    !diagnosticsReady ? 'Base configuration file is missing.' : null,
+    !offlineSecretConfigured ? 'PRO5_OFFLINE_SECRET is not configured for production licensing.' : null,
+    !codeSigningConfigured ? 'CSC_LINK is not configured; Windows builds may show SmartScreen warnings.' : null,
+    !supportPagesReady ? 'Public support/legal pages are incomplete.' : null,
+  ].filter((item): item is string => Boolean(item));
+
+  return {
+    appVersion: process.env['npm_package_version'] ?? '1.0.0',
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    uptimeSeconds: process.uptime(),
+    dataDir: dataPath(),
+    logFileCount: logFiles.length,
+    diagnosticsReady,
+    offlineSecretConfigured,
+    codeSigningConfigured,
+    supportPagesReady,
+    recentIncidentCount: recentIncidents.length,
+    recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
+    lastIncidentAt: recentIncidents[0]?.timestamp ?? null,
+    releaseReady: diagnosticsReady && offlineSecretConfigured && supportPagesReady,
+    warnings,
+  };
+}
+
+async function buildSelfTest(): Promise<SupportSelfTestPayload> {
+  const { configManager } = await import('../managers/ConfigManager');
+  const { runtimeManager } = await import('../managers/RuntimeManager');
+  const { profileManager } = await import('../managers/ProfileManager');
+  const { proxyManager } = await import('../managers/ProxyManager');
+  const { licenseManager } = await import('../managers/LicenseManager');
+
+  const checks: SelfTestCheck[] = [];
+  const config = configManager.get();
+  const profilesDirExists = await fileExists(config.profilesDir);
+  checks.push({
+    key: 'profiles-dir',
+    label: 'Profiles directory',
+    status: profilesDirExists ? 'pass' : 'fail',
+    detail: profilesDirExists ? config.profilesDir : `Missing: ${config.profilesDir}`,
+  });
+
+  await runtimeManager.refreshAvailability();
+  const runtimes = runtimeManager.listRuntimes();
+  const availableRuntimes = runtimes.filter((runtime) => runtime.available);
+  checks.push({
+    key: 'runtime',
+    label: 'Browser runtime',
+    status: availableRuntimes.length > 0 ? 'pass' : 'fail',
+    detail: availableRuntimes.length > 0
+      ? `${availableRuntimes.length}/${runtimes.length} runtime(s) available`
+      : 'No configured browser runtime is available.',
+  });
+
+  const diagnosticsReady = await fileExists(dataPath('config.json'));
+  checks.push({
+    key: 'diagnostics',
+    label: 'Diagnostics export',
+    status: diagnosticsReady ? 'pass' : 'fail',
+    detail: diagnosticsReady ? 'Base config detected, diagnostics export is available.' : 'Base config is missing.',
+  });
+
+  const supportPagesReady = await getSupportPagesReady();
+  checks.push({
+    key: 'support-pages',
+    label: 'Public support/legal pages',
+    status: supportPagesReady ? 'pass' : 'warn',
+    detail: supportPagesReady ? 'Support, privacy, and terms pages are present.' : 'One or more support/legal pages are missing.',
+  });
+
+  const license = licenseManager.getStatus(profileManager.listProfiles().length);
+  checks.push({
+    key: 'license',
+    label: 'License state',
+    status: license.tier === 'expired' ? 'fail' : 'pass',
+    detail: `Current tier: ${license.tier}`,
+  });
+
+  checks.push({
+    key: 'proxy-store',
+    label: 'Proxy store',
+    status: 'pass',
+    detail: `${proxyManager.listProxies().length} proxy configuration(s) loaded.`,
+  });
+
+  const hasFailure = checks.some((check) => check.status === 'fail');
+  const hasWarning = checks.some((check) => check.status === 'warn');
+
+  return {
+    status: hasFailure ? 'fail' : hasWarning ? 'warn' : 'pass',
+    checkedAt: new Date().toISOString(),
+    checks,
+  };
+}
+
 router.get('/support/status', async (_req: Request, res: Response) => {
   try {
-    const logFiles = await listLogFiles();
-    const recentIncidents = await loadIncidentEntries(20);
-
-    const diagnosticsReady = await fileExists(dataPath('config.json'));
-    const offlineSecretConfigured = Boolean(process.env['PRO5_OFFLINE_SECRET']);
-    const codeSigningConfigured = Boolean(process.env['CSC_LINK']);
-    const supportPagesReady = await Promise.all([
-      fileExists(path.resolve(process.cwd(), 'landing', 'support.html')),
-      fileExists(path.resolve(process.cwd(), 'landing', 'privacy.html')),
-      fileExists(path.resolve(process.cwd(), 'landing', 'terms.html')),
-    ]).then((results) => results.every(Boolean));
-
-    const warnings = [
-      !diagnosticsReady ? 'Base configuration file is missing.' : null,
-      !offlineSecretConfigured ? 'PRO5_OFFLINE_SECRET is not configured for production licensing.' : null,
-      !codeSigningConfigured ? 'CSC_LINK is not configured; Windows builds may show SmartScreen warnings.' : null,
-      !supportPagesReady ? 'Public support/legal pages are incomplete.' : null,
-    ].filter((item): item is string => Boolean(item));
-
+    const status = await buildSupportStatus();
     res.json({
       success: true,
-      data: {
-        appVersion: process.env['npm_package_version'] ?? '1.0.0',
-        nodeVersion: process.version,
-        platform: process.platform,
-        arch: process.arch,
-        uptimeSeconds: process.uptime(),
-        dataDir: dataPath(),
-        logFileCount: logFiles.length,
-        diagnosticsReady,
-        offlineSecretConfigured,
-        codeSigningConfigured,
-        supportPagesReady,
-        recentIncidentCount: recentIncidents.length,
-        recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
-        lastIncidentAt: recentIncidents[0]?.timestamp ?? null,
-        releaseReady: diagnosticsReady && offlineSecretConfigured && supportPagesReady,
-        warnings,
-      },
+      data: status,
     });
   } catch (err) {
     logger.error('GET /api/support/status error', { error: err instanceof Error ? err.message : String(err) });
@@ -166,79 +269,10 @@ router.get('/support/incidents', async (req: Request, res: Response) => {
 
 router.post('/support/self-test', async (_req: Request, res: Response) => {
   try {
-    const { configManager } = await import('../managers/ConfigManager');
-    const { runtimeManager } = await import('../managers/RuntimeManager');
-    const { profileManager } = await import('../managers/ProfileManager');
-    const { proxyManager } = await import('../managers/ProxyManager');
-    const { licenseManager } = await import('../managers/LicenseManager');
-
-    const checks: SelfTestCheck[] = [];
-    const config = configManager.get();
-    const profilesDirExists = await fileExists(config.profilesDir);
-    checks.push({
-      key: 'profiles-dir',
-      label: 'Profiles directory',
-      status: profilesDirExists ? 'pass' : 'fail',
-      detail: profilesDirExists ? config.profilesDir : `Missing: ${config.profilesDir}`,
-    });
-
-    await runtimeManager.refreshAvailability();
-    const runtimes = runtimeManager.listRuntimes();
-    const availableRuntimes = runtimes.filter((runtime) => runtime.available);
-    checks.push({
-      key: 'runtime',
-      label: 'Browser runtime',
-      status: availableRuntimes.length > 0 ? 'pass' : 'fail',
-      detail: availableRuntimes.length > 0
-        ? `${availableRuntimes.length}/${runtimes.length} runtime(s) available`
-        : 'No configured browser runtime is available.',
-    });
-
-    const diagnosticsReady = await fileExists(dataPath('config.json'));
-    checks.push({
-      key: 'diagnostics',
-      label: 'Diagnostics export',
-      status: diagnosticsReady ? 'pass' : 'fail',
-      detail: diagnosticsReady ? 'Base config detected, diagnostics export is available.' : 'Base config is missing.',
-    });
-
-    const supportPagesReady = await Promise.all([
-      fileExists(path.resolve(process.cwd(), 'landing', 'support.html')),
-      fileExists(path.resolve(process.cwd(), 'landing', 'privacy.html')),
-      fileExists(path.resolve(process.cwd(), 'landing', 'terms.html')),
-    ]).then((results) => results.every(Boolean));
-    checks.push({
-      key: 'support-pages',
-      label: 'Public support/legal pages',
-      status: supportPagesReady ? 'pass' : 'warn',
-      detail: supportPagesReady ? 'Support, privacy, and terms pages are present.' : 'One or more support/legal pages are missing.',
-    });
-
-    const license = licenseManager.getStatus(profileManager.listProfiles().length);
-    checks.push({
-      key: 'license',
-      label: 'License state',
-      status: license.tier === 'expired' ? 'fail' : 'pass',
-      detail: `Current tier: ${license.tier}`,
-    });
-
-    checks.push({
-      key: 'proxy-store',
-      label: 'Proxy store',
-      status: 'pass',
-      detail: `${proxyManager.listProxies().length} proxy configuration(s) loaded.`,
-    });
-
-    const hasFailure = checks.some((check) => check.status === 'fail');
-    const hasWarning = checks.some((check) => check.status === 'warn');
-
+    const selfTest = await buildSelfTest();
     res.json({
       success: true,
-      data: {
-        status: hasFailure ? 'fail' : hasWarning ? 'warn' : 'pass',
-        checkedAt: new Date().toISOString(),
-        checks,
-      },
+      data: selfTest,
     });
   } catch (err) {
     logger.error('POST /api/support/self-test error', { error: err instanceof Error ? err.message : String(err) });
@@ -295,6 +329,10 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
   const tmpZipPath = path.join(os.tmpdir(), `pro5-diagnostics-${Date.now()}.zip`);
 
   try {
+    const supportStatus = await buildSupportStatus();
+    const selfTest = await buildSelfTest();
+    const incidents = await loadIncidentEntries(50);
+
     await new Promise<void>((resolve, reject) => {
       const output = createWriteStream(tmpZipPath);
       const archive = archiver('zip', { zlib: { level: 6 } });
@@ -312,6 +350,9 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
         dataDir: dataPath(),
       };
       archive.append(JSON.stringify(summary, null, 2), { name: 'summary.json' });
+      archive.append(JSON.stringify(supportStatus, null, 2), { name: 'support-status.json' });
+      archive.append(JSON.stringify(selfTest, null, 2), { name: 'self-test.json' });
+      archive.append(JSON.stringify({ count: incidents.length, incidents }, null, 2), { name: 'incidents.json' });
 
       void Promise.all([
         appendIfExists(archive, dataPath('config.json'), 'config.json', sanitizeJsonText),
