@@ -1,0 +1,47 @@
+appId: com.pro5chrome.manager
+productName: Pro5 Chrome Manager
+copyright: Copyright © 2026 Pro5 Chrome Manager
+
+directories:
+  output: dist/electron
+  buildResources: resources
+
+files:
+  - dist/server/**/*
+  - dist/ui/**/*
+  - dist/electron-main/**/*
+  - src/extension/**/*
+  - package.json
+  - node_modules/**/*
+
+extraResources:
+  - from: resources/
+    to: resources/
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+  # Code signing: electron-builder auto-reads CSC_LINK + CSC_KEY_PASSWORD env vars.
+  # Set them in GitHub Actions secrets or locally to sign the installer.
+  # Without them, build proceeds unsigned (SmartScreen shows "Unknown publisher").
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  installerHeaderIcon: resources/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Pro5 Chrome Manager
+
+publish:
+  provider: github
+  owner: hieuck
+  repo: Pro5ChromeManager
+  releaseType: release

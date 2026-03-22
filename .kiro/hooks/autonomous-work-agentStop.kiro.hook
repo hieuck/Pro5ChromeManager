@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Autonomous Work - Agent Stop",
+  "description": "Khi agent dừng, kiểm tra công việc còn dang dở và tóm tắt kết quả. Có loop guard để tránh vòng lặp vô hạn.",
+  "version": "1.1.0",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Agent vừa dừng. Thực hiện theo thứ tự:\n\n1. Kiểm tra `npx tsc --noEmit` — nếu có error, fix ngay (tối đa 3 lần thử; nếu vẫn fail sau 3 lần, ghi vào `data/logs/agent-errors.log` với timestamp và dừng lại, KHÔNG tiếp tục loop)\n2. Kiểm tra `npx vitest run` — nếu có test fail, fix ngay (tối đa 3 lần thử; nếu vẫn fail, ghi vào `data/logs/agent-errors.log` và dừng)\n3. Đọc `memory.md` — nếu có task trong 'Next session nên làm gì' VÀ đây không phải lần thứ 3+ agent stop liên tiếp mà không có progress, tiếp tục task tiếp theo\n4. Nếu tất cả tasks đã xong HOẶC đã loop 3 lần không có progress → dừng hẳn, tóm tắt 1-2 câu (tiếng Việt)\n\nLOOP GUARD: Nếu phát hiện mình đang lặp lại cùng một hành động mà không có kết quả mới → dừng ngay và ghi lý do vào `data/logs/agent-errors.log`."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "uiLanguage": "vi",
+  "locale": "vi-VN",
+  "timezoneId": "Asia/Saigon",
+  "defaultRuntime": "auto",
+  "headless": false,
+  "windowTitleSuffixEnabled": true,
+  "profilesDir": "E:\\GitHub\\Pro5ChromeManager\\data\\profiles",
+  "api": {
+    "host": "127.0.0.1",
+    "port": 3210
+  },
+  "sessionCheck": {
+    "enabledByDefault": true,
+    "headless": true,
+    "timeoutMs": 20000
+  },
+  "runtimes": {
+    "centbrowser": {
+      "label": "CentBrowser",
+      "executablePath": "G:\\Program Files\\CentBrowser\\chrome.exe"
+    },
+    "chrome": {
+      "label": "Google Chrome",
+      "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+    },
+    "msedge": {
+      "label": "Microsoft Edge",
+      "executablePath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+    },
+    "chromium": {
+      "label": "Chromium",
+      "executablePath": "C:\\Program Files\\Chromium\\Application\\chrome.exe"
+    }
+  }
+}

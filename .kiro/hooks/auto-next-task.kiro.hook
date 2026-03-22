@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Auto Run Next Task",
+  "description": "Sau khi spec task hoàn thành: chạy tests, nếu pass thì tự động chạy task tiếp theo",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Một task vừa hoàn thành. Thực hiện theo thứ tự:\n1. Chạy `npx vitest run` — nếu có test fail, fix ngay trước khi tiếp tục\n2. Chạy `npx tsc --noEmit` — nếu có type error, fix ngay\n3. Sau khi cả hai pass, đọc tasks.md, tìm task tiếp theo chưa hoàn thành (`- [ ]`) và thực thi ngay\n4. Nếu không còn task nào, báo user biết spec đã hoàn thành"
+  }
+}

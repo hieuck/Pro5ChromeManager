@@ -1,0 +1,41 @@
+const BASE_URL = 'http://127.0.0.1:3210';
+
+export interface ApiSuccess<T> {
+  success: true;
+  data: T;
+}
+
+export interface ApiError {
+  success: false;
+  error: string;
+  details?: unknown;
+}
+
+export type ApiResponse<T> = ApiSuccess<T> | ApiError;
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<ApiResponse<T>> {
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+    const json = (await res.json()) as ApiResponse<T>;
+    return json;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Network error';
+    return { success: false, error: message };
+  }
+}
+
+export const apiClient = {
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
+  delete: <T>(path: string) => request<T>('DELETE', path),
+};

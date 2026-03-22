@@ -1,1 +1,42 @@
-/data
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Data — user data, sensitive files
+data/profiles/
+data/proxies.json
+data/instances.json
+data/license.dat
+data/analytics.json
+data/backups/
+data/logs/
+
+# Keep data dir structure
+!data/.gitkeep
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Electron build cache
+.electron-builder-cache/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local

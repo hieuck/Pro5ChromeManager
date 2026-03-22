@@ -1,0 +1,90 @@
+const vi = {
+  // Navigation
+  nav: {
+    profiles: 'Hồ sơ',
+    settings: 'Cài đặt',
+    logs: 'Nhật ký',
+  },
+  // Common
+  common: {
+    save: 'Lưu',
+    cancel: 'Hủy',
+    delete: 'Xóa',
+    edit: 'Sửa',
+    create: 'Tạo mới',
+    search: 'Tìm kiếm',
+    loading: 'Đang tải...',
+    error: 'Lỗi',
+    success: 'Thành công',
+    confirm: 'Xác nhận',
+    yes: 'Có',
+    no: 'Không',
+    actions: 'Thao tác',
+    status: 'Trạng thái',
+    name: 'Tên',
+    notes: 'Ghi chú',
+    tags: 'Nhãn',
+    group: 'Nhóm',
+    createdAt: 'Ngày tạo',
+    updatedAt: 'Cập nhật',
+  },
+  // Profile
+  profile: {
+    title: 'Quản lý hồ sơ',
+    newProfile: 'Tạo hồ sơ mới',
+    deleteConfirm: 'Bạn có chắc muốn xóa hồ sơ này?',
+    startProfile: 'Khởi động',
+    stopProfile: 'Dừng',
+    proxy: 'Proxy',
+    runtime: 'Trình duyệt',
+    fingerprint: 'Dấu vân tay',
+    lastUsed: 'Lần dùng cuối',
+    totalSessions: 'Tổng phiên',
+    running: 'Đang chạy',
+    stopped: 'Đã dừng',
+    unreachable: 'Không kết nối được',
+    stale: 'Cũ',
+    noProfiles: 'Chưa có hồ sơ nào',
+    importProfile: 'Nhập hồ sơ',
+    exportProfile: 'Xuất hồ sơ',
+    bulkStart: 'Khởi động đã chọn',
+    bulkStop: 'Dừng đã chọn',
+    bulkDelete: 'Xóa đã chọn',
+  },
+  // Settings
+  settings: {
+    title: 'Cài đặt',
+    general: 'Chung',
+    runtimes: 'Trình duyệt',
+    backup: 'Sao lưu',
+    logs: 'Nhật ký',
+    profilesDir: 'Thư mục hồ sơ',
+    apiHost: 'API Host',
+    apiPort: 'API Port',
+    uiLanguage: 'Ngôn ngữ giao diện',
+    sessionCheck: 'Kiểm tra phiên',
+    sessionCheckEnabled: 'Bật kiểm tra phiên mặc định',
+    sessionCheckHeadless: 'Chạy ẩn khi kiểm tra',
+    sessionCheckTimeout: 'Thời gian chờ (ms)',
+    saveSettings: 'Lưu cài đặt',
+    settingsSaved: 'Đã lưu cài đặt',
+  },
+  // License
+  license: {
+    free: 'Miễn phí',
+    pro: 'Pro',
+    expired: 'Hết hạn',
+    profilesUsed: '{used}/{limit} hồ sơ',
+    activate: 'Kích hoạt',
+    deactivate: 'Hủy kích hoạt',
+  },
+  // Logs
+  logs: {
+    title: 'Nhật ký hệ thống',
+    noLogs: 'Chưa có nhật ký',
+    refresh: 'Làm mới',
+  },
+} as const;
+
+export type TranslationKeys = typeof vi;
+export default vi;
