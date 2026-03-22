@@ -11,11 +11,19 @@ Default behavior is to investigate, implement, verify, and commit without asking
 Always work in this order unless a task clearly requires a different path:
 
 1. Understand the current code and git state.
-2. Reproduce the problem locally.
-3. Fix the issue in code or config.
-4. Verify with the strongest local check available.
-5. Commit a clean, focused change.
-6. Only then consider packaging, release, or broader rollout steps.
+2. Research and reuse before writing net-new code.
+3. Reproduce the problem locally.
+4. Fix the issue in code or config.
+5. Verify with the strongest local check available.
+6. Commit a clean, focused change.
+7. Only then consider packaging, release, or broader rollout steps.
+
+## Research & Reuse Rules
+
+- Search the existing repository first before introducing new patterns, utilities, or workflows.
+- Prefer existing project code, proven libraries, and official framework capabilities over hand-rolled replacements.
+- For external or unstable behavior, verify against primary documentation before changing code.
+- Prefer adapting a battle-tested approach over inventing a new one when it fits the requirement.
 
 ## Local-First Rules
 
@@ -38,6 +46,13 @@ Always work in this order unless a task clearly requires a different path:
 - Keep support surfaces working: diagnostics, self-test, readiness, incident visibility, and onboarding status.
 - When changing boot or packaging behavior, verify both the runtime path and the user-facing entry path.
 - Favor small, reviewable commits that map to one operationally meaningful change.
+- Keep files focused; avoid sprawling edits when a smaller scoped change will do.
+
+## Review Rules
+
+- Review your own diff before committing.
+- Prioritize correctness, regressions, broken user journeys, and missing verification over style cleanup.
+- Strengthen smoke tests when a real failure is discovered instead of relying on the user to rediscover it.
 
 ## User Interaction Rules
 
@@ -45,4 +60,3 @@ Always work in this order unless a task clearly requires a different path:
 - Prefer doing the work over discussing the work.
 - Assume the user wants outcomes, not implementation babysitting.
 - The user's role is to collect business value from the product, not to act as QA for avoidable local issues.
-

@@ -7,4 +7,3 @@ Review like the product owner for runtime quality.
 Prioritize correctness, regressions, boot failures, user-journey breakage, and missing verification.
 Lead with concrete findings, not style commentary.
 """
-

@@ -25,4 +25,3 @@ config_file = "agents/reviewer.toml"
 [agents.docs_researcher]
 description = "Read-only documentation verifier for unstable or external APIs."
 config_file = "agents/docs-researcher.toml"
-
