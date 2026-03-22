@@ -381,6 +381,12 @@ const Dashboard: React.FC = () => {
     const topSource = topSources[0] ?? null;
     const incidents15 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 15)).length;
     const incidents60 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 60)).length;
+    const heat =
+      incidents15 >= 3
+        ? { color: 'red', label: t.dashboard.logHeatHot }
+        : incidents15 > 0 || incidents60 >= 5
+          ? { color: 'gold', label: t.dashboard.logHeatElevated }
+          : { color: 'green', label: t.dashboard.logHeatCalm };
 
     return {
       total: incidents.length,
@@ -388,13 +394,14 @@ const Dashboard: React.FC = () => {
       warnings: incidents.filter((incident) => incident.level === 'warn').length,
       incidents15,
       incidents60,
+      heat,
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
       topSourceRatio: topSource ? Math.round((topSource[1] / incidents.length) * 100) : 0,
       topSources: topSources.slice(0, 3),
     };
-  }, [incidents]);
+  }, [incidents, t.dashboard.logHeatCalm, t.dashboard.logHeatElevated, t.dashboard.logHeatHot]);
 
   const activityDigest = useMemo(() => {
     if (!logs.length) {
@@ -694,6 +701,7 @@ const Dashboard: React.FC = () => {
     setCopyingIncidentDigest(true);
     const summaryLines = [
       'Pro5 recent incident digest',
+      `Incident heat: ${incidentDigest.heat.label}`,
       `Total incidents: ${incidentDigest.total}`,
       `Incidents (15m): ${incidentDigest.incidents15}`,
       `Incidents (60m): ${incidentDigest.incidents60}`,
@@ -1529,6 +1537,7 @@ const Dashboard: React.FC = () => {
                 <Space direction="vertical" size={6} style={{ width: '100%' }}>
                   <Space wrap>
                     <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
+                    <Tag color={incidentDigest.heat.color}>{`${t.dashboard.incidentHeatLabel}: ${incidentDigest.heat.label}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.incidentIssues15Label}: ${incidentDigest.incidents15}`}</Tag>
                     <Tag color="orange">{`${t.dashboard.incidentIssues60Label}: ${incidentDigest.incidents60}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>

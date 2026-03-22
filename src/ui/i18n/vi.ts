@@ -89,6 +89,7 @@ const vi = {
       logHeatCalm: 'Yên',
       logHeatElevated: 'Tăng nhiệt',
       logHeatHot: 'Đang nóng',
+      incidentHeatLabel: 'Độ nóng incident',
       hottestIssueLabel: 'Issue nóng nhất',
       openHottestIssue: 'Mở issue nóng nhất',
       copyHottestIssue: 'Sao chép issue nóng nhất',

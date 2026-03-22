@@ -91,6 +91,7 @@ const en: TranslationKeys = {
       logHeatCalm: 'Calm',
       logHeatElevated: 'Elevated',
       logHeatHot: 'Hot',
+      incidentHeatLabel: 'Incident heat',
       hottestIssueLabel: 'Hottest issue',
       openHottestIssue: 'Open hottest issue',
       copyHottestIssue: 'Copy hottest issue',
