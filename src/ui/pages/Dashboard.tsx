@@ -142,6 +142,13 @@ function formatTime(value?: string | null): string {
   return new Date(value).toLocaleString('vi-VN');
 }
 
+function minutesSince(value?: string | null): number | null {
+  if (!value) return null;
+  const diffMs = Date.now() - new Date(value).getTime();
+  if (diffMs < 0) return 0;
+  return Math.round(diffMs / 60_000);
+}
+
 function isWithinLastMinutes(value?: string | null, minutes = 60): boolean {
   if (!value) return false;
   const diffMs = Date.now() - new Date(value).getTime();
@@ -390,6 +397,7 @@ const Dashboard: React.FC = () => {
           .slice()
           .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null
       : null;
+    const latestIncidentMinutes = minutesSince(latestIncident.timestamp);
     const incidents15 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 15)).length;
     const incidents60 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 60)).length;
     const heat =
@@ -416,6 +424,12 @@ const Dashboard: React.FC = () => {
         : topSourcesConcentration >= 50
           ? t.dashboard.incidentSourceModeMixedHint
           : t.dashboard.incidentSourceModeDistributedHint;
+    const freshness =
+      latestIncidentMinutes !== null && latestIncidentMinutes <= 5
+        ? { color: 'volcano', label: t.dashboard.incidentFreshnessHot }
+        : latestIncidentMinutes !== null && latestIncidentMinutes <= 30
+          ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
+          : { color: 'green', label: t.dashboard.incidentFreshnessStale };
 
     return {
       total: incidents.length,
@@ -427,6 +441,7 @@ const Dashboard: React.FC = () => {
       trend,
       sourceMode,
       sourceModeHint,
+      freshness,
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
@@ -745,6 +760,7 @@ const Dashboard: React.FC = () => {
       'Pro5 recent incident digest',
       `Incident heat: ${incidentDigest.heat.label}`,
       `Incident trend: ${incidentDigest.trend.label}`,
+      `Incident freshness: ${incidentDigest.freshness.label}`,
       `Total incidents: ${incidentDigest.total}`,
       `Incidents (15m): ${incidentDigest.incidents15}`,
       `Incidents (60m): ${incidentDigest.incidents60}`,
@@ -1632,6 +1648,7 @@ const Dashboard: React.FC = () => {
                     <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
                     <Tag color={incidentDigest.heat.color}>{`${t.dashboard.incidentHeatLabel}: ${incidentDigest.heat.label}`}</Tag>
                     <Tag color={incidentDigest.trend.color}>{`${t.dashboard.incidentTrendLabel}: ${incidentDigest.trend.label}`}</Tag>
+                    <Tag color={incidentDigest.freshness.color}>{`${t.dashboard.incidentFreshnessLabel}: ${incidentDigest.freshness.label}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.incidentIssues15Label}: ${incidentDigest.incidents15}`}</Tag>
                     <Tag color="orange">{`${t.dashboard.incidentIssues60Label}: ${incidentDigest.incidents60}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
