@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, List, Row, Space, Statistic, Tag, Typography, message } from 'antd';
-import { ApiOutlined, ArrowRightOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
+import { ApiOutlined, ArrowRightOutlined, DownloadOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -316,6 +316,11 @@ const Dashboard: React.FC = () => {
     void message.success(t.dashboard.selfTestRan);
   }, [t.dashboard.selfTestRan]);
 
+  const handleExportDiagnostics = useCallback(() => {
+    window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank');
+    void message.success(t.dashboard.diagnosticsExportStarted);
+  }, [t.dashboard.diagnosticsExportStarted]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -334,6 +339,9 @@ const Dashboard: React.FC = () => {
                 </Button>
                 <Button icon={<ApiOutlined />} onClick={() => navigate('/proxies')}>
                   {t.dashboard.openProxies}
+                </Button>
+                <Button icon={<DownloadOutlined />} onClick={handleExportDiagnostics}>
+                  {t.dashboard.exportDiagnostics}
                 </Button>
                 <Button icon={<SettingOutlined />} onClick={() => navigate('/settings')}>
                   {t.dashboard.openSettings}

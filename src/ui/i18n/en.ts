@@ -13,6 +13,8 @@ const en: TranslationKeys = {
     subtitle: 'See profile, proxy, and operational health at a glance before jumping into detailed workspaces.',
     openProfiles: 'Open Profiles',
     openProxies: 'Open Proxies',
+    exportDiagnostics: 'Export diagnostics',
+    diagnosticsExportStarted: 'Diagnostics export started',
     openSettings: 'Open Settings',
     createFirstProfile: 'Create first profile',
     launchSnapshot: 'Recent usage signal',

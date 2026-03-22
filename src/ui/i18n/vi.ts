@@ -11,6 +11,8 @@ const vi = {
     subtitle: 'Nhìn nhanh tình trạng hồ sơ, proxy và các điểm cần xử lý trước khi vào workspace chi tiết.',
     openProfiles: 'Mở hồ sơ',
     openProxies: 'Mở proxy',
+    exportDiagnostics: 'Xuất diagnostics',
+    diagnosticsExportStarted: 'Đã bắt đầu xuất diagnostics',
     openSettings: 'Mở cài đặt',
     createFirstProfile: 'Tạo hồ sơ đầu tiên',
     launchSnapshot: 'Tín hiệu sử dụng gần nhất',
