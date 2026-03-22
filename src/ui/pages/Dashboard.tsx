@@ -186,6 +186,7 @@ const Dashboard: React.FC = () => {
   const [copyingLatestIncident, setCopyingLatestIncident] = useState(false);
   const [copyingTopIncidentSource, setCopyingTopIncidentSource] = useState(false);
   const [copyingTopIncidentSources, setCopyingTopIncidentSources] = useState(false);
+  const [copyingTopSourceLatestIncident, setCopyingTopSourceLatestIncident] = useState(false);
   const [copyingLatestActivity, setCopyingLatestActivity] = useState(false);
   const [copyingTopActivityIssues, setCopyingTopActivityIssues] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -847,6 +848,37 @@ const Dashboard: React.FC = () => {
     t.dashboard.topIncidentSourcesCopied,
     t.dashboard.topIncidentSourcesCopyFailed,
     t.dashboard.topIncidentSourcesUnavailable,
+  ]);
+
+  const handleCopyTopSourceLatestIncident = useCallback(async () => {
+    if (!incidentDigest?.topSourceLatestIncident) {
+      void message.warning(t.dashboard.topSourceLatestIncidentUnavailable);
+      return;
+    }
+
+    setCopyingTopSourceLatestIncident(true);
+    const latestIncident = incidentDigest.topSourceLatestIncident;
+    const summaryLines = [
+      'Pro5 top source latest incident',
+      `Source: ${latestIncident.source}`,
+      `Level: ${latestIncident.level.toUpperCase()}`,
+      `Timestamp: ${formatTime(latestIncident.timestamp)}`,
+      `Message: ${latestIncident.message}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.topSourceLatestIncidentCopied);
+    } catch {
+      void message.error(t.dashboard.topSourceLatestIncidentCopyFailed);
+    } finally {
+      setCopyingTopSourceLatestIncident(false);
+    }
+  }, [
+    incidentDigest,
+    t.dashboard.topSourceLatestIncidentCopied,
+    t.dashboard.topSourceLatestIncidentCopyFailed,
+    t.dashboard.topSourceLatestIncidentUnavailable,
   ]);
 
   const handleCopyActivityDigest = useCallback(async () => {
@@ -1516,6 +1548,16 @@ const Dashboard: React.FC = () => {
           title={t.dashboard.incidentsTitle}
           extra={(
             <Space size={8}>
+              {incidentDigest ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingTopSourceLatestIncident}
+                  onClick={() => { void handleCopyTopSourceLatestIncident(); }}
+                >
+                  {t.dashboard.copyTopSourceLatestIncident}
+                </Button>
+              ) : null}
               {incidentDigest ? (
                 <Button
                   type="link"
