@@ -109,18 +109,21 @@ const Logs: React.FC = () => {
     return () => window.clearInterval(intervalId);
   }, [autoRefresh, loadLogs]);
 
-  const filteredEntries = useMemo(() => {
+  const matchedEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const matchedEntries = entries.filter((entry) => {
+    return entries.filter((entry) => {
       const levelMatches = filter === 'all'
         || (filter === 'issues' ? entry.level === 'warn' || entry.level === 'error' : entry.level === filter);
       const windowMatches = !recentWindowOnly || isWithinLastMinutes(entry.timestamp, 60);
       const queryMatches = !normalizedQuery || entry.raw.toLowerCase().includes(normalizedQuery);
       return levelMatches && windowMatches && queryMatches;
     });
+  }, [entries, filter, query, recentWindowOnly]);
 
-    return sortOrder === 'oldest' ? matchedEntries.slice().reverse() : matchedEntries;
-  }, [entries, filter, query, recentWindowOnly, sortOrder]);
+  const filteredEntries = useMemo(
+    () => (sortOrder === 'oldest' ? matchedEntries.slice().reverse() : matchedEntries),
+    [matchedEntries, sortOrder],
+  );
 
   const counts = useMemo(() => ({
     info: entries.filter((entry) => entry.level === 'info').length,
@@ -140,8 +143,8 @@ const Logs: React.FC = () => {
   );
 
   const latestVisibleIssue = useMemo(
-    () => filteredEntries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
-    [filteredEntries],
+    () => matchedEntries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
+    [matchedEntries],
   );
 
   const issueStreak = useMemo(() => {
@@ -169,8 +172,8 @@ const Logs: React.FC = () => {
   }, [filteredEntries, t.logs.copied, t.logs.copyFailed]);
 
   const issueEntries = useMemo(
-    () => filteredEntries.filter((entry) => entry.level === 'warn' || entry.level === 'error'),
-    [filteredEntries],
+    () => matchedEntries.filter((entry) => entry.level === 'warn' || entry.level === 'error'),
+    [matchedEntries],
   );
 
   const recentIssueCount = useMemo(
