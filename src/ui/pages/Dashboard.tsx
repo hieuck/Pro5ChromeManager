@@ -530,6 +530,19 @@ const Dashboard: React.FC = () => {
           .slice()
           .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null
       : null;
+    const topSourceLatestMinutes = minutesSince(topSourceLatestEntry?.timestamp ?? null);
+    const topSourceLatestFreshness =
+      topSourceLatestMinutes !== null && topSourceLatestMinutes <= 5
+        ? { color: 'volcano', label: t.dashboard.incidentFreshnessHot }
+        : topSourceLatestMinutes !== null && topSourceLatestMinutes <= 30
+          ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
+          : { color: 'green', label: t.dashboard.incidentFreshnessStale };
+    const topSourceLatestLevel =
+      topSourceLatestEntry?.level === 'error'
+        ? { color: 'red', label: t.dashboard.errorCountLabel }
+        : topSourceLatestEntry?.level === 'warn'
+          ? { color: 'gold', label: t.dashboard.warningCountLabel }
+          : { color: 'blue', label: t.dashboard.infoCountLabel };
     const topSourceShare = topSource ? Math.round((topSource[1] / logs.length) * 100) : 0;
     const topSourcesConcentration = logs.length
       ? Math.round((topSources.reduce((sum, [, count]) => sum + count, 0) / logs.length) * 100)
@@ -560,6 +573,8 @@ const Dashboard: React.FC = () => {
       topSources,
       topSource,
       topSourceLatestEntry,
+      topSourceLatestFreshness,
+      topSourceLatestLevel,
       topSourceShare,
       topSourcesConcentration,
       activitySourceMode,
@@ -1121,6 +1136,8 @@ const Dashboard: React.FC = () => {
       activityDigest.topSourceLatestEntry
         ? `Top source latest: ${activityDigest.topSourceLatestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.topSourceLatestEntry.timestamp)}`
         : null,
+      activityDigest.topSourceLatestEntry ? `Top source latest freshness: ${activityDigest.topSourceLatestFreshness.label}` : null,
+      activityDigest.topSourceLatestEntry ? `Top source latest level: ${activityDigest.topSourceLatestLevel.label}` : null,
       activityDigest.topSourceLatestEntry ? `Top source latest message: ${activityDigest.topSourceLatestEntry.message}` : null,
       `Top activity source share: ${activityDigest.topSourceShare}%`,
       `Top activity concentration: ${activityDigest.topSourcesConcentration}%`,
@@ -1230,6 +1247,8 @@ const Dashboard: React.FC = () => {
       `Count: ${activityDigest.topSource[1]}`,
       `Level: ${entry.level.toUpperCase()}`,
       `Timestamp: ${formatTime(entry.timestamp)}`,
+      `Freshness: ${activityDigest.topSourceLatestFreshness.label}`,
+      `Level label: ${activityDigest.topSourceLatestLevel.label}`,
       `Message: ${entry.message}`,
       `Raw: ${entry.raw}`,
     ];
@@ -2193,6 +2212,12 @@ const Dashboard: React.FC = () => {
                   ) : null}
                   {activityDigest.topSourceLatestEntry ? (
                     <Space wrap>
+                      <Tag color={activityDigest.topSourceLatestFreshness.color}>
+                        {`${t.dashboard.topActivitySourceFreshnessLabel}: ${activityDigest.topSourceLatestFreshness.label}`}
+                      </Tag>
+                      <Tag color={activityDigest.topSourceLatestLevel.color}>
+                        {`${t.dashboard.topActivitySourceLatestLevelLabel}: ${activityDigest.topSourceLatestLevel.label}`}
+                      </Tag>
                       <Button
                         type="link"
                         size="small"

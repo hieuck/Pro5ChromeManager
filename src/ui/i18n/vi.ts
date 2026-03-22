@@ -162,6 +162,8 @@ const vi = {
       topActivitySourceShareLabel: 'Tỷ trọng nguồn chính',
       topActivitySourcesConcentrationLabel: 'Độ tập trung top 3',
       topActivitySourceLatestLabel: 'Nguồn chính mới nhất',
+      topActivitySourceFreshnessLabel: 'Độ mới nguồn chính',
+      topActivitySourceLatestLevelLabel: 'Mức độ nguồn chính',
       latestActivityLabel: 'Hoạt động mới nhất',
       hottestPatternLabel: 'Cụm nóng nhất',
       topIssuesLabel: 'Issue lặp khác',

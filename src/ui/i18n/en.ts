@@ -164,6 +164,8 @@ const en: TranslationKeys = {
       topActivitySourceShareLabel: 'Top source share',
       topActivitySourcesConcentrationLabel: 'Top 3 concentration',
       topActivitySourceLatestLabel: 'Top source latest',
+      topActivitySourceFreshnessLabel: 'Top source freshness',
+      topActivitySourceLatestLevelLabel: 'Top source level',
       latestActivityLabel: 'Latest activity',
       hottestPatternLabel: 'Hottest pattern',
       topIssuesLabel: 'Also repeating',
