@@ -463,6 +463,7 @@ const Logs: React.FC = () => {
       `Visible errors: ${filteredCounts.error}`,
       `Visible warnings: ${filteredCounts.warn}`,
       `Visible info: ${filteredCounts.info}`,
+      `Visible heat: ${visibleTrendStatus.label}`,
       `Recent window only: ${recentWindowOnly ? 'yes' : 'no'}`,
       `Sort order: ${sortOrder}`,
       `Search: ${query.trim() || 'none'}`,
@@ -493,6 +494,7 @@ const Logs: React.FC = () => {
     t.logs.visibleSliceCopied,
     visibleIssueTrend.last15m,
     visibleIssueTrend.last60m,
+    visibleTrendStatus.label,
   ]);
 
   const handleFocusRepeatedRecentIssue = useCallback((messageText: string) => {
