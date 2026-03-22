@@ -118,6 +118,7 @@ const en: TranslationKeys = {
       activityIssues15Label: 'Issues 15m',
       activityIssues60Label: 'Issues 60m',
       latestActivityLabel: 'Latest activity',
+      topIssuesLabel: 'Also repeating',
       copyLatestActivity: 'Copy latest activity',
       latestActivityCopied: 'Latest activity copied',
       latestActivityCopyFailed: 'Unable to copy the latest activity',

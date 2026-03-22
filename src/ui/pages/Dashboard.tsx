@@ -318,7 +318,7 @@ const Dashboard: React.FC = () => {
     return { color: 'green', label: t.dashboard.logHeatCalm, incidents15, incidents60 };
   }, [logs, t.dashboard.logHeatCalm, t.dashboard.logHeatElevated, t.dashboard.logHeatHot]);
 
-  const hottestRecentIssue = useMemo(() => {
+  const topRecentIssues = useMemo(() => {
     const recentIssues = logs.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60));
     const issueCounts = new Map<string, { entry: LogEntry; count: number }>();
 
@@ -345,8 +345,11 @@ const Dashboard: React.FC = () => {
         }
 
         return new Date(b.entry.timestamp).getTime() - new Date(a.entry.timestamp).getTime();
-      })[0] ?? null;
+      })
+      .slice(0, 3);
   }, [logs]);
+
+  const hottestRecentIssue = topRecentIssues[0] ?? null;
 
   const incidentDigest = useMemo(() => {
     if (!incidents.length) {
@@ -391,8 +394,9 @@ const Dashboard: React.FC = () => {
       issues60: logHeat.incidents60,
       latestEntry,
       hottestRecentIssue,
+      topRecentIssues,
     };
-  }, [hottestRecentIssue, logHeat.incidents15, logHeat.incidents60, logs]);
+  }, [hottestRecentIssue, logHeat.incidents15, logHeat.incidents60, logs, topRecentIssues]);
 
   const handleStartProfile = useCallback(async (profileId: string) => {
     setStartingProfileId(profileId);
@@ -771,7 +775,9 @@ const Dashboard: React.FC = () => {
       `Issues (60m): ${activityDigest.issues60}`,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
       `Latest message: ${activityDigest.latestEntry.message}`,
-      activityDigest.hottestRecentIssue ? `Hottest issue: ${activityDigest.hottestRecentIssue.entry.message} (${activityDigest.hottestRecentIssue.count})` : null,
+      activityDigest.topRecentIssues.length
+        ? `Top issues: ${activityDigest.topRecentIssues.map((issue) => `${issue.entry.message} (${issue.count})`).join(', ')}`
+        : null,
     ].filter(Boolean);
 
     try {
@@ -828,6 +834,21 @@ const Dashboard: React.FC = () => {
 
     handleOpenLogEntry(activityDigest.latestEntry);
   }, [activityDigest, handleOpenLogEntry]);
+
+  const handleOpenActivityIssue = useCallback((messageText?: string | null) => {
+    if (!messageText) {
+      return;
+    }
+
+    navigate('/logs', {
+      state: {
+        presetQuery: messageText,
+        presetFilter: 'issues',
+        presetRecentWindowOnly: true,
+        presetSortOrder: 'newest',
+      },
+    });
+  }, [navigate]);
 
   const handleCreateBackup = useCallback(async () => {
     setCreatingBackup(true);
@@ -1535,6 +1556,19 @@ const Dashboard: React.FC = () => {
                       {`${t.dashboard.latestActivityLabel}: ${formatTime(activityDigest.latestEntry.timestamp)}`}
                     </Tag>
                   </Button>
+                  {activityDigest.topRecentIssues.map((issue, index) => (
+                    <Button
+                      key={`${issue.entry.message}-${issue.count}`}
+                      type="link"
+                      size="small"
+                      style={{ paddingInline: 0 }}
+                      onClick={() => handleOpenActivityIssue(issue.entry.message)}
+                    >
+                      <Tag color={index === 0 ? 'magenta' : 'purple'}>
+                        {`${index === 0 ? t.dashboard.hottestIssueLabel : t.dashboard.topIssuesLabel}: ×${issue.count}`}
+                      </Tag>
+                    </Button>
+                  ))}
                 </Space>
               ) : null}
               <List

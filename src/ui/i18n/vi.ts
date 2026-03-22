@@ -116,6 +116,7 @@ const vi = {
       activityIssues15Label: 'Issue 15p',
       activityIssues60Label: 'Issue 60p',
       latestActivityLabel: 'Hoạt động mới nhất',
+      topIssuesLabel: 'Issue lặp khác',
       copyLatestActivity: 'Sao chép hoạt động mới nhất',
       latestActivityCopied: 'Đã sao chép hoạt động mới nhất',
       latestActivityCopyFailed: 'Không thể sao chép hoạt động mới nhất',
