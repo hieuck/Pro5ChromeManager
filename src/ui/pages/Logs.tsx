@@ -253,6 +253,11 @@ const Logs: React.FC = () => {
     [entries],
   );
 
+  const visibleIssueTrend = useMemo(() => ({
+    last15m: matchedEntries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 15)).length,
+    last60m: matchedEntries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60)).length,
+  }), [matchedEntries]);
+
   const repeatedRecentIssues = useMemo(() => {
     const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
 
@@ -636,6 +641,15 @@ const Logs: React.FC = () => {
             showIcon
             message={t.logs.visibleBreakdown}
             description={`${filteredEntries.length} ${t.logs.visibleEntries} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
+          />
+        ) : null}
+
+        {(query.trim() || filter !== 'all' || recentWindowOnly) && (visibleIssueTrend.last15m || visibleIssueTrend.last60m) ? (
+          <Alert
+            type={visibleIssueTrend.last15m ? 'warning' : 'info'}
+            showIcon
+            message={t.logs.visibleTrendTitle}
+            description={`${t.logs.visibleTrendLast15.replace('{count}', String(visibleIssueTrend.last15m))} · ${t.logs.visibleTrendLast60.replace('{count}', String(visibleIssueTrend.last60m))}`}
           />
         ) : null}
 
