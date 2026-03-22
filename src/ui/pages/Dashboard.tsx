@@ -1253,33 +1253,45 @@ const Dashboard: React.FC = () => {
           )}
         >
           {incidents.length ? (
-            <List
-              dataSource={incidents}
-              renderItem={(incident) => (
-                <List.Item
-                  actions={[
-                    <Button key={`${incident.timestamp}-${incident.message}`} type="link" onClick={() => handleOpenIncidentInLogs(incident)}>
-                      {t.dashboard.openInLogs}
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={(
-                      <Space wrap>
-                        <Tag color={incident.level === 'error' ? 'red' : 'gold'}>{incident.level.toUpperCase()}</Tag>
-                        <Typography.Text strong>{incident.source}</Typography.Text>
-                      </Space>
-                    )}
-                    description={(
-                      <Space direction="vertical" size={0}>
-                        <Typography.Text>{incident.message}</Typography.Text>
-                        <Typography.Text type="secondary">{formatTime(incident.timestamp)}</Typography.Text>
-                      </Space>
-                    )}
-                  />
-                </List.Item>
-              )}
-            />
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
+              {incidentDigest ? (
+                <Space wrap>
+                  <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
+                  <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
+                  <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`}</Tag>
+                  {incidentDigest.topSource ? (
+                    <Tag color="purple">{`${t.dashboard.topSourceLabel}: ${incidentDigest.topSource[0]} ×${incidentDigest.topSource[1]}`}</Tag>
+                  ) : null}
+                </Space>
+              ) : null}
+              <List
+                dataSource={incidents}
+                renderItem={(incident) => (
+                  <List.Item
+                    actions={[
+                      <Button key={`${incident.timestamp}-${incident.message}`} type="link" onClick={() => handleOpenIncidentInLogs(incident)}>
+                        {t.dashboard.openInLogs}
+                      </Button>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={(
+                        <Space wrap>
+                          <Tag color={incident.level === 'error' ? 'red' : 'gold'}>{incident.level.toUpperCase()}</Tag>
+                          <Typography.Text strong>{incident.source}</Typography.Text>
+                        </Space>
+                      )}
+                      description={(
+                        <Space direction="vertical" size={0}>
+                          <Typography.Text>{incident.message}</Typography.Text>
+                          <Typography.Text type="secondary">{formatTime(incident.timestamp)}</Typography.Text>
+                        </Space>
+                      )}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Space>
           ) : (
             <Empty description={t.dashboard.noIncidents} />
           )}
