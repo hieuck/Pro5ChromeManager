@@ -59,6 +59,13 @@ interface SupportStatus {
   };
 }
 
+interface IncidentEntry {
+  timestamp: string;
+  level: 'warn' | 'error';
+  source: string;
+  message: string;
+}
+
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
@@ -76,17 +83,20 @@ const Dashboard: React.FC = () => {
   const [proxies, setProxies] = useState<DashboardProxy[]>([]);
   const [instances, setInstances] = useState<Record<string, DashboardInstance>>({});
   const [support, setSupport] = useState<SupportStatus | null>(null);
+  const [incidents, setIncidents] = useState<IncidentEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
   const [retestingProfileId, setRetestingProfileId] = useState<string | null>(null);
+  const [retestingAll, setRetestingAll] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
-    const [profilesRes, proxiesRes, instancesRes, supportRes] = await Promise.all([
+    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes] = await Promise.all([
       apiClient.get<DashboardProfile[]>('/api/profiles'),
       apiClient.get<DashboardProxy[]>('/api/proxies'),
       apiClient.get<DashboardInstance[]>('/api/instances'),
       apiClient.get<SupportStatus>('/api/support/status'),
+      apiClient.get<{ count: number; incidents: IncidentEntry[] }>('/api/support/incidents?limit=5'),
     ]);
 
     if (profilesRes.success) setProfiles(profilesRes.data);
@@ -95,6 +105,7 @@ const Dashboard: React.FC = () => {
       setInstances(Object.fromEntries(instancesRes.data.map((instance) => [instance.profileId, instance])));
     }
     if (supportRes.success) setSupport(supportRes.data);
+    if (incidentsRes.success) setIncidents(incidentsRes.data.incidents);
     setLoading(false);
   }, []);
 
@@ -135,6 +146,16 @@ const Dashboard: React.FC = () => {
     [profiles],
   );
 
+  const failingProxyIds = useMemo(
+    () => Array.from(new Set(
+      profiles
+        .filter((profile) => profile.proxy?.lastCheckStatus === 'failing')
+        .map((profile) => profile.proxy?.id)
+        .filter((proxyId): proxyId is string => Boolean(proxyId)),
+    )),
+    [profiles],
+  );
+
   const handleStartProfile = useCallback(async (profileId: string) => {
     setStartingProfileId(profileId);
     const res = await apiClient.post(`/api/profiles/${profileId}/start`);
@@ -167,6 +188,27 @@ const Dashboard: React.FC = () => {
     );
     await loadDashboard();
   }, [loadDashboard, t.dashboard.proxyRetested]);
+
+  const handleRetestAllFailingProxies = useCallback(async () => {
+    if (!failingProxyIds.length) {
+      return;
+    }
+    setRetestingAll(true);
+    const res = await apiClient.post<{
+      total: number;
+      healthy: number;
+      failing: number;
+    }>('/api/proxies/test-bulk', { ids: failingProxyIds });
+    setRetestingAll(false);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void message.success(
+      `${t.dashboard.proxyRetested}: OK ${res.data.healthy} · FAIL ${res.data.failing}`,
+    );
+    await loadDashboard();
+  }, [failingProxyIds, loadDashboard, t.dashboard.proxyRetested]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -249,7 +291,34 @@ const Dashboard: React.FC = () => {
         </Row>
 
         <Row gutter={[16, 16]}>
-          <Col xs={24} xl={12}>
+          <Col xs={24} xl={8}>
+            <Card
+              title={t.dashboard.quickActionsTitle}
+              style={cardStyle}
+              extra={<Button type="link" onClick={() => navigate('/profiles')}>{t.dashboard.review}</Button>}
+            >
+              <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <Button type="primary" block icon={<UserOutlined />} onClick={() => navigate('/profiles')}>
+                  {profiles.length ? t.dashboard.openProfiles : t.dashboard.createFirstProfile}
+                </Button>
+                <Button
+                  block
+                  icon={<ReloadOutlined />}
+                  disabled={!failingProxyIds.length}
+                  loading={retestingAll}
+                  onClick={() => { void handleRetestAllFailingProxies(); }}
+                >
+                  {failingProxyIds.length
+                    ? `${t.dashboard.retestAllFailing} (${failingProxyIds.length})`
+                    : t.dashboard.noFailingProxies}
+                </Button>
+                <Button block icon={<ApiOutlined />} onClick={() => navigate('/proxies')}>
+                  {t.dashboard.openProxies}
+                </Button>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} xl={8}>
             <Card
               title={t.dashboard.attentionTitle}
               style={cardStyle}
@@ -297,7 +366,7 @@ const Dashboard: React.FC = () => {
               )}
             </Card>
           </Col>
-          <Col xs={24} xl={12}>
+          <Col xs={24} xl={8}>
             <Card
               title={t.dashboard.recentTitle}
               style={cardStyle}
@@ -351,6 +420,38 @@ const Dashboard: React.FC = () => {
             </Card>
           </Col>
         </Row>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.incidentsTitle}
+          extra={<Button type="link" onClick={() => navigate('/settings')}>{t.dashboard.openSettings}</Button>}
+        >
+          {incidents.length ? (
+            <List
+              dataSource={incidents}
+              renderItem={(incident) => (
+                <List.Item>
+                  <List.Item.Meta
+                    title={(
+                      <Space wrap>
+                        <Tag color={incident.level === 'error' ? 'red' : 'gold'}>{incident.level.toUpperCase()}</Tag>
+                        <Typography.Text strong>{incident.source}</Typography.Text>
+                      </Space>
+                    )}
+                    description={(
+                      <Space direction="vertical" size={0}>
+                        <Typography.Text>{incident.message}</Typography.Text>
+                        <Typography.Text type="secondary">{formatTime(incident.timestamp)}</Typography.Text>
+                      </Space>
+                    )}
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty description={t.dashboard.noIncidents} />
+          )}
+        </Card>
 
         <Card style={cardStyle} title={t.dashboard.onboardingTitle}>
           <Space direction="vertical" size={8}>
