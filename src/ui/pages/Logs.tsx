@@ -139,6 +139,11 @@ const Logs: React.FC = () => {
     [entries],
   );
 
+  const latestVisibleIssue = useMemo(
+    () => filteredEntries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
+    [filteredEntries],
+  );
+
   const issueStreak = useMemo(() => {
     let streak = 0;
 
@@ -329,6 +334,14 @@ const Logs: React.FC = () => {
     setQuery(latestIssue.message);
     void message.success(t.logs.focusLatestIssueApplied);
   }, [latestIssue, t.logs.focusLatestIssueApplied]);
+
+  const handleFocusVisibleIssue = useCallback(() => {
+    if (!latestVisibleIssue) return;
+
+    setFilter('issues');
+    setQuery(latestVisibleIssue.message);
+    void message.success(t.logs.focusVisibleIssueApplied);
+  }, [latestVisibleIssue, t.logs.focusVisibleIssueApplied]);
 
   const handleFocusRepeatedRecentIssue = useCallback((messageText: string) => {
     if (!messageText) return;
@@ -523,6 +536,40 @@ const Logs: React.FC = () => {
             message={t.logs.visibleBreakdown}
             description={`${filteredEntries.length} ${t.logs.visibleEntries} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
           />
+        ) : null}
+
+        {(query.trim() || filter !== 'all' || recentWindowOnly) && latestVisibleIssue ? (
+          <Card
+            size="small"
+            title={t.logs.visibleLatestIssue}
+            extra={(
+              <Button type="link" onClick={handleFocusVisibleIssue}>
+                {t.logs.focusVisibleIssue}
+              </Button>
+            )}
+          >
+            <Space direction="vertical" size={6} style={{ width: '100%' }}>
+              <Space wrap>
+                <Tag color={latestVisibleIssue.level === 'error' ? 'red' : 'gold'}>
+                  {latestVisibleIssue.level.toUpperCase()}
+                </Tag>
+                <Typography.Text type="secondary">{formatTimestamp(latestVisibleIssue.timestamp)}</Typography.Text>
+                <Typography.Text type="secondary">
+                  {formatRelativeTime(latestVisibleIssue.timestamp, {
+                    justNow: t.logs.justNow,
+                    minutesAgo: (count) => t.logs.minutesAgo.replace('{count}', String(count)),
+                    hoursAgo: (count) => t.logs.hoursAgo.replace('{count}', String(count)),
+                    daysAgo: (count) => t.logs.daysAgo.replace('{count}', String(count)),
+                  })}
+                </Typography.Text>
+              </Space>
+              <Alert
+                type={latestVisibleIssue.level === 'error' ? 'error' : 'warning'}
+                showIcon
+                message={latestVisibleIssue.message}
+              />
+            </Space>
+          </Card>
         ) : null}
 
         {repeatedRecentIssue ? (
