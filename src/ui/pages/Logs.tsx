@@ -780,6 +780,10 @@ const Logs: React.FC = () => {
 
     const lines = [
       'Pro5 visible sources',
+      `Top source share: ${visibleTopSourceShare}%`,
+      `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
+      `Source mode: ${visibleSourceMode.label}`,
+      `Source hint: ${visibleSourceMode.hint}`,
       ...visibleSources.map((source) => `${source.count}x | ${source.source} | ${source.latestEntry.level.toUpperCase()} | ${source.latestEntry.message}`),
     ];
 
@@ -789,7 +793,16 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [t.logs.copyFailed, t.logs.visibleSourcesCopied, t.logs.visibleSourcesUnavailable, visibleSources]);
+  }, [
+    t.logs.copyFailed,
+    t.logs.visibleSourcesCopied,
+    t.logs.visibleSourcesUnavailable,
+    visibleSourceMode.hint,
+    visibleSourceMode.label,
+    visibleSources,
+    visibleTopSourceShare,
+    visibleTopSourcesConcentration,
+  ]);
 
   const handleCopyRecentIssueSourceDigest = useCallback(async (
     source: {
@@ -1098,6 +1111,14 @@ const Logs: React.FC = () => {
               </Space>
             )}
           >
+            <Space wrap size={[8, 8]} style={{ marginBottom: 12 }}>
+              <Tag color="blue">{`${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`}</Tag>
+              <Tag color="purple">{`${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`}</Tag>
+              <Tag color="geekblue">{`${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`}</Tag>
+            </Space>
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              {`${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`}
+            </Typography.Text>
             <List
               size="small"
               dataSource={visibleSources}
