@@ -786,6 +786,9 @@ const Logs: React.FC = () => {
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               >
                 <Space wrap>
+                  <Button onClick={handleRecentIssuesPreset}>
+                    {t.logs.recentIssuesPreset}
+                  </Button>
                   <Button onClick={handleResetFilters}>
                     {t.logs.resetFilters}
                   </Button>
