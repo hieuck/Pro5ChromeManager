@@ -357,12 +357,14 @@ const Dashboard: React.FC = () => {
       .slice()
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
 
-    const topSource = Array.from(
+    const topSources = Array.from(
       incidents.reduce((acc, incident) => {
         acc.set(incident.source, (acc.get(incident.source) ?? 0) + 1);
         return acc;
       }, new Map<string, number>()),
-    ).sort((a, b) => b[1] - a[1])[0] ?? null;
+    ).sort((a, b) => b[1] - a[1]);
+
+    const topSource = topSources[0] ?? null;
 
     return {
       total: incidents.length,
@@ -370,6 +372,7 @@ const Dashboard: React.FC = () => {
       warnings: incidents.filter((incident) => incident.level === 'warn').length,
       latestIncident,
       topSource,
+      topSources: topSources.slice(0, 3),
     };
   }, [incidents]);
 
@@ -575,20 +578,24 @@ const Dashboard: React.FC = () => {
     });
   }, [navigate]);
 
-  const handleOpenTopIncidentSource = useCallback(() => {
-    if (!incidentDigest?.topSource) {
+  const handleOpenIncidentSource = useCallback((source?: string | null) => {
+    if (!source) {
       return;
     }
 
     navigate('/logs', {
       state: {
-        presetQuery: incidentDigest.topSource[0],
+        presetQuery: source,
         presetFilter: 'issues',
         presetRecentWindowOnly: true,
         presetSortOrder: 'newest',
       },
     });
-  }, [incidentDigest, navigate]);
+  }, [navigate]);
+
+  const handleOpenTopIncidentSource = useCallback(() => {
+    handleOpenIncidentSource(incidentDigest?.topSource?.[0] ?? null);
+  }, [handleOpenIncidentSource, incidentDigest]);
 
   const handleOpenLatestIncident = useCallback(() => {
     if (!incidentDigest?.latestIncident) {
@@ -668,7 +675,9 @@ const Dashboard: React.FC = () => {
       `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
       `Latest source: ${incidentDigest.latestIncident.source}`,
       `Latest message: ${incidentDigest.latestIncident.message}`,
-      incidentDigest.topSource ? `Top source: ${incidentDigest.topSource[0]} (${incidentDigest.topSource[1]})` : null,
+      incidentDigest.topSources.length
+        ? `Top sources: ${incidentDigest.topSources.map(([source, count]) => `${source} (${count})`).join(', ')}`
+        : null,
     ].filter(Boolean);
 
     try {
@@ -1415,16 +1424,19 @@ const Dashboard: React.FC = () => {
                       {`${t.dashboard.latestIncidentLabel}: ${formatTime(incidentDigest.latestIncident.timestamp)}`}
                     </Tag>
                   </Button>
-                  {incidentDigest.topSource ? (
+                  {incidentDigest.topSources.map(([source, count], index) => (
                     <Button
+                      key={`${source}-${count}`}
                       type="link"
                       size="small"
                       style={{ paddingInline: 0 }}
-                      onClick={handleOpenTopIncidentSource}
+                      onClick={() => handleOpenIncidentSource(source)}
                     >
-                      <Tag color="purple">{`${t.dashboard.topSourceLabel}: ${incidentDigest.topSource[0]} ×${incidentDigest.topSource[1]}`}</Tag>
+                      <Tag color={index === 0 ? 'purple' : 'geekblue'}>
+                        {`${index === 0 ? t.dashboard.topSourceLabel : t.dashboard.topSourcesLabel}: ${source} ×${count}`}
+                      </Tag>
                     </Button>
-                  ) : null}
+                  ))}
                 </Space>
               ) : null}
               <List
