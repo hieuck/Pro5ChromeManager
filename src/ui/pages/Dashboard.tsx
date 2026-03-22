@@ -387,6 +387,12 @@ const Dashboard: React.FC = () => {
         : incidents15 > 0 || incidents60 >= 5
           ? { color: 'gold', label: t.dashboard.logHeatElevated }
           : { color: 'green', label: t.dashboard.logHeatCalm };
+    const trend =
+      incidents15 >= 3 && incidents15 * 2 >= Math.max(incidents60, 1)
+        ? { color: 'volcano', label: t.dashboard.incidentTrendSpiking }
+        : incidents15 > 0
+          ? { color: 'gold', label: t.dashboard.incidentTrendActive }
+          : { color: 'blue', label: t.dashboard.incidentTrendCooling };
 
     return {
       total: incidents.length,
@@ -395,6 +401,7 @@ const Dashboard: React.FC = () => {
       incidents15,
       incidents60,
       heat,
+      trend,
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
@@ -702,6 +709,7 @@ const Dashboard: React.FC = () => {
     const summaryLines = [
       'Pro5 recent incident digest',
       `Incident heat: ${incidentDigest.heat.label}`,
+      `Incident trend: ${incidentDigest.trend.label}`,
       `Total incidents: ${incidentDigest.total}`,
       `Incidents (15m): ${incidentDigest.incidents15}`,
       `Incidents (60m): ${incidentDigest.incidents60}`,
@@ -1538,6 +1546,7 @@ const Dashboard: React.FC = () => {
                   <Space wrap>
                     <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
                     <Tag color={incidentDigest.heat.color}>{`${t.dashboard.incidentHeatLabel}: ${incidentDigest.heat.label}`}</Tag>
+                    <Tag color={incidentDigest.trend.color}>{`${t.dashboard.incidentTrendLabel}: ${incidentDigest.trend.label}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.incidentIssues15Label}: ${incidentDigest.incidents15}`}</Tag>
                     <Tag color="orange">{`${t.dashboard.incidentIssues60Label}: ${incidentDigest.incidents60}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
