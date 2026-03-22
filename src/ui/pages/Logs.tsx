@@ -162,6 +162,11 @@ const Logs: React.FC = () => {
     [entries],
   );
 
+  const recentIssueBreakdown = useMemo(() => ({
+    error: entries.filter((entry) => entry.level === 'error' && isWithinLastMinutes(entry.timestamp, 60)).length,
+    warn: entries.filter((entry) => entry.level === 'warn' && isWithinLastMinutes(entry.timestamp, 60)).length,
+  }), [entries]);
+
   const handleCopyIssues = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(issueEntries.map((entry) => entry.raw).join('\n'));
@@ -363,6 +368,16 @@ const Logs: React.FC = () => {
                     {t.logs.recentIssueWindow.replace('{count}', String(recentIssueCount))}
                   </Tag>
                 ) : null}
+                {recentIssueBreakdown.error ? (
+                  <Tag color="red">
+                    {t.logs.recentErrors.replace('{count}', String(recentIssueBreakdown.error))}
+                  </Tag>
+                ) : null}
+                {recentIssueBreakdown.warn ? (
+                  <Tag color="gold">
+                    {t.logs.recentWarnings.replace('{count}', String(recentIssueBreakdown.warn))}
+                  </Tag>
+                ) : null}
                 <Typography.Text type="secondary">{formatTimestamp(latestIssue.timestamp)}</Typography.Text>
                 <Typography.Text type="secondary">
                   {formatRelativeTime(latestIssue.timestamp, {
@@ -399,6 +414,16 @@ const Logs: React.FC = () => {
             description={`${t.logs.incidentHint}${issueStreak > 1 ? ` ${t.logs.incidentStreakHint.replace('{count}', String(issueStreak))}` : ''}${recentIssueCount ? ` ${t.logs.recentIssueWindowHint.replace('{count}', String(recentIssueCount))}` : ''}`}
             action={(
               <Space wrap>
+                {recentIssueBreakdown.error ? (
+                  <Tag color="red">
+                    {t.logs.recentErrors.replace('{count}', String(recentIssueBreakdown.error))}
+                  </Tag>
+                ) : null}
+                {recentIssueBreakdown.warn ? (
+                  <Tag color="gold">
+                    {t.logs.recentWarnings.replace('{count}', String(recentIssueBreakdown.warn))}
+                  </Tag>
+                ) : null}
                 <Button size="small" onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
                   {t.logs.exportDiagnostics}
                 </Button>

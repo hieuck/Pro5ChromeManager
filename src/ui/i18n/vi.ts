@@ -248,6 +248,8 @@ const vi = {
     incidentStreakHint: 'Đang có {count} dòng lỗi/cảnh báo liên tiếp gần nhất.',
     recentIssueWindow: '{count} sự cố trong 60 phút',
     recentIssueWindowHint: 'Trong 60 phút gần nhất có {count} dòng lỗi/cảnh báo.',
+    recentErrors: '{count} lỗi gần đây',
+    recentWarnings: '{count} cảnh báo gần đây',
     latestIssue: 'Vấn đề mới nhất',
     issueStreak: 'Chuỗi sự cố {count}',
     copyLatestIssue: 'Sao chép vấn đề mới nhất',
