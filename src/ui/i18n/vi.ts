@@ -161,6 +161,7 @@ const vi = {
       hottestPatternLabel: 'Cụm nóng nhất',
       topIssuesLabel: 'Issue lặp khác',
       activityFreshnessLabel: 'Độ mới hoạt động',
+      latestActivityLevelLabel: 'Mức độ mới nhất',
       copyLatestActivity: 'Sao chép hoạt động mới nhất',
       latestActivityCopied: 'Đã sao chép hoạt động mới nhất',
       latestActivityCopyFailed: 'Không thể sao chép hoạt động mới nhất',

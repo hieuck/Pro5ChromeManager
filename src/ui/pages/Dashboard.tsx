@@ -489,6 +489,12 @@ const Dashboard: React.FC = () => {
         : latestActivityMinutes !== null && latestActivityMinutes <= 30
           ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
           : { color: 'green', label: t.dashboard.incidentFreshnessStale };
+    const latestActivityLevel =
+      latestEntry.level === 'error'
+        ? { color: 'red', label: t.dashboard.errorCountLabel }
+        : latestEntry.level === 'warn'
+          ? { color: 'gold', label: t.dashboard.warningCountLabel }
+          : { color: 'blue', label: t.dashboard.infoCountLabel };
     const activityActionHint =
       logHeat.incidents15 >= 3 && hottestRecentIssue
         ? t.dashboard.activityActionHottest
@@ -506,6 +512,7 @@ const Dashboard: React.FC = () => {
       issueRatio: logs.length ? Math.round(((logs.filter((entry) => entry.level === 'error' || entry.level === 'warn').length) / logs.length) * 100) : 0,
       latestEntry,
       activityFreshness,
+      latestActivityLevel,
       hottestRecentIssue,
       topRecentIssues,
       activityActionHint,
@@ -1036,6 +1043,7 @@ const Dashboard: React.FC = () => {
       `Info: ${activityDigest.infos}`,
       `Issue ratio: ${activityDigest.issueRatio}%`,
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
+      `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
       `Latest message: ${activityDigest.latestEntry.message}`,
       activityDigest.topRecentIssues.length
@@ -1977,6 +1985,7 @@ const Dashboard: React.FC = () => {
                   <Space wrap>
                     <Tag color="blue">{`${t.dashboard.activityEntriesLabel}: ${activityDigest.total}`}</Tag>
                     <Tag color={activityDigest.activityFreshness.color}>{`${t.dashboard.activityFreshnessLabel}: ${activityDigest.activityFreshness.label}`}</Tag>
+                    <Tag color={activityDigest.latestActivityLevel.color}>{`${t.dashboard.latestActivityLevelLabel}: ${activityDigest.latestActivityLevel.label}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${activityDigest.errors}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${activityDigest.warnings}`}</Tag>
                     <Tag color="blue">{`${t.dashboard.infoCountLabel}: ${activityDigest.infos}`}</Tag>
