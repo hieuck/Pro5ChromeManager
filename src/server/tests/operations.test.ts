@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import http from 'http';
+import { execFileSync } from 'child_process';
 
 describe('Operations endpoints', () => {
   let tmpDir: string;
@@ -171,5 +172,63 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.recentIncidentCount).toBeGreaterThan(0);
     expect(statusJson.data.recentErrorCount).toBeGreaterThan(0);
     expect(statusJson.data.lastIncidentAt).toBeTruthy();
+  });
+
+  it('exports diagnostics bundles with support snapshots', async () => {
+    await fs.mkdir(path.join(tmpDir, 'logs'), { recursive: true });
+    await fs.writeFile(
+      path.join(tmpDir, 'logs', 'app-test.log'),
+      `${JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'warn',
+        message: 'Test warning for diagnostics export',
+      })}\n`,
+      'utf-8',
+    );
+
+    const diagnosticsRes = await fetch(`${baseUrl}/api/support/diagnostics`);
+    expect(diagnosticsRes.status).toBe(200);
+    expect(diagnosticsRes.headers.get('content-type')).toContain('application/zip');
+
+    const zipBytes = Buffer.from(await diagnosticsRes.arrayBuffer());
+    const zipPath = path.join(tmpDir, 'diagnostics.zip');
+    const extractDir = path.join(tmpDir, 'diagnostics-expanded');
+    await fs.writeFile(zipPath, zipBytes);
+    await fs.rm(extractDir, { recursive: true, force: true });
+
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Expand-Archive -LiteralPath '${zipPath.replace(/'/g, "''")}' -DestinationPath '${extractDir.replace(/'/g, "''")}' -Force`,
+      ],
+      { stdio: 'pipe' },
+    );
+
+    const summary = JSON.parse(await fs.readFile(path.join(extractDir, 'summary.json'), 'utf-8')) as {
+      dataDir: string;
+    };
+    const supportStatus = JSON.parse(await fs.readFile(path.join(extractDir, 'support-status.json'), 'utf-8')) as {
+      diagnosticsReady: boolean;
+      recentIncidentCount: number;
+    };
+    const selfTest = JSON.parse(await fs.readFile(path.join(extractDir, 'self-test.json'), 'utf-8')) as {
+      status: 'pass' | 'warn' | 'fail';
+      checks: Array<{ key: string }>;
+    };
+    const incidents = JSON.parse(await fs.readFile(path.join(extractDir, 'incidents.json'), 'utf-8')) as {
+      count: number;
+      incidents: Array<{ message: string }>;
+    };
+
+    expect(summary.dataDir).toBe(tmpDir);
+    expect(supportStatus.diagnosticsReady).toBe(true);
+    expect(supportStatus.recentIncidentCount).toBeGreaterThan(0);
+    expect(selfTest.status).toBe('pass');
+    expect(selfTest.checks.some((check) => check.key === 'diagnostics')).toBe(true);
+    expect(incidents.count).toBeGreaterThan(0);
+    expect(incidents.incidents.some((incident) => incident.message === 'Test warning for diagnostics export')).toBe(true);
   });
 });
