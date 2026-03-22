@@ -104,6 +104,7 @@ const en: TranslationKeys = {
       errorCountLabel: 'Errors',
       warningCountLabel: 'Warnings',
       infoCountLabel: 'Info',
+      issueRatioLabel: 'Issue ratio',
       latestIncidentLabel: 'Latest',
       latestMessageLabel: 'Latest message',
       copyLatestIncident: 'Copy latest incident',

@@ -406,6 +406,7 @@ const Dashboard: React.FC = () => {
       errors: logs.filter((entry) => entry.level === 'error').length,
       warnings: logs.filter((entry) => entry.level === 'warn').length,
       infos: logs.filter((entry) => entry.level === 'info').length,
+      issueRatio: logs.length ? Math.round(((logs.filter((entry) => entry.level === 'error' || entry.level === 'warn').length) / logs.length) * 100) : 0,
       latestEntry,
       hottestRecentIssue,
       topRecentIssues,
@@ -817,6 +818,7 @@ const Dashboard: React.FC = () => {
       `Errors: ${activityDigest.errors}`,
       `Warnings: ${activityDigest.warnings}`,
       `Info: ${activityDigest.infos}`,
+      `Issue ratio: ${activityDigest.issueRatio}%`,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
       `Latest message: ${activityDigest.latestEntry.message}`,
       activityDigest.topRecentIssues.length
@@ -1647,6 +1649,9 @@ const Dashboard: React.FC = () => {
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${activityDigest.errors}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${activityDigest.warnings}`}</Tag>
                     <Tag color="blue">{`${t.dashboard.infoCountLabel}: ${activityDigest.infos}`}</Tag>
+                    <Tag color={activityDigest.issueRatio >= 60 ? 'red' : activityDigest.issueRatio >= 30 ? 'gold' : 'green'}>
+                      {`${t.dashboard.issueRatioLabel}: ${activityDigest.issueRatio}%`}
+                    </Tag>
                     <Tag color="gold">{`${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`}</Tag>
                     <Tag color="orange">{`${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`}</Tag>
                     <Button

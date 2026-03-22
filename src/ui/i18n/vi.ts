@@ -102,6 +102,7 @@ const vi = {
       errorCountLabel: 'Lỗi',
       warningCountLabel: 'Cảnh báo',
       infoCountLabel: 'Info',
+      issueRatioLabel: 'Tỷ lệ issue',
       latestIncidentLabel: 'Mới nhất',
       latestMessageLabel: 'Thông điệp mới nhất',
       copyLatestIncident: 'Sao chép incident mới nhất',
