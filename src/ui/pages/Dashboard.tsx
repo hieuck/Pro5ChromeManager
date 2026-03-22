@@ -780,6 +780,14 @@ const Dashboard: React.FC = () => {
     t.dashboard.activityDigestUnavailable,
   ]);
 
+  const handleOpenLatestActivity = useCallback(() => {
+    if (!activityDigest?.latestEntry) {
+      return;
+    }
+
+    handleOpenLogEntry(activityDigest.latestEntry);
+  }, [activityDigest, handleOpenLogEntry]);
+
   const handleCreateBackup = useCallback(async () => {
     setCreatingBackup(true);
     const res = await apiClient.post<BackupEntry>('/api/backups');
@@ -1457,32 +1465,51 @@ const Dashboard: React.FC = () => {
           )}
         >
           {logs.length ? (
-            <List
-              dataSource={logs}
-              renderItem={(entry) => (
-                <List.Item
-                  actions={[
-                    <Button key={`${entry.timestamp}-${entry.message}`} type="link" onClick={() => handleOpenLogEntry(entry)}>
-                      {t.dashboard.openInLogs}
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={(
-                      <Space wrap>
-                        <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
-                          {entry.level.toUpperCase()}
-                        </Tag>
-                        {entry.timestamp ? (
-                          <Typography.Text type="secondary">{formatTime(entry.timestamp)}</Typography.Text>
-                        ) : null}
-                      </Space>
-                    )}
-                    description={entry.message}
-                  />
-                </List.Item>
-              )}
-            />
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
+              {activityDigest ? (
+                <Space wrap>
+                  <Tag color="blue">{`${t.dashboard.activityEntriesLabel}: ${activityDigest.total}`}</Tag>
+                  <Tag color="gold">{`${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`}</Tag>
+                  <Tag color="orange">{`${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`}</Tag>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ paddingInline: 0 }}
+                    onClick={handleOpenLatestActivity}
+                  >
+                    <Tag color={activityDigest.latestEntry.level === 'error' ? 'red' : activityDigest.latestEntry.level === 'warn' ? 'gold' : 'blue'}>
+                      {`${t.dashboard.latestActivityLabel}: ${formatTime(activityDigest.latestEntry.timestamp)}`}
+                    </Tag>
+                  </Button>
+                </Space>
+              ) : null}
+              <List
+                dataSource={logs}
+                renderItem={(entry) => (
+                  <List.Item
+                    actions={[
+                      <Button key={`${entry.timestamp}-${entry.message}`} type="link" onClick={() => handleOpenLogEntry(entry)}>
+                        {t.dashboard.openInLogs}
+                      </Button>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={(
+                        <Space wrap>
+                          <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
+                            {entry.level.toUpperCase()}
+                          </Tag>
+                          {entry.timestamp ? (
+                            <Typography.Text type="secondary">{formatTime(entry.timestamp)}</Typography.Text>
+                          ) : null}
+                        </Space>
+                      )}
+                      description={entry.message}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Space>
           ) : (
             <Empty description={t.dashboard.noActivity} />
           )}
