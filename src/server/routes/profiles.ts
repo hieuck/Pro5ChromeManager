@@ -41,6 +41,15 @@ const SearchSchema = z.object({
   owner: z.string().optional(),
 });
 
+const CloneProfileSchema = z.object({
+  name: z.string().min(1).optional(),
+  notes: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  group: z.string().nullable().optional(),
+  owner: z.string().nullable().optional(),
+  runtime: z.string().optional(),
+});
+
 // ─── GET /api/profiles ─────────────────────────────────────────────────────────
 
 router.get('/profiles', (req: Request, res: Response) => {
@@ -187,6 +196,38 @@ router.put('/profiles/:id', async (req: Request, res: Response) => {
 });
 
 // ─── DELETE /api/profiles/:id ─────────────────────────────────────────────────
+
+router.post('/profiles/:id/clone', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const body = CloneProfileSchema.parse(req.body ?? {});
+    const profilesUsed = profileManager.listProfiles().length;
+
+    if (!licenseManager.canCreateProfile(profilesUsed)) {
+      res.status(403).json({
+        success: false,
+        error: 'Đã đạt giới hạn 10 profiles của gói Free. Nâng cấp lên Pro để tạo không giới hạn.',
+        code: 'FREE_TIER_LIMIT',
+      });
+      return;
+    }
+
+    const profile = await profileManager.cloneProfile(id, {
+      name: body.name,
+      notes: body.notes,
+      tags: body.tags,
+      group: body.group ?? undefined,
+      owner: body.owner ?? undefined,
+      runtime: body.runtime,
+    });
+    await usageMetricsManager.recordProfileCreated();
+    res.status(201).json({ success: true, data: profile });
+  } catch (err) {
+    logger.error('POST /api/profiles/:id/clone error', { error: err instanceof Error ? err.message : String(err) });
+    const status = err instanceof Error && err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ success: false, error: err instanceof Error ? err.message : 'Bad request' });
+  }
+});
 
 router.delete('/profiles/:id', async (req: Request, res: Response) => {
   try {

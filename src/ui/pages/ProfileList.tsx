@@ -1,35 +1,57 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Table, Button, Space, Tag, Badge, Input, Select, Tooltip,
-  Popconfirm, message, Typography, Row, Col, Empty, Modal,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Input,
+  Modal,
+  Popconfirm,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
 } from 'antd';
 import type { InputRef } from 'antd';
 import {
-  PlusOutlined, PlayCircleOutlined, StopOutlined,
-  DeleteOutlined, ExportOutlined, SearchOutlined,
-  ReloadOutlined, QuestionCircleOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+  ExportOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  QuestionCircleOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  StopOutlined,
+  TagsOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { apiClient } from '../api/client';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { useTranslation } from '../hooks/useTranslation';
 import ProfileForm from '../components/ProfileForm';
-import WelcomeScreen from '../components/WelcomeScreen';
 import OnboardingWizard from '../components/OnboardingWizard';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import WelcomeScreen from '../components/WelcomeScreen';
+import { useTranslation } from '../hooks/useTranslation';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface Profile {
   id: string;
   name: string;
   notes?: string;
-  group?: string;
+  group?: string | null;
   owner?: string | null;
   tags: string[];
   proxyId?: string;
+  runtime?: string;
   runtimeKey?: string;
   status: 'stopped' | 'running' | 'unreachable' | 'stale';
-  lastUsedAt?: string;
+  lastUsedAt?: string | null;
   totalSessions: number;
   schemaVersion: number;
 }
@@ -39,8 +61,6 @@ interface Instance {
   status: 'running' | 'unreachable' | 'stopped';
   port?: number;
 }
-
-// ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_BADGE: Record<string, 'success' | 'processing' | 'error' | 'default'> = {
   running: 'success',
@@ -58,6 +78,11 @@ const SHORTCUTS = [
   { key: '?', desc: 'Hiện bảng phím tắt này' },
 ];
 
+const cardStyle: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
+};
+
 const ProfileList: React.FC = () => {
   const { t } = useTranslation();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -67,94 +92,122 @@ const ProfileList: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState<string | undefined>();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
+  const [filterTag, setFilterTag] = useState<string | undefined>();
+  const [filterOwner, setFilterOwner] = useState<string | undefined>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [onboardingCompleted, setOnboardingCompleted] = useState(true); // default true to avoid flash
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchRef = useRef<InputRef>(null);
 
-  // ─── Data fetching ──────────────────────────────────────────────────────────
+  const getProfileStatus = useCallback((profileId: string): Profile['status'] => {
+    return instances[profileId]?.status ?? 'stopped';
+  }, [instances]);
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
     const res = await apiClient.get<Profile[]>('/api/profiles');
-    if (res.success) setProfiles(res.data);
+    if (res.success) {
+      setProfiles(res.data);
+    }
     setLoading(false);
   }, []);
 
   const fetchInstances = useCallback(async () => {
     const res = await apiClient.get<Instance[]>('/api/instances');
     if (res.success) {
-      const map: Record<string, Instance> = {};
-      for (const inst of res.data) map[inst.profileId] = inst;
-      setInstances(map);
+      const nextInstances: Record<string, Instance> = {};
+      for (const instance of res.data) {
+        nextInstances[instance.profileId] = instance;
+      }
+      setInstances(nextInstances);
     }
   }, []);
 
   const fetchConfig = useCallback(async () => {
     const res = await apiClient.get<{ onboardingCompleted: boolean }>('/api/config');
-    if (res.success) setOnboardingCompleted(res.data.onboardingCompleted);
+    if (res.success) {
+      setOnboardingCompleted(res.data.onboardingCompleted);
+    }
   }, []);
 
   useEffect(() => {
     void fetchProfiles();
     void fetchInstances();
     void fetchConfig();
-  }, [fetchProfiles, fetchInstances, fetchConfig]);
-
-  // ─── WebSocket real-time updates ────────────────────────────────────────────
+  }, [fetchConfig, fetchInstances, fetchProfiles]);
 
   useWebSocket((event) => {
     if (
-      event.type === 'instance:started' ||
-      event.type === 'instance:stopped' ||
-      event.type === 'instance:status-changed'
+      event.type === 'instance:started'
+      || event.type === 'instance:stopped'
+      || event.type === 'instance:status-changed'
     ) {
       void fetchInstances();
+      void fetchProfiles();
     }
   });
 
-  // ─── Actions ────────────────────────────────────────────────────────────────
-
   async function handleStart(profileId: string): Promise<void> {
     const res = await apiClient.post(`/api/profiles/${profileId}/start`);
-    if (!res.success) void message.error(res.error);
-    else void fetchInstances();
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void fetchInstances();
+    void fetchProfiles();
   }
 
   async function handleStop(profileId: string): Promise<void> {
     const res = await apiClient.post(`/api/profiles/${profileId}/stop`);
-    if (!res.success) void message.error(res.error);
-    else void fetchInstances();
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void fetchInstances();
   }
 
   async function handleDelete(profileId: string): Promise<void> {
     const res = await apiClient.delete(`/api/profiles/${profileId}`);
-    if (!res.success) void message.error(res.error);
-    else {
-      void message.success('Đã xóa hồ sơ');
-      setProfiles((prev) => prev.filter((p) => p.id !== profileId));
+    if (!res.success) {
+      void message.error(res.error);
+      return;
     }
+    void message.success('Đã xóa hồ sơ');
+    setProfiles((current) => current.filter((profile) => profile.id !== profileId));
+    setSelectedIds((current) => current.filter((id) => id !== profileId));
   }
 
-  async function handleExport(profileId: string): Promise<void> {
+  async function handleClone(profile: Profile): Promise<void> {
+    const res = await apiClient.post<Profile>(`/api/profiles/${profile.id}/clone`, {
+      name: `${profile.name} Copy`,
+    });
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void message.success(t.profile.duplicateSuccess);
+    void fetchProfiles();
+  }
+
+  function handleExport(profileId: string): void {
     window.open(`http://127.0.0.1:3210/api/profiles/${profileId}/export`, '_blank');
   }
 
   async function handleBulkStart(): Promise<void> {
-    await Promise.all(selectedIds.map((id) => handleStart(id)));
+    await Promise.all(selectedIds.map(async (id) => handleStart(id)));
     setSelectedIds([]);
   }
 
   async function handleBulkStop(): Promise<void> {
-    await Promise.all(selectedIds.map((id) => handleStop(id)));
+    await Promise.all(selectedIds.map(async (id) => handleStop(id)));
     setSelectedIds([]);
   }
 
   async function handleBulkDelete(): Promise<void> {
-    await Promise.all(selectedIds.map((id) => handleDelete(id)));
+    await Promise.all(selectedIds.map(async (id) => handleDelete(id)));
     setSelectedIds([]);
   }
 
@@ -173,76 +226,128 @@ const ProfileList: React.FC = () => {
     setDrawerOpen(true);
   }
 
-  // ─── Keyboard shortcuts ─────────────────────────────────────────────────────
+  const groups = Array.from(new Set(
+    profiles
+      .map((profile) => profile.group)
+      .filter((group): group is string => Boolean(group)),
+  ));
+
+  const owners = Array.from(new Set(
+    profiles
+      .map((profile) => profile.owner)
+      .filter((owner): owner is string => Boolean(owner)),
+  ));
+
+  const tags = Array.from(new Set(
+    profiles.flatMap((profile) => profile.tags),
+  ));
+
+  const filtered = profiles.filter((profile) => {
+    const normalizedSearch = search.trim().toLowerCase();
+    const status = getProfileStatus(profile.id);
+    const joinedTags = profile.tags.join(' ').toLowerCase();
+    const matchSearch = !normalizedSearch
+      || profile.name.toLowerCase().includes(normalizedSearch)
+      || (profile.notes ?? '').toLowerCase().includes(normalizedSearch)
+      || (profile.group ?? '').toLowerCase().includes(normalizedSearch)
+      || (profile.owner ?? '').toLowerCase().includes(normalizedSearch)
+      || joinedTags.includes(normalizedSearch);
+
+    const matchGroup = !filterGroup || profile.group === filterGroup;
+    const matchStatus = !filterStatus || status === filterStatus;
+    const matchTag = !filterTag || profile.tags.includes(filterTag);
+    const matchOwner = !filterOwner || profile.owner === filterOwner;
+    return matchSearch && matchGroup && matchStatus && matchTag && matchOwner;
+  });
+
+  const runningCount = profiles.filter((profile) => getProfileStatus(profile.id) === 'running').length;
+  const groupedCount = profiles.filter((profile) => Boolean(profile.group)).length;
+  const taggedCount = profiles.filter((profile) => profile.tags.length > 0).length;
+  const showingResults = t.common.showingResults
+    .replace('{filtered}', String(filtered.length))
+    .replace('{total}', String(profiles.length));
 
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent): void {
-      const tag = (e.target as HTMLElement).tagName;
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA';
+    function onKeyDown(event: KeyboardEvent): void {
+      const target = event.target as HTMLElement;
+      const tagName = target.tagName;
+      const isInput = tagName === 'INPUT' || tagName === 'TEXTAREA';
 
-      if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openCreate(); return; }
-      if (e.ctrlKey && e.key === 'f') { e.preventDefault(); searchRef.current?.focus(); return; }
-
-      if (isInput) return; // don't intercept arrow/escape when typing
-
-      if (e.key === '?') { setShortcutsOpen(true); return; }
-
-      if (e.key === 'Escape') {
-        if (drawerOpen) { setDrawerOpen(false); return; }
-        if (shortcutsOpen) { setShortcutsOpen(false); return; }
+      if (event.ctrlKey && event.key === 'n') {
+        event.preventDefault();
+        openCreate();
+        return;
       }
 
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setHighlightedIndex((i) => Math.min(i + 1, filtered.length - 1));
+      if (event.ctrlKey && event.key === 'f') {
+        event.preventDefault();
+        searchRef.current?.focus();
+        return;
       }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setHighlightedIndex((i) => Math.max(i - 1, 0));
+
+      if (isInput) {
+        return;
       }
-      if (e.key === 'Enter' && highlightedIndex >= 0 && filtered[highlightedIndex]) {
+
+      if (event.key === '?') {
+        setShortcutsOpen(true);
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        if (drawerOpen) {
+          setDrawerOpen(false);
+          return;
+        }
+        if (shortcutsOpen) {
+          setShortcutsOpen(false);
+        }
+        return;
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setHighlightedIndex((current) => Math.min(current + 1, filtered.length - 1));
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setHighlightedIndex((current) => Math.max(current - 1, 0));
+      }
+
+      if (event.key === 'Enter' && highlightedIndex >= 0 && filtered[highlightedIndex]) {
         openEdit(filtered[highlightedIndex].id);
       }
     }
+
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawerOpen, shortcutsOpen, highlightedIndex]);
+  }, [drawerOpen, filtered, highlightedIndex, shortcutsOpen]);
 
-  // ─── Filtered data ──────────────────────────────────────────────────────────
-
-  const groups = profiles.map((p) => p.group).filter((g): g is string => Boolean(g)).filter((g, i, arr) => arr.indexOf(g) === i);
-
-  const filtered = profiles.filter((p) => {
-    const matchSearch = !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.notes ?? '').toLowerCase().includes(search.toLowerCase());
-    const matchGroup = !filterGroup || p.group === filterGroup;
-    const matchStatus = !filterStatus || (instances[p.id]?.status ?? 'stopped') === filterStatus;
-    return matchSearch && matchGroup && matchStatus;
-  });
-
-  // Reset highlight when filter changes
-  useEffect(() => { setHighlightedIndex(-1); }, [search, filterGroup, filterStatus]);
-
-  // ─── Show WelcomeScreen / OnboardingWizard ──────────────────────────────────
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [filterGroup, filterOwner, filterStatus, filterTag, search]);
 
   if (!loading && profiles.length === 0 && !onboardingCompleted) {
     return (
       <>
         <WelcomeScreen
-          onCreateProfile={() => { void completeOnboarding(); setWizardOpen(true); }}
+          onCreateProfile={() => {
+            void completeOnboarding();
+            setWizardOpen(true);
+          }}
           onSkip={() => void completeOnboarding()}
         />
         <OnboardingWizard
           open={wizardOpen}
-          onFinish={() => { setWizardOpen(false); void fetchProfiles(); }}
+          onFinish={() => {
+            setWizardOpen(false);
+            void fetchProfiles();
+          }}
         />
       </>
     );
   }
-
-  // ─── Columns ────────────────────────────────────────────────────────────────
 
   const columns: ColumnsType<Profile> = [
     {
@@ -250,17 +355,20 @@ const ProfileList: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record) => (
-        <Button type="link" style={{ padding: 0 }} onClick={() => openEdit(record.id)}>
-          {name}
-        </Button>
+        <Space direction="vertical" size={0}>
+          <Button type="link" style={{ padding: 0, fontWeight: 600 }} onClick={() => openEdit(record.id)}>
+            {name}
+          </Button>
+          {record.group ? <Typography.Text type="secondary">{record.group}</Typography.Text> : null}
+        </Space>
       ),
     },
     {
       title: t.common.status,
       key: 'status',
-      width: 120,
+      width: 130,
       render: (_, record) => {
-        const status = instances[record.id]?.status ?? 'stopped';
+        const status = getProfileStatus(record.id);
         return (
           <Badge
             status={STATUS_BADGE[status] ?? 'default'}
@@ -273,63 +381,67 @@ const ProfileList: React.FC = () => {
       title: t.profile.proxy,
       dataIndex: 'proxyId',
       key: 'proxy',
-      width: 120,
-      render: (proxyId?: string) => proxyId
-        ? <Tag color="blue">{proxyId.slice(0, 8)}</Tag>
-        : <Typography.Text type="secondary">—</Typography.Text>,
+      width: 130,
+      render: (proxyId?: string) => (
+        proxyId
+          ? <Tag color="blue">{proxyId.slice(0, 8)}</Tag>
+          : <Typography.Text type="secondary">—</Typography.Text>
+      ),
     },
     {
       title: t.common.tags,
       dataIndex: 'tags',
       key: 'tags',
-      render: (tags: string[]) => tags.map((tag) => <Tag key={tag}>{tag}</Tag>),
+      render: (profileTags: string[]) => (
+        profileTags.length > 0
+          ? profileTags.map((tag) => <Tag key={tag}>{tag}</Tag>)
+          : <Typography.Text type="secondary">—</Typography.Text>
+      ),
     },
     {
-      title: 'Owner',
+      title: t.common.owner,
       dataIndex: 'owner',
       key: 'owner',
-      width: 120,
-      render: (owner?: string | null) => owner
-        ? <Tag color="purple">{owner}</Tag>
-        : <Typography.Text type="secondary">—</Typography.Text>,
+      width: 140,
+      render: (owner?: string | null) => (
+        owner
+          ? <Tag color="purple">{owner}</Tag>
+          : <Typography.Text type="secondary">—</Typography.Text>
+      ),
     },
     {
       title: t.profile.lastUsed,
       dataIndex: 'lastUsedAt',
       key: 'lastUsedAt',
-      width: 140,
-      render: (v?: string) => v
-        ? new Date(v).toLocaleDateString('vi-VN')
-        : <Typography.Text type="secondary">—</Typography.Text>,
+      width: 150,
+      render: (lastUsedAt?: string | null) => (
+        lastUsedAt
+          ? new Date(lastUsedAt).toLocaleDateString('vi-VN')
+          : <Typography.Text type="secondary">—</Typography.Text>
+      ),
     },
     {
       title: t.common.actions,
       key: 'actions',
-      width: 160,
+      width: 210,
       render: (_, record) => {
-        const isRunning = instances[record.id]?.status === 'running';
+        const isRunning = getProfileStatus(record.id) === 'running';
         return (
           <Space size={4}>
             {isRunning ? (
               <Tooltip title={t.profile.stopProfile}>
-                <Button
-                  size="small" danger icon={<StopOutlined />}
-                  onClick={() => void handleStop(record.id)}
-                />
+                <Button size="small" danger icon={<StopOutlined />} onClick={() => void handleStop(record.id)} />
               </Tooltip>
             ) : (
               <Tooltip title={t.profile.startProfile}>
-                <Button
-                  size="small" type="primary" icon={<PlayCircleOutlined />}
-                  onClick={() => void handleStart(record.id)}
-                />
+                <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleStart(record.id)} />
               </Tooltip>
             )}
+            <Tooltip title={t.profile.duplicateProfile}>
+              <Button size="small" icon={<CopyOutlined />} onClick={() => void handleClone(record)} />
+            </Tooltip>
             <Tooltip title={t.profile.exportProfile}>
-              <Button
-                size="small" icon={<ExportOutlined />}
-                onClick={() => void handleExport(record.id)}
-              />
+              <Button size="small" icon={<ExportOutlined />} onClick={() => handleExport(record.id)} />
             </Tooltip>
             <Popconfirm
               title={t.profile.deleteConfirm}
@@ -347,119 +459,174 @@ const ProfileList: React.FC = () => {
     },
   ];
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
-
   return (
     <div style={{ padding: 24 }}>
-      {/* Toolbar */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }} align="middle">
-        <Col flex="auto">
-          <Space wrap>
-            <Input
-              ref={searchRef}
-              placeholder={`${t.common.search} (Ctrl+F)`}
-              prefix={<SearchOutlined />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              allowClear
-              style={{ width: 220 }}
-            />
-            <Select
-              placeholder={t.common.group}
-              allowClear
-              value={filterGroup}
-              onChange={setFilterGroup}
-              style={{ width: 140 }}
-              options={groups.map((g) => ({ label: g, value: g }))}
-            />
-            <Select
-              placeholder={t.common.status}
-              allowClear
-              value={filterStatus}
-              onChange={setFilterStatus}
-              style={{ width: 140 }}
-              options={[
-                { label: t.profile.running, value: 'running' },
-                { label: t.profile.stopped, value: 'stopped' },
-                { label: t.profile.unreachable, value: 'unreachable' },
-              ]}
-            />
-            <Button icon={<ReloadOutlined />} onClick={() => { void fetchProfiles(); void fetchInstances(); }} />
-            <Tooltip title="Phím tắt (?)">
-              <Button icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} />
-            </Tooltip>
-          </Space>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col span={24}>
+          <Card style={{ ...cardStyle, background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)' }} bordered={false}>
+            <Row gutter={[24, 24]} align="middle">
+              <Col flex="auto">
+                <Typography.Title level={3} style={{ marginBottom: 8 }}>
+                  {t.profile.title}
+                </Typography.Title>
+                <Typography.Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 760 }}>
+                  {t.profile.workspaceSubtitle}
+                </Typography.Paragraph>
+              </Col>
+              <Col>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                  {t.profile.newProfile} (Ctrl+N)
+                </Button>
+              </Col>
+            </Row>
+          </Card>
         </Col>
-        <Col>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={openCreate}
-          >
-            {t.profile.newProfile} (Ctrl+N)
-          </Button>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card style={cardStyle}>
+            <Statistic title={t.profile.totalProfiles} value={profiles.length} prefix={<TeamOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card style={cardStyle}>
+            <Statistic title={t.profile.runningProfiles} value={runningCount} valueStyle={{ color: '#1677ff' }} prefix={<PlayCircleOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card style={cardStyle}>
+            <Statistic title={t.profile.groupedProfiles} value={groupedCount} prefix={<ReloadOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card style={cardStyle}>
+            <Statistic title={t.profile.taggedProfiles} value={taggedCount} prefix={<TagsOutlined />} />
+          </Card>
         </Col>
       </Row>
 
-      {/* Bulk actions */}
-      {selectedIds.length > 0 && (
-        <Row style={{ marginBottom: 12 }}>
-          <Space>
-            <Typography.Text type="secondary">Đã chọn {selectedIds.length}:</Typography.Text>
-            <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleBulkStart()}>
-              {t.profile.bulkStart}
-            </Button>
-            <Button size="small" danger icon={<StopOutlined />} onClick={() => void handleBulkStop()}>
-              {t.profile.bulkStop}
-            </Button>
-            <Popconfirm
-              title={`Xóa ${selectedIds.length} hồ sơ đã chọn?`}
-              onConfirm={() => void handleBulkDelete()}
-              okText={t.common.yes}
-              cancelText={t.common.no}
-            >
-              <Button size="small" danger icon={<DeleteOutlined />}>{t.profile.bulkDelete}</Button>
-            </Popconfirm>
-          </Space>
+      <Card style={cardStyle} bodyStyle={{ paddingBottom: 12 }}>
+        <Row gutter={[12, 12]} style={{ marginBottom: 8 }} align="middle">
+          <Col flex="auto">
+            <Space wrap>
+              <Input
+                ref={searchRef}
+                placeholder={`${t.common.search} (Ctrl+F)`}
+                prefix={<SearchOutlined />}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                allowClear
+                style={{ width: 220 }}
+              />
+              <Select
+                placeholder={t.common.group}
+                allowClear
+                value={filterGroup}
+                onChange={setFilterGroup}
+                style={{ width: 150 }}
+                options={groups.map((group) => ({ label: group, value: group }))}
+              />
+              <Select
+                placeholder={t.common.status}
+                allowClear
+                value={filterStatus}
+                onChange={setFilterStatus}
+                style={{ width: 150 }}
+                options={[
+                  { label: t.profile.running, value: 'running' },
+                  { label: t.profile.stopped, value: 'stopped' },
+                  { label: t.profile.unreachable, value: 'unreachable' },
+                ]}
+              />
+              <Select
+                placeholder={t.profile.tagFilter}
+                allowClear
+                value={filterTag}
+                onChange={setFilterTag}
+                style={{ width: 170 }}
+                options={tags.map((tag) => ({ label: tag, value: tag }))}
+              />
+              <Select
+                placeholder={t.profile.ownerFilter}
+                allowClear
+                value={filterOwner}
+                onChange={setFilterOwner}
+                style={{ width: 170 }}
+                options={owners.map((owner) => ({ label: owner, value: owner }))}
+              />
+              <Button icon={<ReloadOutlined />} onClick={() => { void fetchProfiles(); void fetchInstances(); }} />
+              <Tooltip title="Phím tắt (?)">
+                <Button icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} />
+              </Tooltip>
+            </Space>
+          </Col>
         </Row>
-      )}
 
-      {/* Table */}
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={filtered}
-        loading={loading}
-        rowSelection={{
-          selectedRowKeys: selectedIds,
-          onChange: (keys) => setSelectedIds(keys as string[]),
-        }}
-        rowClassName={(_, index) => index === highlightedIndex ? 'ant-table-row-selected' : ''}
-        onRow={(record, index) => ({
-          onClick: () => setHighlightedIndex(index ?? -1),
-          onDoubleClick: () => openEdit(record.id),
-        })}
-        locale={{
-          emptyText: (
-            <Empty
-              description={t.profile.noProfiles}
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ),
-        }}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
-        size="small"
-      />
+        <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+          <Col>
+            <Typography.Text type="secondary">{showingResults}</Typography.Text>
+          </Col>
+          <Col>
+            {selectedIds.length > 0 ? (
+              <Space wrap>
+                <Typography.Text type="secondary">Đã chọn {selectedIds.length}</Typography.Text>
+                <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleBulkStart()}>
+                  {t.profile.bulkStart}
+                </Button>
+                <Button size="small" danger icon={<StopOutlined />} onClick={() => void handleBulkStop()}>
+                  {t.profile.bulkStop}
+                </Button>
+                <Popconfirm
+                  title={`Xóa ${selectedIds.length} hồ sơ đã chọn?`}
+                  onConfirm={() => void handleBulkDelete()}
+                  okText={t.common.yes}
+                  cancelText={t.common.no}
+                >
+                  <Button size="small" danger icon={<DeleteOutlined />}>
+                    {t.profile.bulkDelete}
+                  </Button>
+                </Popconfirm>
+              </Space>
+            ) : null}
+          </Col>
+        </Row>
 
-      {/* Profile Form Drawer */}
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={filtered}
+          loading={loading}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys as string[]),
+          }}
+          rowClassName={(_, index) => (index === highlightedIndex ? 'ant-table-row-selected' : '')}
+          onRow={(record, index) => ({
+            onClick: () => setHighlightedIndex(index ?? -1),
+            onDoubleClick: () => openEdit(record.id),
+          })}
+          locale={{
+            emptyText: (
+              <Empty
+                description={t.profile.noProfiles}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ),
+          }}
+          pagination={{ pageSize: 20, showSizeChanger: false }}
+          size="small"
+        />
+      </Card>
+
       <ProfileForm
         open={drawerOpen}
         profileId={editingId}
         onClose={() => setDrawerOpen(false)}
-        onSaved={() => { setDrawerOpen(false); void fetchProfiles(); }}
+        onSaved={() => {
+          setDrawerOpen(false);
+          void fetchProfiles();
+        }}
       />
 
-      {/* Keyboard Shortcuts Modal */}
       <Modal
         title="Phím tắt"
         open={shortcutsOpen}
