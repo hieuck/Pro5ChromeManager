@@ -102,6 +102,7 @@ const en: TranslationKeys = {
       incidentDigestCopyFailed: 'Unable to copy the incident digest',
       incidentDigestUnavailable: 'No recent incidents are available right now',
       errorCountLabel: 'Errors',
+      errorRatioLabel: 'Error ratio',
       warningCountLabel: 'Warnings',
       infoCountLabel: 'Info',
       issueRatioLabel: 'Issue ratio',

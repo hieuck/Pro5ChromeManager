@@ -384,6 +384,7 @@ const Dashboard: React.FC = () => {
       total: incidents.length,
       errors: incidents.filter((incident) => incident.level === 'error').length,
       warnings: incidents.filter((incident) => incident.level === 'warn').length,
+      errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
       topSources: topSources.slice(0, 3),
@@ -691,6 +692,7 @@ const Dashboard: React.FC = () => {
       `Total incidents: ${incidentDigest.total}`,
       `Errors: ${incidentDigest.errors}`,
       `Warnings: ${incidentDigest.warnings}`,
+      `Error ratio: ${incidentDigest.errorRatio}%`,
       `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
       `Latest source: ${incidentDigest.latestIncident.source}`,
       `Latest message: ${incidentDigest.latestIncident.message}`,
@@ -1521,6 +1523,9 @@ const Dashboard: React.FC = () => {
                     <Tag color="blue">{`${t.dashboard.incidentsTitle}: ${incidentDigest.total}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`}</Tag>
+                    <Tag color={incidentDigest.errorRatio >= 60 ? 'red' : incidentDigest.errorRatio >= 30 ? 'gold' : 'green'}>
+                      {`${t.dashboard.errorRatioLabel}: ${incidentDigest.errorRatio}%`}
+                    </Tag>
                     <Button
                       type="link"
                       size="small"

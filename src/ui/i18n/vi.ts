@@ -100,6 +100,7 @@ const vi = {
       incidentDigestCopyFailed: 'Không thể sao chép tóm tắt incident',
       incidentDigestUnavailable: 'Hiện chưa có incident gần đây để sao chép',
       errorCountLabel: 'Lỗi',
+      errorRatioLabel: 'Tỷ lệ lỗi',
       warningCountLabel: 'Cảnh báo',
       infoCountLabel: 'Info',
       issueRatioLabel: 'Tỷ lệ issue',
