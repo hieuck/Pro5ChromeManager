@@ -585,6 +585,26 @@ const Logs: React.FC = () => {
     void message.success(t.logs.openRecentIssueSourceApplied);
   }, [t.logs.openRecentIssueSourceApplied]);
 
+  const handleCopyRecentIssueSourceLatest = useCallback(async (source: string, entry: ParsedLogEntry | null | undefined) => {
+    if (!entry) return;
+
+    const lines = [
+      'Pro5 recent issue source latest',
+      `Source: ${source}`,
+      `Level: ${entry.level.toUpperCase()}`,
+      `Timestamp: ${entry.timestamp ?? 'unknown'}`,
+      `Message: ${entry.message}`,
+      `Raw: ${entry.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.recentIssueSourceLatestCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [t.logs.copyFailed, t.logs.recentIssueSourceLatestCopied]);
+
   const handleCopyRepeatedRecentIssues = useCallback(async () => {
     const lines = [
       'Pro5 repeated recent issues',
@@ -935,6 +955,9 @@ const Logs: React.FC = () => {
                 <Button size="small" type="link" onClick={() => handleOpenRecentIssueSourceLatest(hottestRecentSource.latestEntry)}>
                   {t.logs.openRecentIssueSourceLatest}
                 </Button>
+                <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSourceLatest(hottestRecentSource.source, hottestRecentSource.latestEntry); }}>
+                  {t.logs.copyRecentIssueSourceLatest}
+                </Button>
               </Space>
             )}
           />
@@ -961,6 +984,9 @@ const Logs: React.FC = () => {
                     </Button>,
                     <Button key={`open-source-${item.source}`} type="link" onClick={() => handleOpenRecentIssueSourceLatest(item.latestEntry)}>
                       {t.logs.openRecentIssueSourceLatest}
+                    </Button>,
+                    <Button key={`copy-source-${item.source}`} type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSourceLatest(item.source, item.latestEntry); }}>
+                      {t.logs.copyRecentIssueSourceLatest}
                     </Button>,
                   ]}
                 >
