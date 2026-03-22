@@ -159,14 +159,17 @@ describe('LicenseManager — grace period', () => {
 describe('LicenseManager — offline key', () => {
   let tmpDir: string;
   let manager: LicenseManager;
+  const originalNodeEnv = process.env['NODE_ENV'];
 
   beforeEach(async () => {
+    process.env['NODE_ENV'] = 'test';
     tmpDir = await makeTmpDir();
     manager = new LicenseManager(MACHINE_ID, path.join(tmpDir, 'license.dat'));
     await manager.initialize();
   });
 
   afterEach(async () => {
+    process.env['NODE_ENV'] = originalNodeEnv;
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -215,5 +218,16 @@ describe('LicenseManager — offline key', () => {
     const licenseFile = path.join(tmpDir, 'license.dat');
     const exists = await fs.access(licenseFile).then(() => true).catch(() => false);
     expect(exists).toBe(true);
+  });
+
+  it('rejects offline activation in production when default secret is used', async () => {
+    process.env['NODE_ENV'] = 'production';
+    const key = LicenseManager.generateOfflineKey(null, null, 'test-non-default-secret');
+    await expect(manager.activate(key)).rejects.toThrow('production');
+  });
+
+  it('rejects offline key generation in production with default secret', () => {
+    process.env['NODE_ENV'] = 'production';
+    expect(() => LicenseManager.generateOfflineKey(null, null)).toThrow('PRO5_OFFLINE_SECRET');
   });
 });

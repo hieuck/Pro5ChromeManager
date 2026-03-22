@@ -30,19 +30,38 @@ jobs:
       - name: Build server + UI + Electron main
         run: npm run build
 
+      - name: Run release preflight
+        env:
+          PRO5_OFFLINE_SECRET: ${{ secrets.PRO5_OFFLINE_SECRET }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: npm run release:preflight
+
+      - name: Run operations smoke test
+        env:
+          PRO5_OFFLINE_SECRET: ${{ secrets.PRO5_OFFLINE_SECRET }}
+        run: npm run ops:smoke
+
       - name: Package Electron installer
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          # Optional code signing — set secrets to avoid SmartScreen warning
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRO5_OFFLINE_SECRET: ${{ secrets.PRO5_OFFLINE_SECRET }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: npm run package:electron
 
+      - name: Verify packaged artifacts
+        run: npm run ops:artifacts:verify
+
       - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/electron/*.exe
+          files: |
+            dist/electron/*.exe
+            dist/electron/*.yml
+            dist/electron/*.blockmap
+            dist/electron/RELEASE_MANIFEST.json
+            dist/electron/SHA256SUMS.txt
           name: Pro5 Chrome Manager ${{ github.ref_name }}
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

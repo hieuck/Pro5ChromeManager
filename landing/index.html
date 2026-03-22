@@ -273,8 +273,9 @@
     <a href="#pricing">Bảng giá</a>
     <a href="#automation">Automation</a>
     <a href="#faq">FAQ</a>
+    <a href="/Pro5ChromeManager/support.html">Support</a>
   </div>
-  <a href="https://pro5chrome.lemonsqueezy.com" class="nav-cta" target="_blank" rel="noopener">Mua ngay $29</a>
+  <a href="https://pro5chrome.lemonsqueezy.com" class="nav-cta" target="_blank" rel="noopener" data-track="buy_nav">Mua ngay $29</a>
 </nav>
 
 <!-- HERO -->
@@ -286,7 +287,7 @@
     Tương thích Puppeteer &amp; Playwright qua CDP.
   </p>
   <div class="hero-actions">
-    <a href="https://github.com/hieuck/Pro5ChromeManager/releases/latest" class="btn-primary" target="_blank" rel="noopener">
+    <a href="https://github.com/hieuck/Pro5ChromeManager/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-track="download_hero">
       ⬇ Tải miễn phí
     </a>
     <a href="#pricing" class="btn-secondary">Xem bảng giá</a>
@@ -414,7 +415,7 @@
           <li><span class="check">✓</span> CDP automation</li>
           <li><span class="check">✓</span> Backup tự động</li>
         </ul>
-        <a href="https://github.com/hieuck/Pro5ChromeManager/releases/latest" class="plan-btn outline" target="_blank" rel="noopener">Tải xuống</a>
+        <a href="https://github.com/hieuck/Pro5ChromeManager/releases/latest" class="plan-btn outline" target="_blank" rel="noopener" data-track="download_pricing">Tải xuống</a>
       </div>
 
       <div class="plan featured">
@@ -429,7 +430,7 @@
           <li><span class="check">✓</span> Tất cả updates tương lai</li>
           <li><span class="check">✓</span> License cho 1 máy</li>
         </ul>
-        <a href="https://pro5chrome.lemonsqueezy.com" class="plan-btn primary" target="_blank" rel="noopener">Mua ngay — $29</a>
+        <a href="https://pro5chrome.lemonsqueezy.com" class="plan-btn primary" target="_blank" rel="noopener" data-track="buy_pricing">Mua ngay — $29</a>
       </div>
     </div>
   </div>
@@ -474,8 +475,8 @@
   <h2>Bắt đầu ngay hôm nay</h2>
   <p>Miễn phí 10 profiles. Không cần đăng ký.</p>
   <div class="hero-actions">
-    <a href="https://github.com/hieuck/Pro5ChromeManager/releases/latest" class="btn-primary" target="_blank" rel="noopener">⬇ Tải miễn phí</a>
-    <a href="https://pro5chrome.lemonsqueezy.com" class="btn-secondary" target="_blank" rel="noopener">Mua Pro — $29</a>
+    <a href="https://github.com/hieuck/Pro5ChromeManager/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-track="download_footer">⬇ Tải miễn phí</a>
+    <a href="https://pro5chrome.lemonsqueezy.com" class="btn-secondary" target="_blank" rel="noopener" data-track="buy_footer">Mua Pro — $29</a>
   </div>
 </div>
 
@@ -485,10 +486,89 @@
   <div style="display:flex;gap:24px">
     <a href="https://github.com/hieuck/Pro5ChromeManager" target="_blank" rel="noopener">GitHub</a>
     <a href="https://github.com/hieuck/Pro5ChromeManager/releases" target="_blank" rel="noopener">Releases</a>
-    <a href="https://github.com/hieuck/Pro5ChromeManager/issues" target="_blank" rel="noopener">Support</a>
-    <a href="https://pro5chrome.lemonsqueezy.com" target="_blank" rel="noopener">Mua Pro</a>
+    <a href="/Pro5ChromeManager/support.html">Support</a>
+    <a href="/Pro5ChromeManager/privacy.html">Privacy</a>
+    <a href="/Pro5ChromeManager/terms.html">Terms</a>
+    <a href="https://pro5chrome.lemonsqueezy.com" target="_blank" rel="noopener" data-track="buy_footer_link">Mua Pro</a>
   </div>
 </footer>
+
+<script>
+  (function () {
+    const STORAGE_KEY = 'pro5_attribution';
+    const params = new URLSearchParams(window.location.search);
+    const attribution = {
+      utm_source: params.get('utm_source') || '',
+      utm_medium: params.get('utm_medium') || '',
+      utm_campaign: params.get('utm_campaign') || '',
+      utm_content: params.get('utm_content') || '',
+      utm_term: params.get('utm_term') || '',
+      referrer: document.referrer || '',
+      landing_path: window.location.pathname,
+      captured_at: new Date().toISOString()
+    };
+
+    const hasAttribution = Object.values(attribution).some(Boolean);
+    if (hasAttribution) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(attribution));
+    }
+
+    function getStoredAttribution() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch {
+        return {};
+      }
+    }
+
+    function track(eventName, props) {
+      const payload = Object.assign({ page: window.location.pathname }, getStoredAttribution(), props || {});
+      if (typeof window.plausible === 'function') {
+        window.plausible(eventName, { props: payload });
+      }
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', eventName, payload);
+      }
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event: eventName, ...payload });
+    }
+
+    function decorateLink(anchor) {
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('#')) return;
+      try {
+        const url = new URL(href, window.location.origin);
+        if (!/lemonsqueezy\.com|github\.com/.test(url.hostname)) return;
+        const stored = getStoredAttribution();
+        Object.entries(stored).forEach(function (entry) {
+          const key = entry[0];
+          const value = entry[1];
+          if (typeof value === 'string' && value && !url.searchParams.has(key)) {
+            url.searchParams.set(key, value);
+          }
+        });
+        if (!url.searchParams.has('utm_source')) {
+          url.searchParams.set('utm_source', 'landing');
+        }
+        anchor.href = url.toString();
+      } catch {
+        // ignore malformed URLs
+      }
+    }
+
+    document.querySelectorAll('a[data-track]').forEach(function (anchor) {
+      decorateLink(anchor);
+      anchor.addEventListener('click', function () {
+        track('cta_click', {
+          cta: anchor.getAttribute('data-track') || 'unknown',
+          href: anchor.getAttribute('href') || ''
+        });
+      });
+    });
+
+    track('landing_view', { title: document.title });
+  })();
+</script>
 
 </body>
 </html>

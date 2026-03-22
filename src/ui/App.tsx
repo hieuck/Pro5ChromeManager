@@ -21,6 +21,15 @@ interface LicenseStatus {
   profilesLimit?: number;
 }
 
+declare global {
+  interface Window {
+    __pro5__?: {
+      version: string;
+      installUpdate: () => Promise<{ ok: boolean; error?: string }>;
+    };
+  }
+}
+
 const App: React.FC = () => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
@@ -55,10 +64,7 @@ const App: React.FC = () => {
           <Button
             type="primary"
             size="small"
-            onClick={() => {
-              // Signal Electron to quit and install
-              window.location.href = 'about:blank';
-            }}
+            onClick={() => { void window.__pro5__?.installUpdate(); }}
           >
             Cập nhật ngay
           </Button>

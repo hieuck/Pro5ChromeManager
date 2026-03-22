@@ -69,6 +69,15 @@ npx vitest run      # 86 tests, ~2s
 npx tsc --noEmit    # type check
 ```
 
+## Support
+
+- Trong app: vào `Settings` → `Xuất chẩn đoán` để lấy support bundle.
+- Landing/support page: `landing/support.html`
+- GitHub Issues: dùng template `Support Request` để gửi lỗi có đủ ngữ cảnh.
+- Trước khi phát hành bản public: chạy `npm run release:preflight` để chặn build thiếu secret hoặc thiếu support surface.
+- Smoke check local sau build: chạy `npm run ops:smoke` để xác nhận server build boot được và trả `health`/`readyz`.
+- Trong `Settings -> Support`, có thể chạy `Run self-test` để kiểm tra nhanh runtime, diagnostics, profiles dir, support pages và license state.
+
 ## Automation qua CDP
 
 Kết nối Puppeteer/Playwright vào profile đang chạy:

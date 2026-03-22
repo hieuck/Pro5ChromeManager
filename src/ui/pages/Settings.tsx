@@ -37,6 +37,47 @@ interface BackupEntry {
   sizeBytes: number;
 }
 
+interface SupportStatus {
+  appVersion: string;
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  uptimeSeconds: number;
+  dataDir: string;
+  logFileCount: number;
+  diagnosticsReady: boolean;
+  offlineSecretConfigured: boolean;
+  codeSigningConfigured: boolean;
+  supportPagesReady: boolean;
+  releaseReady: boolean;
+  warnings: string[];
+}
+
+interface SupportSelfTestCheck {
+  key: string;
+  label: string;
+  status: 'pass' | 'warn' | 'fail';
+  detail: string;
+}
+
+interface SupportSelfTestResult {
+  status: 'pass' | 'warn' | 'fail';
+  checkedAt: string;
+  checks: SupportSelfTestCheck[];
+}
+
+interface IncidentEntry {
+  timestamp: string;
+  level: 'warn' | 'error';
+  source: string;
+  message: string;
+}
+
+interface SupportIncidentsResult {
+  count: number;
+  incidents: IncidentEntry[];
+}
+
 // ─── Tab: General ─────────────────────────────────────────────────────────────
 
 const GeneralTab: React.FC = () => {
@@ -97,6 +138,10 @@ const GeneralTab: React.FC = () => {
     setWizardOpen(true);
   }
 
+  function handleExportDiagnostics(): void {
+    window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank');
+  }
+
   return (
     <Form form={form} layout="vertical" style={{ maxWidth: 560 }}>
       <Form.Item name="uiLanguage" label="Ngôn ngữ giao diện">
@@ -149,6 +194,14 @@ const GeneralTab: React.FC = () => {
         onClick={() => void handleResetOnboarding()}
       >
         Xem lại hướng dẫn
+      </Button>
+
+      <Button
+        style={{ marginLeft: 12 }}
+        icon={<DownloadOutlined />}
+        onClick={handleExportDiagnostics}
+      >
+        Export Diagnostics
       </Button>
 
       <OnboardingWizard open={wizardOpen} onFinish={() => setWizardOpen(false)} />
@@ -409,6 +462,157 @@ const LogsTab: React.FC = () => {
   );
 };
 
+const SupportTab: React.FC = () => {
+  const [status, setStatus] = useState<SupportStatus | null>(null);
+  const [selfTest, setSelfTest] = useState<SupportSelfTestResult | null>(null);
+  const [incidentState, setIncidentState] = useState<SupportIncidentsResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selfTesting, setSelfTesting] = useState(false);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    setLoading(true);
+    const res = await apiClient.get<SupportStatus>('/api/support/status');
+    if (res.success) setStatus(res.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchStatus(); }, [fetchStatus]);
+
+  const fetchIncidents = useCallback(async () => {
+    setIncidentLoading(true);
+    const res = await apiClient.get<SupportIncidentsResult>('/api/support/incidents?limit=10');
+    if (res.success) setIncidentState(res.data);
+    setIncidentLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchIncidents(); }, [fetchIncidents]);
+
+  async function runSelfTest(): Promise<void> {
+    setSelfTesting(true);
+    const res = await apiClient.post<SupportSelfTestResult>('/api/support/self-test');
+    setSelfTesting(false);
+    if (res.success) {
+      setSelfTest(res.data);
+      void message.success('Support self-test completed');
+    } else {
+      void message.error(res.error);
+    }
+  }
+
+  function formatUptime(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${hours}h ${minutes}m ${secs}s`;
+  }
+
+  return (
+    <div>
+      <Row justify="end" style={{ marginBottom: 12 }}>
+        <Space>
+          <Button onClick={() => void fetchIncidents()} loading={incidentLoading}>
+            Refresh incidents
+          </Button>
+          <Button onClick={() => void runSelfTest()} loading={selfTesting}>
+            Run self-test
+          </Button>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void fetchStatus()}>
+            Lam moi
+          </Button>
+        </Space>
+      </Row>
+      {status ? (
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Typography.Text><strong>App version:</strong> {status.appVersion}</Typography.Text>
+          <Typography.Text><strong>Node:</strong> {status.nodeVersion}</Typography.Text>
+          <Typography.Text><strong>Platform:</strong> {status.platform} / {status.arch}</Typography.Text>
+          <Typography.Text><strong>Uptime:</strong> {formatUptime(status.uptimeSeconds)}</Typography.Text>
+          <Typography.Text><strong>Data dir:</strong> {status.dataDir}</Typography.Text>
+          <Typography.Text><strong>Log files:</strong> {status.logFileCount}</Typography.Text>
+          <Typography.Text>
+            <strong>Diagnostics:</strong> {status.diagnosticsReady ? 'Ready to export' : 'Missing base config'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Offline secret:</strong> {status.offlineSecretConfigured ? 'Configured' : 'Missing'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Code signing:</strong> {status.codeSigningConfigured ? 'Configured' : 'Missing'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Support pages:</strong> {status.supportPagesReady ? 'Ready' : 'Missing pages'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Release readiness:</strong> {status.releaseReady ? 'Ready' : 'Needs attention'}
+          </Typography.Text>
+          {status.warnings.length > 0 ? (
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Warnings</Typography.Text>
+              {status.warnings.map((warning) => (
+                <Tag key={warning} color="warning" style={{ marginBottom: 8 }}>
+                  {warning}
+                </Tag>
+              ))}
+            </div>
+          ) : (
+            <Tag color="success">Operationally ready</Tag>
+          )}
+          {selfTest ? (
+            <div style={{ marginTop: 8 }}>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
+                Self-test ({new Date(selfTest.checkedAt).toLocaleString()})
+              </Typography.Text>
+              <Tag color={selfTest.status === 'pass' ? 'success' : selfTest.status === 'warn' ? 'warning' : 'error'}>
+                {selfTest.status.toUpperCase()}
+              </Tag>
+              <div style={{ marginTop: 8 }}>
+                {selfTest.checks.map((check) => (
+                  <div key={check.key} style={{ marginBottom: 8 }}>
+                    <Tag color={check.status === 'pass' ? 'success' : check.status === 'warn' ? 'warning' : 'error'}>
+                      {check.status.toUpperCase()}
+                    </Tag>
+                    <Typography.Text strong>{check.label}:</Typography.Text>{' '}
+                    <Typography.Text type="secondary">{check.detail}</Typography.Text>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
+              Recent incidents
+            </Typography.Text>
+            {incidentState && incidentState.incidents.length > 0 ? (
+              <div>
+                {incidentState.incidents.map((incident, index) => (
+                  <div key={`${incident.timestamp}-${incident.source}-${index}`} style={{ marginBottom: 10 }}>
+                    <Tag color={incident.level === 'error' ? 'error' : 'warning'}>
+                      {incident.level.toUpperCase()}
+                    </Tag>
+                    <Typography.Text strong>{incident.source}</Typography.Text>{' '}
+                    <Typography.Text type="secondary">
+                      {new Date(incident.timestamp).toLocaleString()}
+                    </Typography.Text>
+                    <div>
+                      <Typography.Text>{incident.message}</Typography.Text>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Typography.Text type="secondary">
+                {incidentLoading ? 'Loading incidents...' : 'No recent warn/error incidents found'}
+              </Typography.Text>
+            )}
+          </div>
+        </Space>
+      ) : (
+        <Typography.Text type="secondary">Khong tai duoc support status</Typography.Text>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Settings ────────────────────────────────────────────────────────────
 
 const Settings: React.FC = () => {
@@ -419,6 +623,7 @@ const Settings: React.FC = () => {
     { key: 'runtimes', label: 'Runtimes', children: <RuntimesTab /> },
     { key: 'backup', label: 'Backup', children: <BackupTab /> },
     { key: 'logs', label: 'Logs', children: <LogsTab /> },
+    { key: 'support', label: 'Support', children: <SupportTab /> },
   ];
 
   return (

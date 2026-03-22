@@ -8,6 +8,7 @@ import { configManager } from './ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import type { FingerprintConfig } from './FingerprintEngine';
 import { sanitizePath } from '../utils/pathSanitizer';
+import { dataPath, resolveAppPath } from '../utils/dataPaths';
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -82,8 +83,8 @@ export class ProfileManager {
   private dataDir: string;
 
   constructor(profilesDir?: string, dataDir?: string) {
-    this.profilesDir = profilesDir ?? path.resolve(configManager.get().profilesDir);
-    this.dataDir = dataDir ?? path.resolve('data');
+    this.profilesDir = profilesDir ?? resolveAppPath(configManager.get().profilesDir);
+    this.dataDir = dataDir ?? dataPath();
   }
 
   /** Scan profilesDir, load all profiles into memory, run migrations */

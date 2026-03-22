@@ -4,8 +4,17 @@ import path from 'path';
 import { configManager } from './managers/ConfigManager';
 import { logger } from './utils/logger';
 import { wsServer } from './utils/wsServer';
+import { dataPath } from './utils/dataPaths';
 
 const app = express();
+const bootState: { ready: boolean; startedAt: string; lastError: string | null } = {
+  ready: false,
+  startedAt: new Date().toISOString(),
+  lastError: null,
+};
+let httpServerRef: http.Server | null = null;
+let shutdownRegistered = false;
+let shuttingDown = false;
 
 app.use(express.json());
 
@@ -33,6 +42,54 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', uptime: process.uptime(), version: process.env.npm_package_version ?? '1.0.0' });
+});
+
+app.get('/readyz', async (_req: Request, res: Response) => {
+  try {
+    const { runtimeManager } = await import('./managers/RuntimeManager');
+    const { profileManager } = await import('./managers/ProfileManager');
+    const { proxyManager } = await import('./managers/ProxyManager');
+    const { licenseManager } = await import('./managers/LicenseManager');
+
+    const runtimes = runtimeManager.listRuntimes();
+    const profiles = profileManager.listProfiles();
+    const proxies = proxyManager.listProxies();
+    const license = licenseManager.getStatus(profiles.length);
+    const availableRuntimeCount = runtimes.filter((runtime) => runtime.available).length;
+    const config = configManager.get();
+    const warnings = [
+      bootState.lastError ? `Last startup error: ${bootState.lastError}` : null,
+      availableRuntimeCount === 0 ? 'No available browser runtime detected.' : null,
+      !process.env['PRO5_OFFLINE_SECRET'] && process.env['NODE_ENV'] === 'production'
+        ? 'PRO5_OFFLINE_SECRET is missing in production.'
+        : null,
+    ].filter((item): item is string => Boolean(item));
+
+    const payload = {
+      status: warnings.length === 0 ? 'ready' : 'degraded',
+      bootReady: bootState.ready,
+      startedAt: bootState.startedAt,
+      lastError: bootState.lastError,
+      api: config.api,
+      dataDir: dataPath(),
+      profileCount: profiles.length,
+      proxyCount: proxies.length,
+      runtimeCount: runtimes.length,
+      availableRuntimeCount,
+      licenseTier: license.tier,
+      warnings,
+    };
+
+    res.status(warnings.length === 0 ? 200 : 503).json(payload);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(503).json({
+      status: 'not_ready',
+      bootReady: bootState.ready,
+      startedAt: bootState.startedAt,
+      lastError: message,
+    });
+  }
 });
 
 // Config routes
@@ -63,11 +120,15 @@ app.use('/api/license', licenseRoutes);
 import backupRoutes from './routes/backups';
 app.use('/api', backupRoutes);
 
+// Support routes
+import supportRoutes from './routes/support';
+app.use('/api', supportRoutes);
+
 // Logs endpoint — reads the latest daily-rotated app log file
 app.get('/api/logs', async (_req: Request, res: Response) => {
   try {
     const fs = await import('fs/promises');
-    const logDir = path.resolve('data/logs');
+    const logDir = dataPath('logs');
     // Find the most recent app-YYYY-MM-DD.log file
     let entries: string[] = [];
     try {
@@ -135,17 +196,86 @@ async function start(): Promise<void> {
 
   const { host, port } = configManager.get().api;
   const httpServer = http.createServer(app);
+  httpServerRef = httpServer;
   wsServer.attach(httpServer);
 
-  httpServer.listen(port, host, () => {
-    logger.info(`API server running at http://${host}:${port}`);
-    logger.info(`WebSocket server running at ws://${host}:${port}/ws`);
+  await new Promise<void>((resolve) => {
+    httpServer.listen(port, host, () => {
+      bootState.ready = true;
+      bootState.lastError = null;
+      logger.info(`API server running at http://${host}:${port}`);
+      logger.info(`WebSocket server running at ws://${host}:${port}/ws`);
+      resolve();
+    });
   });
 }
 
-start().catch((err) => {
-  logger.error('Failed to start server', { error: err instanceof Error ? err.message : String(err) });
-  process.exit(1);
-});
+async function stop(reason = 'shutdown'): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  bootState.ready = false;
+  bootState.lastError = `Stopped: ${reason}`;
 
-export { app };
+  logger.warn('Stopping server', { reason });
+
+  try {
+    const { instanceManager } = await import('./managers/InstanceManager');
+    await instanceManager.stopAll();
+  } catch (err) {
+    logger.warn('Failed to stop Chromium instances during shutdown', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  if (httpServerRef) {
+    await new Promise<void>((resolve, reject) => {
+      httpServerRef?.close((err) => (err ? reject(err) : resolve()));
+    }).catch((err) => {
+      logger.warn('Failed to close HTTP server cleanly', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+    httpServerRef = null;
+  }
+
+  shuttingDown = false;
+}
+
+function registerProcessHandlers(): void {
+  if (shutdownRegistered) return;
+  shutdownRegistered = true;
+
+  process.on('SIGINT', () => {
+    void stop('SIGINT').finally(() => process.exit(0));
+  });
+
+  process.on('SIGTERM', () => {
+    void stop('SIGTERM').finally(() => process.exit(0));
+  });
+
+  process.on('uncaughtException', (err) => {
+    bootState.lastError = err.message;
+    logger.error('Uncaught exception in server process', { error: err.message, stack: err.stack });
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    bootState.lastError = message;
+    logger.error('Unhandled rejection in server process', {
+      error: message,
+      stack: reason instanceof Error ? reason.stack : undefined,
+    });
+  });
+}
+
+if (process.env['PRO5_SERVER_AUTOSTART'] !== 'false' && process.env['NODE_ENV'] !== 'test') {
+  registerProcessHandlers();
+  start().catch((err) => {
+    bootState.ready = false;
+    bootState.lastError = err instanceof Error ? err.message : String(err);
+    logger.error('Failed to start server', { error: err instanceof Error ? err.message : String(err) });
+    process.exit(1);
+  });
+}
+
+export { app, start, stop, registerProcessHandlers };

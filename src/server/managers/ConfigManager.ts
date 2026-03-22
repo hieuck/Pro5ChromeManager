@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
+import { dataPath, resolveAppPath } from '../utils/dataPaths';
 
 // Zod schema for AppConfig
 export const RuntimeSchema = z.object({
@@ -19,7 +20,7 @@ export const AppConfigSchema = z.object({
   defaultRuntime: z.string().default('auto'),
   headless: z.boolean().default(false),
   windowTitleSuffixEnabled: z.boolean().default(true),
-  profilesDir: z.string().default('./data/profiles'),
+  profilesDir: z.string().default(dataPath('profiles')),
   api: z.object({
     host: z.string().default('127.0.0.1'),
     port: z.number().int().min(1).max(65535).default(3210),
@@ -34,7 +35,7 @@ export const AppConfigSchema = z.object({
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
-const DEFAULT_CONFIG_PATH = path.resolve('data/config.json');
+const DEFAULT_CONFIG_PATH = dataPath('config.json');
 
 // Migration: upgrade old config shapes to current version
 export function migrateConfig(raw: Record<string, unknown>): Record<string, unknown> {
@@ -43,6 +44,9 @@ export function migrateConfig(raw: Record<string, unknown>): Record<string, unkn
   // v0 → v1: add configVersion + onboardingCompleted
   if (version < 1) {
     config = { configVersion: 1, onboardingCompleted: false, ...config };
+  }
+  if (typeof config['profilesDir'] === 'string') {
+    config['profilesDir'] = resolveAppPath(config['profilesDir']);
   }
   return config;
 }
@@ -56,7 +60,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   defaultRuntime: 'auto',
   headless: false,
   windowTitleSuffixEnabled: true,
-  profilesDir: './data/profiles',
+  profilesDir: dataPath('profiles'),
   api: { host: '127.0.0.1', port: 3210 },
   sessionCheck: { enabledByDefault: false, headless: true, timeoutMs: 30000 },
   runtimes: {
@@ -103,7 +107,11 @@ export class ConfigManager {
   }
 
   async update(partial: Partial<AppConfig>): Promise<AppConfig> {
-    const merged = { ...this.config, ...partial };
+    const normalizedPartial = {
+      ...partial,
+      profilesDir: partial.profilesDir ? resolveAppPath(partial.profilesDir) : undefined,
+    };
+    const merged = { ...this.config, ...normalizedPartial };
     this.config = AppConfigSchema.parse(merged);
     await this.save();
     return this.config;

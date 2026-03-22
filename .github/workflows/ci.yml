@@ -27,3 +27,12 @@ jobs:
 
       - name: Run tests
         run: npx vitest run
+
+      - name: Build app
+        run: npm run build
+
+      - name: Run operations preflight
+        run: npm run ops:preflight:built
+
+      - name: Run operations smoke test
+        run: npm run ops:smoke

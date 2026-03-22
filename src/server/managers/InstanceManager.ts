@@ -11,6 +11,7 @@ import { findFreePort } from '../utils/portScanner';
 import { waitForCDP } from '../utils/cdpWaiter';
 import { logger } from '../utils/logger';
 import { wsServer } from '../utils/wsServer';
+import { dataPath, resolveAppPath } from '../utils/dataPaths';
 
 export interface Instance {
   profileId: string;
@@ -31,8 +32,8 @@ interface RunningEntry {
   proxyCleanup: (() => void) | null;
 }
 
-const INSTANCES_PATH = path.resolve('data/instances.json');
-const ACTIVITY_LOG_PATH = path.resolve('data/activity.log');
+const INSTANCES_PATH = dataPath('instances.json');
+const ACTIVITY_LOG_PATH = dataPath('activity.log');
 const HEALTH_CHECK_INTERVAL_MS = 30_000;
 const SIGTERM_WAIT_MS = 3_000;
 
@@ -89,7 +90,7 @@ export class InstanceManager {
 
   constructor(instancesPath?: string, dataDir?: string) {
     this.instancesPath = instancesPath ?? INSTANCES_PATH;
-    this.dataDir = dataDir ?? path.resolve('data');
+    this.dataDir = dataDir ?? dataPath();
   }
 
   async initialize(): Promise<void> {
@@ -142,7 +143,7 @@ export class InstanceManager {
     );
 
     const remoteDebuggingPort = await findFreePort();
-    const profilesDir = path.resolve(configManager.get().profilesDir);
+    const profilesDir = resolveAppPath(configManager.get().profilesDir);
     const userDataDir = path.join(profilesDir, profileId);
     const headless = configManager.get().headless;
     const webrtcPolicy = profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp';
@@ -295,7 +296,7 @@ export class InstanceManager {
     );
 
     const remoteDebuggingPort = await findFreePort();
-    const profilesDir = path.resolve(configManager.get().profilesDir);
+    const profilesDir = resolveAppPath(configManager.get().profilesDir);
     const userDataDir = path.join(profilesDir, profileId);
     const timeoutMs = configManager.get().sessionCheck.timeoutMs;
 

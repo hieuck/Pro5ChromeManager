@@ -1,44 +1,92 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain } from 'electron';
+import fs from 'fs/promises';
 import path from 'path';
 import { autoUpdater } from 'electron-updater';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 const APP_URL = 'http://127.0.0.1:3210/ui';
 const IS_DEV = process.env['NODE_ENV'] === 'development';
 const ICON_PATH = path.join(__dirname, '../../resources/icon.png');
 
-// ─── State ────────────────────────────────────────────────────────────────────
-
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let serverStarted = false;
+let updateReady = false;
 
-// ─── Start Express server ─────────────────────────────────────────────────────
+async function writeMainLog(level: 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>): Promise<void> {
+  try {
+    const logDir = path.join(app.getPath('userData'), 'logs');
+    await fs.mkdir(logDir, { recursive: true });
+    const logPath = path.join(logDir, 'electron-main.log');
+    const entry = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ...(meta ? { meta } : {}),
+    });
+    await fs.appendFile(logPath, `${entry}\n`, 'utf-8');
+  } catch {
+    // best-effort only
+  }
+}
+
+function logMain(level: 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>): void {
+  const line = meta ? `${message} ${JSON.stringify(meta)}` : message;
+  if (level === 'error') console.error(`[${new Date().toISOString()}] ${line}`);
+  else if (level === 'warn') console.warn(`[${new Date().toISOString()}] ${line}`);
+  else console.log(`[${new Date().toISOString()}] ${line}`);
+  void writeMainLog(level, message, meta);
+}
 
 async function startServer(): Promise<void> {
   if (serverStarted) return;
   serverStarted = true;
 
-  // Override data directory to Electron's userData path
-  const dataDir = app.getPath('userData');
-  process.env['DATA_DIR'] = dataDir;
+  process.env['DATA_DIR'] = app.getPath('userData');
 
-  // Dynamically require the compiled server
   const serverPath = IS_DEV
     ? path.join(__dirname, '../../src/server/index.ts')
     : path.join(__dirname, '../server/index.js');
 
   try {
     require(serverPath);
+    logMain('info', 'Embedded server started', { serverPath });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[${new Date().toISOString()}] Failed to start server:`, msg);
+    logMain('error', 'Failed to start embedded server', { error: msg, serverPath });
     app.quit();
   }
 }
 
-// ─── Create window ────────────────────────────────────────────────────────────
+async function waitForBackendReady(timeoutMs = 15000): Promise<void> {
+  const startedAt = Date.now();
+  let attempt = 0;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    attempt++;
+    try {
+      const res = await fetch('http://127.0.0.1:3210/readyz');
+      if (res.ok) {
+        logMain('info', 'Backend ready for UI load', { attempt });
+        return;
+      }
+
+      const payload = await res.json().catch(() => null) as { warnings?: string[]; status?: string } | null;
+      logMain('warn', 'Backend not ready yet', {
+        attempt,
+        statusCode: res.status,
+        backendStatus: payload?.status,
+        warnings: payload?.warnings,
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      logMain('warn', 'Backend readiness probe failed', { attempt, error });
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  throw new Error(`Backend did not become ready within ${timeoutMs}ms`);
+}
 
 function createWindow(): void {
   const icon = nativeImage.createFromPath(ICON_PATH).isEmpty()
@@ -60,25 +108,20 @@ function createWindow(): void {
     show: false,
   });
 
-  // Wait for server to be ready, then load UI
-  let attempts = 0;
-  const tryLoad = (): void => {
-    attempts++;
-    mainWindow?.loadURL(APP_URL).then(() => {
+  void waitForBackendReady()
+    .then(() => mainWindow?.loadURL(APP_URL))
+    .then(() => {
+      logMain('info', 'Main window loaded UI');
       mainWindow?.show();
-    }).catch(() => {
-      if (attempts < 20) {
-        setTimeout(tryLoad, 500);
-      } else {
-        mainWindow?.show();
-        mainWindow?.loadURL(APP_URL).catch(() => undefined);
-      }
+    })
+    .catch((err) => {
+      const error = err instanceof Error ? err.message : String(err);
+      logMain('error', 'Main window failed to load UI', { error, appUrl: APP_URL });
+      mainWindow?.show();
+      mainWindow?.loadURL(APP_URL).catch(() => undefined);
     });
-  };
-  setTimeout(tryLoad, 1000);
 
   mainWindow.on('close', (e) => {
-    // Minimize to tray instead of closing
     if (tray && process.platform !== 'darwin') {
       e.preventDefault();
       mainWindow?.hide();
@@ -86,15 +129,23 @@ function createWindow(): void {
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('unresponsive', () => {
+    logMain('warn', 'Main window became unresponsive');
+  });
 
-  // Open external links in default browser
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    logMain('error', 'Renderer process gone', details as unknown as Record<string, unknown>);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    logMain('error', 'Renderer failed to load URL', { errorCode, errorDescription, validatedURL });
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: 'deny' };
   });
 }
-
-// ─── Tray ─────────────────────────────────────────────────────────────────────
 
 function createTray(): void {
   const icon = nativeImage.createFromPath(ICON_PATH);
@@ -103,7 +154,7 @@ function createTray(): void {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Mở Pro5 Chrome Manager',
+      label: 'Mo Pro5 Chrome Manager',
       click: () => {
         if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
         else createWindow();
@@ -111,7 +162,7 @@ function createTray(): void {
     },
     { type: 'separator' },
     {
-      label: 'Thoát',
+      label: 'Thoat',
       click: () => {
         tray?.destroy();
         app.exit(0);
@@ -126,49 +177,61 @@ function createTray(): void {
   });
 }
 
-// ─── Auto-updater ─────────────────────────────────────────────────────────────
-
 function setupAutoUpdater(): void {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('update-available', (info) => {
-    console.log(`[${new Date().toISOString()}] Update available: ${String(info.version)}`);
+    logMain('info', 'Update available', { version: String(info.version) });
   });
 
   autoUpdater.on('update-downloaded', (info) => {
-    console.log(`[${new Date().toISOString()}] Update downloaded: ${String(info.version)}`);
-    // Notify renderer via loadURL with query param — simple approach
+    updateReady = true;
+    logMain('info', 'Update downloaded', { version: String(info.version) });
     mainWindow?.webContents.executeJavaScript(
       `window.dispatchEvent(new CustomEvent('pro5:update-ready', { detail: { version: '${String(info.version)}' } }))`,
     ).catch(() => undefined);
   });
 
   autoUpdater.on('error', (err) => {
-    console.error(`[${new Date().toISOString()}] Auto-updater error:`, err.message);
+    logMain('error', 'Auto-updater error', { error: err.message });
   });
 
-  // Check on startup + every 24h
   void autoUpdater.checkForUpdates().catch(() => undefined);
   setInterval(() => {
     void autoUpdater.checkForUpdates().catch(() => undefined);
   }, 24 * 60 * 60 * 1000);
 }
 
-// ─── App lifecycle ────────────────────────────────────────────────────────────
+ipcMain.handle('pro5:update-install', async () => {
+  if (!updateReady) {
+    return { ok: false, error: 'No downloaded update available' };
+  }
+  setImmediate(() => {
+    autoUpdater.quitAndInstall(false, true);
+  });
+  return { ok: true };
+});
 
 app.on('ready', () => {
-  void startServer();
-  createWindow();
-  createTray();
+  logMain('info', 'Electron app ready');
+  void startServer()
+    .then(() => {
+      createWindow();
+      createTray();
 
-  if (!IS_DEV) {
-    setupAutoUpdater();
-  }
+      if (!IS_DEV) {
+        setupAutoUpdater();
+      }
+    })
+    .catch((err) => {
+      const error = err instanceof Error ? err.message : String(err);
+      logMain('error', 'Electron startup failed before window creation', { error });
+      app.quit();
+    });
 });
 
 app.on('window-all-closed', () => {
-  // Keep running in tray on Windows/Linux
   if (process.platform === 'darwin') app.quit();
 });
 
@@ -177,15 +240,28 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', async () => {
-  // Gracefully stop all Chromium instances before exit
+  logMain('info', 'Electron app quitting');
   try {
     const { instanceManager } = require('../server/managers/InstanceManager') as
       { instanceManager: { stopAll: () => Promise<void> } };
     await instanceManager.stopAll();
-  } catch { /* ignore if server not started */ }
+  } catch {
+    // ignore if server not started
+  }
 });
 
-// Catch uncaught exceptions in main process
+app.on('child-process-gone', (_event, details) => {
+  logMain('error', 'Electron child process gone', details as unknown as Record<string, unknown>);
+});
+
 process.on('uncaughtException', (err) => {
-  console.error(`[${new Date().toISOString()}] Uncaught exception in main process:`, err.message);
+  logMain('error', 'Uncaught exception in main process', { error: err.message, stack: err.stack });
+});
+
+process.on('unhandledRejection', (reason) => {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  logMain('error', 'Unhandled rejection in main process', {
+    error: message,
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
 });

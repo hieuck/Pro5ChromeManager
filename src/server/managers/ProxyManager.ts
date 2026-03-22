@@ -7,6 +7,7 @@ import * as ProxyChain from 'proxy-chain';
 import { encrypt, decrypt } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import type { ProxyConfig } from './ProfileManager';
+import { dataPath } from '../utils/dataPaths';
 
 export type { ProxyConfig };
 
@@ -25,7 +26,7 @@ export interface ProxyBuildResult {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const PROXIES_PATH = path.resolve('data/proxies.json');
+const PROXIES_PATH = dataPath('proxies.json');
 
 function httpGet(url: string, timeoutMs: number): Promise<string> {
   return new Promise((resolve, reject) => {

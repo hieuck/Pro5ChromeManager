@@ -7,6 +7,7 @@ import { profileManager } from '../managers/ProfileManager';
 import { fingerprintEngine } from '../managers/FingerprintEngine';
 import { licenseManager } from '../managers/LicenseManager';
 import { logger } from '../utils/logger';
+import { dataPath } from '../utils/dataPaths';
 
 const router = Router();
 
@@ -235,7 +236,7 @@ router.get('/profiles/:id/activity', async (req: Request, res: Response) => {
       res.status(404).json({ success: false, error: 'Profile not found' });
       return;
     }
-    const activityPath = path.resolve('data/activity.log');
+    const activityPath = dataPath('activity.log');
     const content = await fs.readFile(activityPath, 'utf-8').catch(() => '');
     const sessions = content
       .split('\n')
