@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, Input, List, Row, Select, Space, Statistic, Switch, Tag, Typography, message } from 'antd';
 import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -64,6 +65,7 @@ function formatRelativeTime(
 
 const Logs: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<ParsedLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>('all');
@@ -210,6 +212,16 @@ const Logs: React.FC = () => {
             showIcon
             message={`${t.logs.incidentSummary}: ${counts.error} ${t.logs.filterError.toLowerCase()} · ${counts.warn} ${t.logs.filterWarn.toLowerCase()}`}
             description={t.logs.incidentHint}
+            action={(
+              <Space wrap>
+                <Button size="small" onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
+                  {t.logs.exportDiagnostics}
+                </Button>
+                <Button size="small" onClick={() => navigate('/settings')}>
+                  {t.logs.openSettings}
+                </Button>
+              </Space>
+            )}
           />
         ) : null}
 

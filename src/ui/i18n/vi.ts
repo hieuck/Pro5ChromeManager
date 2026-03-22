@@ -236,6 +236,8 @@ const vi = {
     issuesOnly: 'Chỉ lỗi/cảnh báo',
     incidentSummary: 'Tóm tắt sự cố',
     incidentHint: 'Ưu tiên xem lỗi và cảnh báo gần đây trước khi đọc toàn bộ dòng log.',
+    exportDiagnostics: 'Xuất diagnostics',
+    openSettings: 'Mở cài đặt',
     justNow: 'vừa xong',
     minutesAgo: '{count} phút trước',
     hoursAgo: '{count} giờ trước',

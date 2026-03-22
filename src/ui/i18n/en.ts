@@ -238,6 +238,8 @@ const en: TranslationKeys = {
     issuesOnly: 'Issues only',
     incidentSummary: 'Incident summary',
     incidentHint: 'Focus on recent errors and warnings first before reading the full stream.',
+    exportDiagnostics: 'Export diagnostics',
+    openSettings: 'Open settings',
     justNow: 'just now',
     minutesAgo: '{count} minutes ago',
     hoursAgo: '{count} hours ago',
