@@ -7,6 +7,7 @@ import { autoUpdater } from 'electron-updater';
 const APP_URL = 'http://127.0.0.1:3210/ui';
 const IS_DEV = process.env['NODE_ENV'] === 'development';
 const ICON_PATH = path.join(__dirname, '../../resources/icon.png');
+const UPDATE_CONFIG_PATH = path.join(process.resourcesPath, 'app-update.yml');
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -178,6 +179,21 @@ function createTray(): void {
   });
 }
 
+function shouldEnableAutoUpdater(): boolean {
+  if (IS_DEV) {
+    return false;
+  }
+
+  if (!existsSync(UPDATE_CONFIG_PATH)) {
+    logMain('warn', 'Skipping auto-updater because update config is missing', {
+      updateConfigPath: UPDATE_CONFIG_PATH,
+    });
+    return false;
+  }
+
+  return true;
+}
+
 function setupAutoUpdater(): void {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -221,7 +237,7 @@ app.on('ready', () => {
       createWindow();
       createTray();
 
-      if (!IS_DEV) {
+      if (shouldEnableAutoUpdater()) {
         setupAutoUpdater();
       }
     })
