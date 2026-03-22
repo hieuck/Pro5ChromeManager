@@ -552,6 +552,36 @@ const Dashboard: React.FC = () => {
     });
   }, [hottestRecentIssue, navigate]);
 
+  const handleCopyHottestIssue = useCallback(async () => {
+    if (!hottestRecentIssue) {
+      void message.warning(t.dashboard.hottestIssueUnavailable);
+      return;
+    }
+
+    const summaryLines = [
+      'Pro5 hottest dashboard issue',
+      `Heat: ${logHeat.label}`,
+      `Repeats (60m): ${hottestRecentIssue.count}`,
+      `Level: ${hottestRecentIssue.entry.level.toUpperCase()}`,
+      `Timestamp: ${formatTime(hottestRecentIssue.entry.timestamp)}`,
+      `Message: ${hottestRecentIssue.entry.message}`,
+      `Raw: ${hottestRecentIssue.entry.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.hottestIssueCopied);
+    } catch {
+      void message.error(t.dashboard.hottestIssueCopyFailed);
+    }
+  }, [
+    hottestRecentIssue,
+    logHeat.label,
+    t.dashboard.hottestIssueCopied,
+    t.dashboard.hottestIssueCopyFailed,
+    t.dashboard.hottestIssueUnavailable,
+  ]);
+
   const handleCreateBackup = useCallback(async () => {
     setCreatingBackup(true);
     const res = await apiClient.post<BackupEntry>('/api/backups');
@@ -1143,6 +1173,11 @@ const Dashboard: React.FC = () => {
               {hottestRecentIssue ? (
                 <Button type="link" onClick={handleOpenHottestIssueLogs}>
                   {t.dashboard.openHottestIssue}
+                </Button>
+              ) : null}
+              {hottestRecentIssue ? (
+                <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyHottestIssue(); }}>
+                  {t.dashboard.copyHottestIssue}
                 </Button>
               ) : null}
               <Button type="link" onClick={handleOpenRecentLogs}>{t.dashboard.openRecentLogs}</Button>
