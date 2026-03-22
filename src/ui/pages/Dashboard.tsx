@@ -403,6 +403,9 @@ const Dashboard: React.FC = () => {
       total: logs.length,
       issues15: logHeat.incidents15,
       issues60: logHeat.incidents60,
+      errors: logs.filter((entry) => entry.level === 'error').length,
+      warnings: logs.filter((entry) => entry.level === 'warn').length,
+      infos: logs.filter((entry) => entry.level === 'info').length,
       latestEntry,
       hottestRecentIssue,
       topRecentIssues,
@@ -811,6 +814,9 @@ const Dashboard: React.FC = () => {
       `Visible activity entries: ${activityDigest.total}`,
       `Issues (15m): ${activityDigest.issues15}`,
       `Issues (60m): ${activityDigest.issues60}`,
+      `Errors: ${activityDigest.errors}`,
+      `Warnings: ${activityDigest.warnings}`,
+      `Info: ${activityDigest.infos}`,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
       `Latest message: ${activityDigest.latestEntry.message}`,
       activityDigest.topRecentIssues.length
@@ -1638,6 +1644,9 @@ const Dashboard: React.FC = () => {
                 <Space direction="vertical" size={6} style={{ width: '100%' }}>
                   <Space wrap>
                     <Tag color="blue">{`${t.dashboard.activityEntriesLabel}: ${activityDigest.total}`}</Tag>
+                    <Tag color="red">{`${t.dashboard.errorCountLabel}: ${activityDigest.errors}`}</Tag>
+                    <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${activityDigest.warnings}`}</Tag>
+                    <Tag color="blue">{`${t.dashboard.infoCountLabel}: ${activityDigest.infos}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`}</Tag>
                     <Tag color="orange">{`${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`}</Tag>
                     <Button
