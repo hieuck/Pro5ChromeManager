@@ -230,6 +230,7 @@ const vi = {
     copyVisible: 'Sao chép log đang thấy',
     copied: 'Đã sao chép log đang thấy',
     copyFailed: 'Không thể sao chép log',
+    autoRefresh: 'Tự làm mới',
   },
 } as const;
 

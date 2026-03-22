@@ -232,6 +232,7 @@ const en: TranslationKeys = {
     copyVisible: 'Copy visible logs',
     copied: 'Visible logs copied',
     copyFailed: 'Failed to copy logs',
+    autoRefresh: 'Auto refresh',
   },
 };
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, Empty, Input, List, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Empty, Input, List, Row, Select, Space, Statistic, Switch, Tag, Typography, message } from 'antd';
 import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -44,6 +44,7 @@ const Logs: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
   const [query, setQuery] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -61,6 +62,16 @@ const Logs: React.FC = () => {
   useEffect(() => {
     void loadLogs();
   }, [loadLogs]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadLogs();
+    }, 10_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [autoRefresh, loadLogs]);
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -118,6 +129,10 @@ const Logs: React.FC = () => {
               <Button icon={<CopyOutlined />} disabled={!filteredEntries.length} onClick={() => { void handleCopyVisibleLogs(); }}>
                 {t.logs.copyVisible}
               </Button>
+              <Space size={6}>
+                <Typography.Text type="secondary">{t.logs.autoRefresh}</Typography.Text>
+                <Switch checked={autoRefresh} onChange={setAutoRefresh} />
+              </Space>
             </Space>
             <Typography.Text type="secondary">
               {`${t.logs.showing}: ${filteredEntries.length}/${entries.length}`}
@@ -160,8 +175,14 @@ const Logs: React.FC = () => {
                       </Space>
                     )}
                     description={(
-                      <Space direction="vertical" size={2}>
+                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                        {entry.level === 'error' ? (
+                          <Alert type="error" showIcon message={entry.message} />
+                        ) : entry.level === 'warn' ? (
+                          <Alert type="warning" showIcon message={entry.message} />
+                        ) : (
                         <Typography.Text>{entry.message}</Typography.Text>
+                        )}
                         <Typography.Text type="secondary" style={{ fontFamily: 'Consolas, monospace', fontSize: 12 }}>
                           {entry.raw}
                         </Typography.Text>
