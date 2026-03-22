@@ -56,6 +56,14 @@ interface Profile {
   schemaVersion: number;
 }
 
+interface ProxyOption {
+  id: string;
+  label?: string;
+  type: string;
+  host: string;
+  port: number;
+}
+
 interface Instance {
   profileId: string;
   status: 'running' | 'unreachable' | 'stopped';
@@ -86,9 +94,11 @@ const cardStyle: React.CSSProperties = {
 const ProfileList: React.FC = () => {
   const { t } = useTranslation();
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [proxies, setProxies] = useState<ProxyOption[]>([]);
   const [instances, setInstances] = useState<Record<string, Instance>>({});
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkProxySelection, setBulkProxySelection] = useState<string | undefined>();
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState<string | undefined>();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
@@ -115,6 +125,13 @@ const ProfileList: React.FC = () => {
     setLoading(false);
   }, []);
 
+  const fetchProxies = useCallback(async () => {
+    const res = await apiClient.get<ProxyOption[]>('/api/proxies');
+    if (res.success) {
+      setProxies(res.data);
+    }
+  }, []);
+
   const fetchInstances = useCallback(async () => {
     const res = await apiClient.get<Instance[]>('/api/instances');
     if (res.success) {
@@ -135,9 +152,10 @@ const ProfileList: React.FC = () => {
 
   useEffect(() => {
     void fetchProfiles();
+    void fetchProxies();
     void fetchInstances();
     void fetchConfig();
-  }, [fetchConfig, fetchInstances, fetchProfiles]);
+  }, [fetchConfig, fetchInstances, fetchProfiles, fetchProxies]);
 
   useWebSocket((event) => {
     if (
@@ -211,6 +229,31 @@ const ProfileList: React.FC = () => {
     setSelectedIds([]);
   }
 
+  async function handleBulkAssignProxy(): Promise<void> {
+    if (!selectedIds.length || bulkProxySelection === undefined) {
+      return;
+    }
+
+    const proxyId = bulkProxySelection === '__NONE__' ? null : bulkProxySelection;
+    const results = await Promise.all(
+      selectedIds.map(async (id) => apiClient.put(`/api/profiles/${id}`, { proxyId })),
+    );
+    const failed = results.find((result) => !result.success);
+    if (failed) {
+      void message.error(failed.error);
+      return;
+    }
+
+    void message.success(
+      proxyId
+        ? `Đã gán proxy cho ${selectedIds.length} hồ sơ`
+        : `Đã gỡ proxy khỏi ${selectedIds.length} hồ sơ`,
+    );
+    setBulkProxySelection(undefined);
+    setSelectedIds([]);
+    await fetchProfiles();
+  }
+
   async function completeOnboarding(): Promise<void> {
     await apiClient.put('/api/config', { onboardingCompleted: true });
     setOnboardingCompleted(true);
@@ -263,9 +306,11 @@ const ProfileList: React.FC = () => {
   const runningCount = profiles.filter((profile) => getProfileStatus(profile.id) === 'running').length;
   const groupedCount = profiles.filter((profile) => Boolean(profile.group)).length;
   const taggedCount = profiles.filter((profile) => profile.tags.length > 0).length;
+  const proxiedCount = profiles.filter((profile) => Boolean(profile.proxyId)).length;
   const showingResults = t.common.showingResults
     .replace('{filtered}', String(filtered.length))
     .replace('{total}', String(profiles.length));
+  const proxyMap = new Map(proxies.map((proxy) => [proxy.id, proxy]));
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -381,12 +426,28 @@ const ProfileList: React.FC = () => {
       title: t.profile.proxy,
       dataIndex: 'proxyId',
       key: 'proxy',
-      width: 130,
-      render: (proxyId?: string) => (
-        proxyId
-          ? <Tag color="blue">{proxyId.slice(0, 8)}</Tag>
-          : <Typography.Text type="secondary">—</Typography.Text>
-      ),
+      width: 210,
+      render: (proxyId?: string) => {
+        if (!proxyId) {
+          return <Typography.Text type="secondary">—</Typography.Text>;
+        }
+
+        const proxy = proxyMap.get(proxyId);
+        if (!proxy) {
+          return <Tag color="orange">{proxyId.slice(0, 8)}</Tag>;
+        }
+
+        const label = proxy.label?.trim()
+          ? proxy.label
+          : `${proxy.host}:${proxy.port}`;
+
+        return (
+          <Space direction="vertical" size={0}>
+            <Tag color="blue">{proxy.type.toUpperCase()}</Tag>
+            <Typography.Text>{label}</Typography.Text>
+          </Space>
+        );
+      },
     },
     {
       title: t.common.tags,
@@ -502,6 +563,11 @@ const ProfileList: React.FC = () => {
             <Statistic title={t.profile.taggedProfiles} value={taggedCount} prefix={<TagsOutlined />} />
           </Card>
         </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card style={cardStyle}>
+            <Statistic title="Có proxy" value={proxiedCount} valueStyle={{ color: '#08979c' }} />
+          </Card>
+        </Col>
       </Row>
 
       <Card style={cardStyle} bodyStyle={{ paddingBottom: 12 }}>
@@ -553,7 +619,7 @@ const ProfileList: React.FC = () => {
                 style={{ width: 170 }}
                 options={owners.map((owner) => ({ label: owner, value: owner }))}
               />
-              <Button icon={<ReloadOutlined />} onClick={() => { void fetchProfiles(); void fetchInstances(); }} />
+              <Button icon={<ReloadOutlined />} onClick={() => { void fetchProfiles(); void fetchProxies(); void fetchInstances(); }} />
               <Tooltip title="Phím tắt (?)">
                 <Button icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} />
               </Tooltip>
@@ -569,6 +635,27 @@ const ProfileList: React.FC = () => {
             {selectedIds.length > 0 ? (
               <Space wrap>
                 <Typography.Text type="secondary">Đã chọn {selectedIds.length}</Typography.Text>
+                <Select
+                  value={bulkProxySelection}
+                  onChange={setBulkProxySelection}
+                  placeholder="Gán hoặc gỡ proxy"
+                  allowClear
+                  style={{ width: 240 }}
+                  options={[
+                    { label: 'Gỡ proxy khỏi các hồ sơ đã chọn', value: '__NONE__' },
+                    ...proxies.map((proxy) => ({
+                      label: `[${proxy.type.toUpperCase()}] ${proxy.label?.trim() ? `${proxy.label} — ` : ''}${proxy.host}:${proxy.port}`,
+                      value: proxy.id,
+                    })),
+                  ]}
+                />
+                <Button
+                  size="small"
+                  onClick={() => void handleBulkAssignProxy()}
+                  disabled={bulkProxySelection === undefined}
+                >
+                  Áp dụng proxy
+                </Button>
                 <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleBulkStart()}>
                   {t.profile.bulkStart}
                 </Button>
