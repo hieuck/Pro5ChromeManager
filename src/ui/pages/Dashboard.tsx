@@ -502,6 +502,10 @@ const Dashboard: React.FC = () => {
         : hottestIssueMinutes !== null && hottestIssueMinutes <= 30
           ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
           : { color: 'green', label: t.dashboard.incidentFreshnessStale };
+    const hottestIssueLevel =
+      hottestRecentIssue?.entry.level === 'error'
+        ? { color: 'red', label: t.dashboard.errorCountLabel }
+        : { color: 'gold', label: t.dashboard.warningCountLabel };
     const issueRatio = logs.length
       ? Math.round(((logs.filter((entry) => entry.level === 'error' || entry.level === 'warn').length) / logs.length) * 100)
       : 0;
@@ -530,6 +534,7 @@ const Dashboard: React.FC = () => {
       activityFreshness,
       latestActivityLevel,
       hottestIssueFreshness,
+      hottestIssueLevel,
       activitySignalMode,
       hottestRecentIssue,
       topRecentIssues,
@@ -1065,6 +1070,7 @@ const Dashboard: React.FC = () => {
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
       `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
       activityDigest.hottestRecentIssue ? `Hottest issue freshness: ${activityDigest.hottestIssueFreshness.label}` : null,
+      activityDigest.hottestRecentIssue ? `Hottest issue level: ${activityDigest.hottestIssueLevel.label}` : null,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
       `Latest message: ${activityDigest.latestEntry.message}`,
       activityDigest.topRecentIssues.length
@@ -2046,9 +2052,14 @@ const Dashboard: React.FC = () => {
                       <Typography.Text type="secondary">
                         {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
                       </Typography.Text>
-                      <Tag color={activityDigest.hottestIssueFreshness.color}>
-                        {`${t.dashboard.hottestIssueFreshnessLabel}: ${activityDigest.hottestIssueFreshness.label}`}
-                      </Tag>
+                      <Space wrap>
+                        <Tag color={activityDigest.hottestIssueFreshness.color}>
+                          {`${t.dashboard.hottestIssueFreshnessLabel}: ${activityDigest.hottestIssueFreshness.label}`}
+                        </Tag>
+                        <Tag color={activityDigest.hottestIssueLevel.color}>
+                          {`${t.dashboard.hottestIssueLevelLabel}: ${activityDigest.hottestIssueLevel.label}`}
+                        </Tag>
+                      </Space>
                     </Space>
                   ) : null}
                   <Typography.Text type="secondary">
