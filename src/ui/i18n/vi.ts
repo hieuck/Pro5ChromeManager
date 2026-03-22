@@ -219,6 +219,14 @@ const vi = {
     title: 'Nhật ký hệ thống',
     noLogs: 'Chưa có nhật ký',
     refresh: 'Làm mới',
+    subtitle: 'Xem hoạt động ứng dụng gần nhất, lọc theo mức độ và tìm nhanh sự kiện vừa xảy ra.',
+    filterAll: 'Tất cả mức độ',
+    filterInfo: 'Thông tin',
+    filterWarn: 'Cảnh báo',
+    filterError: 'Lỗi',
+    searchPlaceholder: 'Tìm trong nhật ký',
+    showing: 'Đang hiển thị',
+    noMatch: 'Không có dòng nhật ký nào khớp bộ lọc hiện tại.',
   },
 } as const;
 

@@ -221,6 +221,14 @@ const en: TranslationKeys = {
     title: 'System Logs',
     noLogs: 'No logs yet',
     refresh: 'Refresh',
+    subtitle: 'Inspect the latest application activity, filter by severity, and search for recent events.',
+    filterAll: 'All levels',
+    filterInfo: 'Info',
+    filterWarn: 'Warnings',
+    filterError: 'Errors',
+    searchPlaceholder: 'Search logs',
+    showing: 'Showing',
+    noMatch: 'No log entries match this filter.',
   },
 };
 
