@@ -386,6 +386,7 @@ const vi = {
     visibleTopSourcesConcentrationLabel: 'Độ tập trung top 3',
     visibleTopSourceFreshnessLabel: 'Độ mới nguồn chính',
     visibleTopSourceTimestampLabel: 'Thời điểm nguồn chính',
+    visibleTopSourceTrendLabel: 'Xu hướng nguồn chính',
     visibleTopSourceLatestLevelLabel: 'Mức độ nguồn chính',
     visibleTopSourceLatestLabel: 'Nguồn chính mới nhất',
     visibleSourceModeLabel: 'Kiểu phân bố nguồn',

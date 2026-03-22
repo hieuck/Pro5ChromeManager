@@ -353,6 +353,42 @@ const Logs: React.FC = () => {
     [visibleTopSource?.latestEntry.timestamp],
   );
 
+  const visibleTopSourceTrend = useMemo(() => {
+    if (!visibleTopSource) {
+      return {
+        last15m: 0,
+        last60m: 0,
+        label: '',
+      };
+    }
+
+    const sourceEntries = matchedEntries.filter((entry) => entry.source === visibleTopSource.source);
+    const last15m = sourceEntries.filter((entry) => isWithinLastMinutes(entry.timestamp, 15)).length;
+    const last60m = sourceEntries.filter((entry) => isWithinLastMinutes(entry.timestamp, 60)).length;
+
+    if (last15m >= 3) {
+      return {
+        last15m,
+        last60m,
+        label: t.logs.visibleTrendHot,
+      };
+    }
+
+    if (last15m > 0 || last60m >= 5) {
+      return {
+        last15m,
+        last60m,
+        label: t.logs.visibleTrendElevated,
+      };
+    }
+
+    return {
+      last15m,
+      last60m,
+      label: t.logs.visibleTrendCalm,
+    };
+  }, [matchedEntries, t.logs.visibleTrendCalm, t.logs.visibleTrendElevated, t.logs.visibleTrendHot, visibleTopSource]);
+
   const visibleTopSourcesConcentration = useMemo(() => {
     if (!matchedEntries.length) return 0;
     const visibleTopCount = visibleSources.reduce((sum, source) => sum + source.count, 0);
@@ -796,6 +832,7 @@ const Logs: React.FC = () => {
       `Visible lines: ${source.count}`,
       `Suggested action: ${visibleSourceActionHint}`,
       `Top source timestamp: ${visibleTopSourceTimestamp}`,
+      `Top source trend: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
       `Level: ${entry.level.toUpperCase()}`,
       `Timestamp: ${entry.timestamp ?? 'unknown'}`,
       `Message: ${entry.message}`,
@@ -808,7 +845,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable, visibleSourceActionHint, visibleTopSourceTimestamp]);
+  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable, visibleSourceActionHint, visibleTopSourceTimestamp, visibleTopSourceTrend.label, visibleTopSourceTrend.last15m, visibleTopSourceTrend.last60m]);
 
   const handleCopyVisibleSourceDigest = useCallback(async (
     source: {
@@ -833,6 +870,7 @@ const Logs: React.FC = () => {
       `Suggested action: ${visibleSourceActionHint}`,
       `Top source freshness: ${visibleTopSourceFreshness}`,
       `Top source timestamp: ${visibleTopSourceTimestamp}`,
+      `Top source trend: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
       `Latest level: ${source.latestEntry.level.toUpperCase()}`,
       `Latest timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
       `Latest message: ${source.latestEntry.message}`,
@@ -854,6 +892,9 @@ const Logs: React.FC = () => {
     visibleSourceActionHint,
     visibleTopSourceFreshness,
     visibleTopSourceTimestamp,
+    visibleTopSourceTrend.label,
+    visibleTopSourceTrend.last15m,
+    visibleTopSourceTrend.last60m,
     visibleTopSourceShare,
     visibleTopSourcesConcentration,
   ]);
@@ -1210,6 +1251,9 @@ const Logs: React.FC = () => {
             </Typography.Text>
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
               {`${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              {`${t.logs.visibleTopSourceTrendLabel}: ${visibleTopSourceTrend.label} · ${t.logs.visibleTrendLast15.replace('{count}', String(visibleTopSourceTrend.last15m))} · ${t.logs.visibleTrendLast60.replace('{count}', String(visibleTopSourceTrend.last60m))}`}
             </Typography.Text>
             <Button
               size="small"
