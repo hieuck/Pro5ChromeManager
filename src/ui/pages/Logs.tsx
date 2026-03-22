@@ -204,6 +204,24 @@ const Logs: React.FC = () => {
     }
   }, [counts.error, counts.warn, entries.length, filter, filteredEntries.length, issueEntries.length, latestIssue, query, t.logs.copyFailed, t.logs.digestCopied]);
 
+  const handleCopyLatestIssue = useCallback(async () => {
+    if (!latestIssue) return;
+
+    const lines = [
+      `Level: ${latestIssue.level.toUpperCase()}`,
+      `Timestamp: ${latestIssue.timestamp ?? 'unknown'}`,
+      `Message: ${latestIssue.message}`,
+      `Raw: ${latestIssue.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.latestIssueCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [latestIssue, t.logs.copyFailed, t.logs.latestIssueCopied]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -293,7 +311,16 @@ const Logs: React.FC = () => {
         {latestIssue ? (
           <Card
             title={t.logs.latestIssue}
-            extra={<Button type="link" onClick={() => setFilter('issues')}>{t.logs.issuesOnly}</Button>}
+            extra={(
+              <Space size={4}>
+                <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyLatestIssue(); }}>
+                  {t.logs.copyLatestIssue}
+                </Button>
+                <Button type="link" onClick={() => setFilter('issues')}>
+                  {t.logs.issuesOnly}
+                </Button>
+              </Space>
+            )}
           >
             <Space direction="vertical" size={6} style={{ width: '100%' }}>
               <Space wrap>

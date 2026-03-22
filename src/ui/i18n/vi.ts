@@ -246,6 +246,8 @@ const vi = {
       incidentSummary: 'Tóm tắt sự cố',
     incidentHint: 'Ưu tiên xem lỗi và cảnh báo gần đây trước khi đọc toàn bộ dòng log.',
     latestIssue: 'Vấn đề mới nhất',
+    copyLatestIssue: 'Sao chép vấn đề mới nhất',
+    latestIssueCopied: 'Đã sao chép vấn đề mới nhất',
     allClear: 'Không có sự cố hoạt động',
     allClearHint: 'Các dòng log gần đây không chứa cảnh báo hoặc lỗi.',
     exportDiagnostics: 'Xuất diagnostics',

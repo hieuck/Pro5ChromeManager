@@ -248,6 +248,8 @@ const en: TranslationKeys = {
       incidentSummary: 'Incident summary',
     incidentHint: 'Focus on recent errors and warnings first before reading the full stream.',
     latestIssue: 'Latest issue',
+    copyLatestIssue: 'Copy latest issue',
+    latestIssueCopied: 'Latest issue copied',
     allClear: 'No active incidents',
     allClearHint: 'Recent logs do not contain warnings or errors.',
     exportDiagnostics: 'Export diagnostics',
