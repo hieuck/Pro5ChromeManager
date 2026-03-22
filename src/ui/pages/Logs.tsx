@@ -180,6 +180,28 @@ const Logs: React.FC = () => {
     void message.success(t.logs.filtersReset);
   }, [t.logs.filtersReset]);
 
+  const handleCopyIssueDigest = useCallback(async () => {
+    const digestLines = [
+      'Pro5 log digest',
+      `Visible entries: ${filteredEntries.length}/${entries.length}`,
+      `Issues: ${issueEntries.length}`,
+      `Errors: ${counts.error}`,
+      `Warnings: ${counts.warn}`,
+      `Active filter: ${filter}`,
+      query.trim() ? `Search: ${query.trim()}` : 'Search: none',
+      latestIssue
+        ? `Latest issue: ${latestIssue.level.toUpperCase()} | ${latestIssue.timestamp ?? 'unknown'} | ${latestIssue.message}`
+        : 'Latest issue: none',
+    ];
+
+    try {
+      await navigator.clipboard.writeText(digestLines.join('\n'));
+      void message.success(t.logs.digestCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [counts.error, counts.warn, entries.length, filter, filteredEntries.length, issueEntries.length, latestIssue, query, t.logs.copyFailed, t.logs.digestCopied]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -221,6 +243,9 @@ const Logs: React.FC = () => {
               </Button>
               <Button disabled={!issueEntries.length} onClick={() => { void handleCopyIssues(); }}>
                 {t.logs.copyIssues}
+              </Button>
+              <Button onClick={() => { void handleCopyIssueDigest(); }}>
+                {t.logs.copyDigest}
               </Button>
               <Button onClick={() => setFilter('issues')}>
                 {t.logs.issuesOnly}
