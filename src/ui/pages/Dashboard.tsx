@@ -199,6 +199,7 @@ const Dashboard: React.FC = () => {
   const [copyingLatestActivity, setCopyingLatestActivity] = useState(false);
   const [copyingTopActivityIssues, setCopyingTopActivityIssues] = useState(false);
   const [copyingTopActivitySourceLatest, setCopyingTopActivitySourceLatest] = useState(false);
+  const [copyingTopActivitySources, setCopyingTopActivitySources] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
@@ -1270,6 +1271,36 @@ const Dashboard: React.FC = () => {
     t.dashboard.topActivitySourceLatestUnavailable,
   ]);
 
+  const handleCopyTopActivitySources = useCallback(async () => {
+    if (!activityDigest?.topSources.length) {
+      void message.warning(t.dashboard.topActivitySourcesUnavailable);
+      return;
+    }
+
+    setCopyingTopActivitySources(true);
+    const summaryLines = [
+      'Pro5 top dashboard activity sources',
+      `Source mode: ${activityDigest.activitySourceMode.label}`,
+      `Top source share: ${activityDigest.topSourceShare}%`,
+      `Top source concentration: ${activityDigest.topSourcesConcentration}%`,
+      ...activityDigest.topSources.map(([source, count], index) => `${index + 1}. ${source} (${count})`),
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.topActivitySourcesCopied);
+    } catch {
+      void message.error(t.dashboard.topActivitySourcesCopyFailed);
+    } finally {
+      setCopyingTopActivitySources(false);
+    }
+  }, [
+    activityDigest,
+    t.dashboard.topActivitySourcesCopied,
+    t.dashboard.topActivitySourcesCopyFailed,
+    t.dashboard.topActivitySourcesUnavailable,
+  ]);
+
   const handleOpenLatestActivity = useCallback(() => {
     if (!activityDigest?.latestEntry) {
       return;
@@ -2102,6 +2133,16 @@ const Dashboard: React.FC = () => {
                   onClick={() => { void handleCopyTopActivityIssues(); }}
                 >
                   {t.dashboard.copyTopActivityIssues}
+                </Button>
+              ) : null}
+              {activityDigest?.topSources.length ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingTopActivitySources}
+                  onClick={() => { void handleCopyTopActivitySources(); }}
+                >
+                  {t.dashboard.copyTopActivitySources}
                 </Button>
               ) : null}
               {activityDigest ? (
