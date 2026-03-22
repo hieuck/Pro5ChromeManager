@@ -176,6 +176,7 @@ const Dashboard: React.FC = () => {
   const [copyingActivityDigest, setCopyingActivityDigest] = useState(false);
   const [copyingLatestIncident, setCopyingLatestIncident] = useState(false);
   const [copyingTopIncidentSource, setCopyingTopIncidentSource] = useState(false);
+  const [copyingLatestActivity, setCopyingLatestActivity] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
@@ -778,6 +779,37 @@ const Dashboard: React.FC = () => {
     t.dashboard.activityDigestCopied,
     t.dashboard.activityDigestCopyFailed,
     t.dashboard.activityDigestUnavailable,
+  ]);
+
+  const handleCopyLatestActivity = useCallback(async () => {
+    if (!activityDigest?.latestEntry) {
+      void message.warning(t.dashboard.latestActivityUnavailable);
+      return;
+    }
+
+    setCopyingLatestActivity(true);
+    const latestEntry = activityDigest.latestEntry;
+    const summaryLines = [
+      'Pro5 latest dashboard activity',
+      `Level: ${latestEntry.level.toUpperCase()}`,
+      `Timestamp: ${formatTime(latestEntry.timestamp)}`,
+      `Message: ${latestEntry.message}`,
+      `Raw: ${latestEntry.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.latestActivityCopied);
+    } catch {
+      void message.error(t.dashboard.latestActivityCopyFailed);
+    } finally {
+      setCopyingLatestActivity(false);
+    }
+  }, [
+    activityDigest,
+    t.dashboard.latestActivityCopied,
+    t.dashboard.latestActivityCopyFailed,
+    t.dashboard.latestActivityUnavailable,
   ]);
 
   const handleOpenLatestActivity = useCallback(() => {
@@ -1434,6 +1466,16 @@ const Dashboard: React.FC = () => {
           extra={(
             <Space size={8}>
               <Tag color={logHeat.color}>{`${t.dashboard.logHeatLabel}: ${logHeat.label}`}</Tag>
+              {activityDigest ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingLatestActivity}
+                  onClick={() => { void handleCopyLatestActivity(); }}
+                >
+                  {t.dashboard.copyLatestActivity}
+                </Button>
+              ) : null}
               {activityDigest ? (
                 <Button
                   type="link"
