@@ -180,6 +180,28 @@ const Logs: React.FC = () => {
     [entries],
   );
 
+  const repeatedRecentIssue = useMemo(() => {
+    const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
+
+    for (const entry of recentIssueEntries) {
+      const current = countsByMessage.get(entry.message);
+      if (current) {
+        current.count += 1;
+        if (entry.level === 'error') current.level = 'error';
+        continue;
+      }
+
+      countsByMessage.set(entry.message, {
+        count: 1,
+        level: entry.level,
+        message: entry.message,
+      });
+    }
+
+    return Array.from(countsByMessage.values())
+      .sort((left, right) => right.count - left.count)[0] ?? null;
+  }, [recentIssueEntries]);
+
   const handleCopyIssues = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(issueEntries.map((entry) => entry.raw).join('\n'));
@@ -300,6 +322,15 @@ const Logs: React.FC = () => {
     setQuery(latestIssue.message);
     void message.success(t.logs.focusLatestIssueApplied);
   }, [latestIssue, t.logs.focusLatestIssueApplied]);
+
+  const handleFocusRepeatedRecentIssue = useCallback(() => {
+    if (!repeatedRecentIssue) return;
+
+    setFilter('issues');
+    setRecentWindowOnly(true);
+    setQuery(repeatedRecentIssue.message);
+    void message.success(t.logs.focusRepeatedRecentIssueApplied);
+  }, [repeatedRecentIssue, t.logs.focusRepeatedRecentIssueApplied]);
 
   const activeFilterTags = useMemo(() => {
     const tags: Array<{ key: string; label: string; onClose: () => void }> = [];
@@ -461,6 +492,20 @@ const Logs: React.FC = () => {
             showIcon
             message={t.logs.visibleBreakdown}
             description={`${filteredEntries.length} ${t.logs.visibleEntries} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
+          />
+        ) : null}
+
+        {repeatedRecentIssue && repeatedRecentIssue.count > 1 ? (
+          <Alert
+            type={repeatedRecentIssue.level === 'error' ? 'error' : 'warning'}
+            showIcon
+            message={t.logs.repeatedRecentIssueTitle}
+            description={`${repeatedRecentIssue.message} · ${t.logs.repeatedRecentIssueCount.replace('{count}', String(repeatedRecentIssue.count))}`}
+            action={(
+              <Button size="small" onClick={handleFocusRepeatedRecentIssue}>
+                {t.logs.focusRepeatedRecentIssue}
+              </Button>
+            )}
           />
         ) : null}
 
