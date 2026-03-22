@@ -24,6 +24,14 @@ export interface ProxyBuildResult {
   cleanup: (() => void) | null;
 }
 
+export interface ProxyHealthSnapshot {
+  lastCheckAt: string;
+  lastCheckStatus: 'healthy' | 'failing';
+  lastCheckIp?: string;
+  lastCheckTimezone?: string | null;
+  lastCheckError?: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PROXIES_PATH = dataPath('proxies.json');
@@ -258,6 +266,22 @@ export class ProxyManager {
   async detectTimezoneFromProxy(ip: string): Promise<string> {
     const body = await httpGet(`https://ipapi.co/${ip}/timezone`, 5000);
     return body.trim();
+  }
+
+  async recordTestSnapshot(id: string, snapshot: ProxyHealthSnapshot): Promise<ProxyConfig> {
+    const existing = this.proxies.get(id);
+    if (!existing) throw new Error(`Proxy not found: ${id}`);
+
+    const updated: ProxyConfig = {
+      ...existing,
+      ...snapshot,
+      lastCheckIp: snapshot.lastCheckIp ?? undefined,
+      lastCheckTimezone: snapshot.lastCheckTimezone ?? null,
+      lastCheckError: snapshot.lastCheckError ?? undefined,
+    };
+    this.proxies.set(id, updated);
+    await this.persist();
+    return updated;
   }
 
   // ─── Build proxy config for Chrome ────────────────────────────────────────

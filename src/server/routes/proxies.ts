@@ -106,9 +106,25 @@ router.post('/proxies/:id/test', async (req: Request, res: Response) => {
     } catch {
       // timezone detection is best-effort
     }
+    const checkedAt = new Date().toISOString();
+    await proxyManager.recordTestSnapshot(proxy.id, {
+      lastCheckAt: checkedAt,
+      lastCheckStatus: 'healthy',
+      lastCheckIp: ip,
+      lastCheckTimezone: timezone,
+      lastCheckError: undefined,
+    });
     res.json({ success: true, data: { ip, timezone } });
   } catch (err) {
-    res.status(502).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+    const error = err instanceof Error ? err.message : String(err);
+    await proxyManager.recordTestSnapshot(proxy.id, {
+      lastCheckAt: new Date().toISOString(),
+      lastCheckStatus: 'failing',
+      lastCheckError: error,
+      lastCheckIp: undefined,
+      lastCheckTimezone: null,
+    });
+    res.status(502).json({ success: false, error });
   }
 });
 

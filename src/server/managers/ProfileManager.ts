@@ -19,6 +19,11 @@ export interface ProxyConfig {
   port: number;
   username?: string;
   password?: string;
+  lastCheckAt?: string;
+  lastCheckStatus?: 'healthy' | 'failing';
+  lastCheckIp?: string;
+  lastCheckTimezone?: string | null;
+  lastCheckError?: string;
 }
 
 export interface Profile {

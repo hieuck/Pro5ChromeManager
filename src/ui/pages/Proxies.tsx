@@ -35,6 +35,11 @@ interface ProxyRecord {
   port: number;
   username?: string;
   password?: string;
+  lastCheckAt?: string;
+  lastCheckStatus?: 'healthy' | 'failing';
+  lastCheckIp?: string;
+  lastCheckTimezone?: string | null;
+  lastCheckError?: string;
 }
 
 interface ProxyTestResult {
@@ -66,7 +71,6 @@ const Proxies: React.FC = () => {
   const [importText, setImportText] = useState('');
   const [defaultType, setDefaultType] = useState<ProxyRecord['type']>('http');
   const [testingIds, setTestingIds] = useState<Record<string, boolean>>({});
-  const [testResults, setTestResults] = useState<Record<string, { kind: 'success' | 'error'; text: string }>>({});
 
   const fetchProxies = useCallback(async () => {
     setLoading(true);
@@ -138,11 +142,6 @@ const Proxies: React.FC = () => {
     }
 
     setProxies((current) => current.filter((proxy) => proxy.id !== id));
-    setTestResults((current) => {
-      const next = { ...current };
-      delete next[id];
-      return next;
-    });
   }
 
   async function handleTest(id: string): Promise<void> {
@@ -151,20 +150,11 @@ const Proxies: React.FC = () => {
     setTestingIds((current) => ({ ...current, [id]: false }));
 
     if (!res.success) {
-      setTestResults((current) => ({
-        ...current,
-        [id]: { kind: 'error', text: res.error || t.proxy.testFailed },
-      }));
+      void fetchProxies();
       return;
     }
 
-    const text = res.data.timezone
-      ? `${t.proxy.testSuccess.replace('{ip}', res.data.ip)} · ${res.data.timezone}`
-      : t.proxy.testSuccess.replace('{ip}', res.data.ip);
-    setTestResults((current) => ({
-      ...current,
-      [id]: { kind: 'success', text },
-    }));
+    void fetchProxies();
   }
 
   const authenticatedCount = proxies.filter((proxy) => Boolean(proxy.username)).length;
@@ -203,14 +193,26 @@ const Proxies: React.FC = () => {
       title: t.proxy.lastCheck,
       key: 'lastCheck',
       render: (_, record) => {
-        const result = testResults[record.id];
-        if (!result) {
+        if (!record.lastCheckAt || !record.lastCheckStatus) {
           return <Typography.Text type="secondary">—</Typography.Text>;
         }
 
-        return result.kind === 'success'
-          ? <Tag color="green">{result.text}</Tag>
-          : <Tag color="red">{result.text}</Tag>;
+        const summary = record.lastCheckStatus === 'healthy'
+          ? (
+            record.lastCheckTimezone
+              ? `${t.proxy.testSuccess.replace('{ip}', record.lastCheckIp ?? '—')} · ${record.lastCheckTimezone}`
+              : t.proxy.testSuccess.replace('{ip}', record.lastCheckIp ?? '—')
+          )
+          : (record.lastCheckError ?? t.proxy.testFailed);
+
+        return (
+          <Space direction="vertical" size={0}>
+            <Tag color={record.lastCheckStatus === 'healthy' ? 'green' : 'red'}>{summary}</Tag>
+            <Typography.Text type="secondary">
+              {new Date(record.lastCheckAt).toLocaleString('vi-VN')}
+            </Typography.Text>
+          </Space>
+        );
       },
     },
     {

@@ -160,6 +160,49 @@ describe('ProxyManager CRUD', () => {
     const manager = new ProxyManager();
     await expect(manager.updateProxy('no-such-id', { port: 1 })).rejects.toThrow('not found');
   });
+
+  it('persists proxy health snapshots after tests', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'proxy-health-'));
+    const proxiesPath = path.join(tmpDir, 'proxies.json');
+    const manager = new ProxyManager(proxiesPath);
+
+    const proxy = await manager.createProxy({ type: 'http', host: 'a.b.c', port: 8080 });
+    await manager.recordTestSnapshot(proxy.id, {
+      lastCheckAt: '2026-03-22T16:00:00.000Z',
+      lastCheckStatus: 'healthy',
+      lastCheckIp: '1.2.3.4',
+      lastCheckTimezone: 'Asia/Saigon',
+    });
+
+    const manager2 = new ProxyManager(proxiesPath);
+    await manager2.initialize();
+    const persisted = manager2.getProxy(proxy.id);
+
+    expect(persisted?.lastCheckAt).toBe('2026-03-22T16:00:00.000Z');
+    expect(persisted?.lastCheckStatus).toBe('healthy');
+    expect(persisted?.lastCheckIp).toBe('1.2.3.4');
+    expect(persisted?.lastCheckTimezone).toBe('Asia/Saigon');
+    expect(persisted?.lastCheckError).toBeUndefined();
+
+    await manager2.recordTestSnapshot(proxy.id, {
+      lastCheckAt: '2026-03-22T16:05:00.000Z',
+      lastCheckStatus: 'failing',
+      lastCheckError: 'Proxy timeout',
+      lastCheckTimezone: null,
+    });
+
+    const manager3 = new ProxyManager(proxiesPath);
+    await manager3.initialize();
+    const failed = manager3.getProxy(proxy.id);
+
+    expect(failed?.lastCheckAt).toBe('2026-03-22T16:05:00.000Z');
+    expect(failed?.lastCheckStatus).toBe('failing');
+    expect(failed?.lastCheckError).toBe('Proxy timeout');
+    expect(failed?.lastCheckIp).toBeUndefined();
+    expect(failed?.lastCheckTimezone).toBeNull();
+
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
 });
 
 describe('ProxyManager bulk import', () => {
