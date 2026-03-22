@@ -740,6 +740,15 @@ const Logs: React.FC = () => {
           />
         ) : null}
 
+        {(query.trim() || filter !== 'all' || recentWindowOnly) && filteredEntries.length > 0 && filteredCounts.error === 0 && filteredCounts.warn === 0 ? (
+          <Alert
+            type="success"
+            showIcon
+            message={t.logs.visibleAllClear}
+            description={t.logs.visibleAllClearHint}
+          />
+        ) : null}
+
         {(query.trim() || filter !== 'all' || recentWindowOnly) && (visibleIssueTrend.last15m || visibleIssueTrend.last60m) ? (
           <Alert
             type={visibleTrendStatus.tone}

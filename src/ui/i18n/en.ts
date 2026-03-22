@@ -236,6 +236,8 @@ const en: TranslationKeys = {
     visibleEntries: 'visible entries',
     searchMatches: '{count} search matches',
     visibleIssueRatio: '{count}% issues',
+    visibleAllClear: 'No issues in view',
+    visibleAllClearHint: 'This slice is free of warnings and errors even if the broader stream still has incidents elsewhere.',
     copyVisibleSlice: 'Copy visible slice',
     visibleSliceCopied: 'Visible slice summary copied',
     visibleTrendTitle: 'Issue trend in view',

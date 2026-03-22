@@ -234,6 +234,8 @@ const vi = {
     visibleEntries: 'dòng đang hiển thị',
     searchMatches: '{count} dòng khớp search',
     visibleIssueRatio: '{count}% là lỗi/cảnh báo',
+    visibleAllClear: 'Phần đang xem không có sự cố',
+    visibleAllClearHint: 'Slice hiện tại không chứa cảnh báo hoặc lỗi, dù toàn bộ stream có thể vẫn còn sự cố ở nơi khác.',
     copyVisibleSlice: 'Sao chép phần đang xem',
     visibleSliceCopied: 'Đã sao chép tóm tắt phần đang xem',
     visibleTrendTitle: 'Xu hướng sự cố trong phần đang xem',
