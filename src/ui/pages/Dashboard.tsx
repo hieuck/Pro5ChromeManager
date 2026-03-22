@@ -523,6 +523,16 @@ const Dashboard: React.FC = () => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3);
     const topSource = topSources[0] ?? null;
+    const topSourceShare = topSource ? Math.round((topSource[1] / logs.length) * 100) : 0;
+    const topSourcesConcentration = logs.length
+      ? Math.round((topSources.reduce((sum, [, count]) => sum + count, 0) / logs.length) * 100)
+      : 0;
+    const activitySourceMode =
+      topSourcesConcentration >= 80
+        ? { color: 'volcano', label: t.dashboard.activitySourceModeFocused, hint: t.dashboard.activitySourceModeFocusedHint }
+        : topSourcesConcentration >= 50
+          ? { color: 'gold', label: t.dashboard.activitySourceModeMixed, hint: t.dashboard.activitySourceModeMixedHint }
+          : { color: 'green', label: t.dashboard.activitySourceModeDistributed, hint: t.dashboard.activitySourceModeDistributedHint };
 
     return {
       total: logs.length,
@@ -542,6 +552,9 @@ const Dashboard: React.FC = () => {
       topRecentIssues,
       topSources,
       topSource,
+      topSourceShare,
+      topSourcesConcentration,
+      activitySourceMode,
       activityActionHint,
     };
   }, [hottestRecentIssue, logHeat.incidents15, logHeat.incidents60, logs, topRecentIssues]);
@@ -1089,6 +1102,10 @@ const Dashboard: React.FC = () => {
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
       `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
       activityDigest.topSource ? `Top activity source: ${activityDigest.topSource[0]} (${activityDigest.topSource[1]})` : null,
+      `Top activity source share: ${activityDigest.topSourceShare}%`,
+      `Top activity concentration: ${activityDigest.topSourcesConcentration}%`,
+      `Activity source mode: ${activityDigest.activitySourceMode.label}`,
+      `Activity source hint: ${activityDigest.activitySourceMode.hint}`,
       activityDigest.hottestRecentIssue ? `Hottest issue repeats: ${activityDigest.hottestRecentIssue.count}` : null,
       activityDigest.hottestRecentIssue ? `Hottest issue freshness: ${activityDigest.hottestIssueFreshness.label}` : null,
       activityDigest.hottestRecentIssue ? `Hottest issue level: ${activityDigest.hottestIssueLevel.label}` : null,
@@ -2047,6 +2064,15 @@ const Dashboard: React.FC = () => {
                     </Tag>
                     <Tag color="gold">{`${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`}</Tag>
                     <Tag color="orange">{`${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`}</Tag>
+                    <Tag color={activityDigest.topSourceShare >= 50 ? 'cyan' : 'blue'}>
+                      {`${t.dashboard.topActivitySourceShareLabel}: ${activityDigest.topSourceShare}%`}
+                    </Tag>
+                    <Tag color={activityDigest.topSourcesConcentration >= 80 ? 'cyan' : activityDigest.topSourcesConcentration >= 50 ? 'blue' : 'green'}>
+                      {`${t.dashboard.topActivitySourcesConcentrationLabel}: ${activityDigest.topSourcesConcentration}%`}
+                    </Tag>
+                    <Tag color={activityDigest.activitySourceMode.color}>
+                      {`${t.dashboard.activitySourceModeLabel}: ${activityDigest.activitySourceMode.label}`}
+                    </Tag>
                     <Button
                       type="link"
                       size="small"
@@ -2112,6 +2138,9 @@ const Dashboard: React.FC = () => {
                       {`${t.dashboard.topActivitySourceLabel}: ${activityDigest.latestEntry.source}`}
                     </Typography.Text>
                   ) : null}
+                  <Typography.Text type="secondary">
+                    {`${t.dashboard.activitySourceModeHintLabel}: ${activityDigest.activitySourceMode.hint}`}
+                  </Typography.Text>
                   <Typography.Text type="secondary">
                     {`${t.dashboard.activityActionHintLabel}: ${activityDigest.activityActionHint}`}
                   </Typography.Text>
