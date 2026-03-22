@@ -173,6 +173,7 @@ const Dashboard: React.FC = () => {
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [copyingSummary, setCopyingSummary] = useState(false);
   const [copyingIncidentDigest, setCopyingIncidentDigest] = useState(false);
+  const [copyingActivityDigest, setCopyingActivityDigest] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
@@ -368,6 +369,24 @@ const Dashboard: React.FC = () => {
       topSource,
     };
   }, [incidents]);
+
+  const activityDigest = useMemo(() => {
+    if (!logs.length) {
+      return null;
+    }
+
+    const latestEntry = logs
+      .slice()
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+    return {
+      total: logs.length,
+      issues15: logHeat.incidents15,
+      issues60: logHeat.incidents60,
+      latestEntry,
+      hottestRecentIssue,
+    };
+  }, [hottestRecentIssue, logHeat.incidents15, logHeat.incidents60, logs]);
 
   const handleStartProfile = useCallback(async (profileId: string) => {
     setStartingProfileId(profileId);
@@ -639,6 +658,40 @@ const Dashboard: React.FC = () => {
     t.dashboard.incidentDigestCopied,
     t.dashboard.incidentDigestCopyFailed,
     t.dashboard.incidentDigestUnavailable,
+  ]);
+
+  const handleCopyActivityDigest = useCallback(async () => {
+    if (!activityDigest) {
+      void message.warning(t.dashboard.activityDigestUnavailable);
+      return;
+    }
+
+    setCopyingActivityDigest(true);
+    const summaryLines = [
+      'Pro5 dashboard activity digest',
+      `Log heat: ${logHeat.label}`,
+      `Visible activity entries: ${activityDigest.total}`,
+      `Issues (15m): ${activityDigest.issues15}`,
+      `Issues (60m): ${activityDigest.issues60}`,
+      `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
+      `Latest message: ${activityDigest.latestEntry.message}`,
+      activityDigest.hottestRecentIssue ? `Hottest issue: ${activityDigest.hottestRecentIssue.entry.message} (${activityDigest.hottestRecentIssue.count})` : null,
+    ].filter(Boolean);
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.activityDigestCopied);
+    } catch {
+      void message.error(t.dashboard.activityDigestCopyFailed);
+    } finally {
+      setCopyingActivityDigest(false);
+    }
+  }, [
+    activityDigest,
+    logHeat.label,
+    t.dashboard.activityDigestCopied,
+    t.dashboard.activityDigestCopyFailed,
+    t.dashboard.activityDigestUnavailable,
   ]);
 
   const handleCreateBackup = useCallback(async () => {
@@ -1238,6 +1291,16 @@ const Dashboard: React.FC = () => {
           extra={(
             <Space size={8}>
               <Tag color={logHeat.color}>{`${t.dashboard.logHeatLabel}: ${logHeat.label}`}</Tag>
+              {activityDigest ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingActivityDigest}
+                  onClick={() => { void handleCopyActivityDigest(); }}
+                >
+                  {t.dashboard.copyActivityDigest}
+                </Button>
+              ) : null}
               {hottestRecentIssue ? (
                 <Tag color="magenta">
                   {`${t.dashboard.hottestIssueLabel} ×${hottestRecentIssue.count}`}
