@@ -734,52 +734,67 @@ const Logs: React.FC = () => {
 
         {entries.length ? (
           <Card>
-            <List
-              dataSource={filteredEntries}
-              locale={{ emptyText: t.logs.noMatch }}
-              renderItem={(entry) => (
-                <List.Item
-                  actions={[
-                    <Button key="copy-line" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopySingleLog(entry.raw); }}>
-                      {t.logs.copyLine}
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={(
-                      <Space wrap>
-                        <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
-                          {entry.level.toUpperCase()}
-                        </Tag>
-                        <Typography.Text type="secondary">{formatTimestamp(entry.timestamp)}</Typography.Text>
-                        <Typography.Text type="secondary">
-                          {formatRelativeTime(entry.timestamp, {
-                            justNow: t.logs.justNow,
-                            minutesAgo: (count) => t.logs.minutesAgo.replace('{count}', String(count)),
-                            hoursAgo: (count) => t.logs.hoursAgo.replace('{count}', String(count)),
-                            daysAgo: (count) => t.logs.daysAgo.replace('{count}', String(count)),
-                          })}
-                        </Typography.Text>
-                      </Space>
-                    )}
-                    description={(
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                        {entry.level === 'error' ? (
-                          <Alert type="error" showIcon message={entry.message} />
-                        ) : entry.level === 'warn' ? (
-                          <Alert type="warning" showIcon message={entry.message} />
-                        ) : (
-                        <Typography.Text>{entry.message}</Typography.Text>
-                        )}
-                        <Typography.Text type="secondary" style={{ fontFamily: 'Consolas, monospace', fontSize: 12 }}>
-                          {entry.raw}
-                        </Typography.Text>
-                      </Space>
-                    )}
-                  />
-                </List.Item>
-              )}
-            />
+            {filteredEntries.length ? (
+              <List
+                dataSource={filteredEntries}
+                renderItem={(entry) => (
+                  <List.Item
+                    actions={[
+                      <Button key="copy-line" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopySingleLog(entry.raw); }}>
+                        {t.logs.copyLine}
+                      </Button>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={(
+                        <Space wrap>
+                          <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
+                            {entry.level.toUpperCase()}
+                          </Tag>
+                          <Typography.Text type="secondary">{formatTimestamp(entry.timestamp)}</Typography.Text>
+                          <Typography.Text type="secondary">
+                            {formatRelativeTime(entry.timestamp, {
+                              justNow: t.logs.justNow,
+                              minutesAgo: (count) => t.logs.minutesAgo.replace('{count}', String(count)),
+                              hoursAgo: (count) => t.logs.hoursAgo.replace('{count}', String(count)),
+                              daysAgo: (count) => t.logs.daysAgo.replace('{count}', String(count)),
+                            })}
+                          </Typography.Text>
+                        </Space>
+                      )}
+                      description={(
+                        <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                          {entry.level === 'error' ? (
+                            <Alert type="error" showIcon message={entry.message} />
+                          ) : entry.level === 'warn' ? (
+                            <Alert type="warning" showIcon message={entry.message} />
+                          ) : (
+                            <Typography.Text>{entry.message}</Typography.Text>
+                          )}
+                          <Typography.Text type="secondary" style={{ fontFamily: 'Consolas, monospace', fontSize: 12 }}>
+                            {entry.raw}
+                          </Typography.Text>
+                        </Space>
+                      )}
+                    />
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty
+                description={t.logs.noMatch}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              >
+                <Space wrap>
+                  <Button onClick={handleResetFilters}>
+                    {t.logs.resetFilters}
+                  </Button>
+                  <Button onClick={() => navigate('/dashboard')}>
+                    {t.logs.openDashboard}
+                  </Button>
+                </Space>
+              </Empty>
+            )}
           </Card>
         ) : (
           <Alert type="info" message={t.logs.noLogs} showIcon />
