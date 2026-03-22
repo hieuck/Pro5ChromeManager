@@ -633,6 +633,42 @@ const Logs: React.FC = () => {
     }
   }, [repeatedRecentSources, t.logs.copyFailed, t.logs.recentIssueSourcesCopied]);
 
+  const handleCopyRecentIssueSourceDigest = useCallback(async (
+    source: {
+      count: number;
+      level: 'warn' | 'error';
+      source: string;
+      latestEntry: ParsedLogEntry;
+    } | null | undefined,
+  ) => {
+    if (!source) {
+      void message.error(t.logs.recentIssueSourceDigestUnavailable);
+      return;
+    }
+
+    const lines = [
+      'Pro5 recent issue source digest',
+      `Source: ${source.source}`,
+      `Issue lines (60m): ${source.count}`,
+      `Highest level: ${source.level.toUpperCase()}`,
+      `Latest issue level: ${source.latestEntry.level.toUpperCase()}`,
+      `Latest issue timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
+      `Latest issue message: ${source.latestEntry.message}`,
+      `Latest issue raw: ${source.latestEntry.raw}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.recentIssueSourceDigestCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [
+    t.logs.copyFailed,
+    t.logs.recentIssueSourceDigestCopied,
+    t.logs.recentIssueSourceDigestUnavailable,
+  ]);
+
   const handleResetViewState = useCallback(() => {
     setFilter('all');
     setQuery('');
@@ -958,6 +994,9 @@ const Logs: React.FC = () => {
                 <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSourceLatest(hottestRecentSource.source, hottestRecentSource.latestEntry); }}>
                   {t.logs.copyRecentIssueSourceLatest}
                 </Button>
+                <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSourceDigest(hottestRecentSource); }}>
+                  {t.logs.copyRecentIssueSourceDigest}
+                </Button>
               </Space>
             )}
           />
@@ -968,9 +1007,14 @@ const Logs: React.FC = () => {
             title={t.logs.topRecentIssueSources}
             size="small"
             extra={(
-              <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSources(); }}>
-                {t.logs.copyRecentIssueSources}
-              </Button>
+              <Space size={4}>
+                <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSources(); }}>
+                  {t.logs.copyRecentIssueSources}
+                </Button>
+                <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSourceDigest(hottestRecentSource); }}>
+                  {t.logs.copyRecentIssueSourceDigest}
+                </Button>
+              </Space>
             )}
           >
             <List
@@ -987,6 +1031,9 @@ const Logs: React.FC = () => {
                     </Button>,
                     <Button key={`copy-source-${item.source}`} type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSourceLatest(item.source, item.latestEntry); }}>
                       {t.logs.copyRecentIssueSourceLatest}
+                    </Button>,
+                    <Button key={`digest-source-${item.source}`} type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSourceDigest(item); }}>
+                      {t.logs.copyRecentIssueSourceDigest}
                     </Button>,
                   ]}
                 >
