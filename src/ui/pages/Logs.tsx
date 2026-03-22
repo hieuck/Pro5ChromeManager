@@ -327,6 +327,33 @@ const Logs: React.FC = () => {
 
   const repeatedRecentIssue = repeatedRecentIssues[0] ?? null;
 
+  const repeatedRecentSources = useMemo(() => {
+    const countsBySource = new Map<string, { count: number; level: 'warn' | 'error'; source: string }>();
+
+    for (const entry of recentIssueEntries) {
+      if (!entry.source) continue;
+
+      const current = countsBySource.get(entry.source);
+      if (current) {
+        current.count += 1;
+        if (entry.level === 'error') current.level = 'error';
+        continue;
+      }
+
+      countsBySource.set(entry.source, {
+        count: 1,
+        level: entry.level,
+        source: entry.source,
+      });
+    }
+
+    return Array.from(countsBySource.values())
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 3);
+  }, [recentIssueEntries]);
+
+  const hottestRecentSource = repeatedRecentSources[0] ?? null;
+
   const handleCopyIssues = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(issueEntries.map((entry) => entry.raw).join('\n'));
@@ -531,6 +558,15 @@ const Logs: React.FC = () => {
     void message.success(t.logs.focusRepeatedRecentIssueApplied);
   }, [t.logs.focusRepeatedRecentIssueApplied]);
 
+  const handleFocusRecentIssueSource = useCallback((sourceText: string) => {
+    if (!sourceText) return;
+
+    setFilter('issues');
+    setRecentWindowOnly(true);
+    setQuery(sourceText);
+    void message.success(t.logs.focusRecentIssueSourceApplied);
+  }, [t.logs.focusRecentIssueSourceApplied]);
+
   const handleCopyRepeatedRecentIssues = useCallback(async () => {
     const lines = [
       'Pro5 repeated recent issues',
@@ -544,6 +580,20 @@ const Logs: React.FC = () => {
       void message.error(t.logs.copyFailed);
     }
   }, [repeatedRecentIssues, t.logs.copyFailed, t.logs.repeatedRecentIssuesCopied]);
+
+  const handleCopyRecentIssueSources = useCallback(async () => {
+    const lines = [
+      'Pro5 repeated recent issue sources',
+      ...repeatedRecentSources.map((source) => `${source.level.toUpperCase()} | ${source.count}x | ${source.source}`),
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.recentIssueSourcesCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [repeatedRecentSources, t.logs.copyFailed, t.logs.recentIssueSourcesCopied]);
 
   const handleResetViewState = useCallback(() => {
     setFilter('all');
@@ -845,6 +895,58 @@ const Logs: React.FC = () => {
                     </Space>
                     <Typography.Text type="secondary">
                       {t.logs.repeatedRecentIssueCount.replace('{count}', String(item.count))}
+                    </Typography.Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </Card>
+        ) : null}
+
+        {hottestRecentSource ? (
+          <Alert
+            type={hottestRecentSource.level === 'error' ? 'error' : 'warning'}
+            showIcon
+            message={t.logs.recentIssueSourceTitle}
+            description={`${hottestRecentSource.source} · ${t.logs.recentIssueSourceCount.replace('{count}', String(hottestRecentSource.count))}`}
+            action={(
+              <Button size="small" onClick={() => handleFocusRecentIssueSource(hottestRecentSource.source)}>
+                {t.logs.focusRecentIssueSource}
+              </Button>
+            )}
+          />
+        ) : null}
+
+        {repeatedRecentSources.length > 1 ? (
+          <Card
+            title={t.logs.topRecentIssueSources}
+            size="small"
+            extra={(
+              <Button type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyRecentIssueSources(); }}>
+                {t.logs.copyRecentIssueSources}
+              </Button>
+            )}
+          >
+            <List
+              size="small"
+              dataSource={repeatedRecentSources}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <Button key={`focus-source-${item.source}`} type="link" onClick={() => handleFocusRecentIssueSource(item.source)}>
+                      {t.logs.focusRecentIssueSource}
+                    </Button>,
+                  ]}
+                >
+                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <Space wrap>
+                      <Tag color={item.level === 'error' ? 'red' : 'gold'}>
+                        {item.level.toUpperCase()}
+                      </Tag>
+                      <Typography.Text strong>{item.source}</Typography.Text>
+                    </Space>
+                    <Typography.Text type="secondary">
+                      {t.logs.recentIssueSourceCount.replace('{count}', String(item.count))}
                     </Typography.Text>
                   </Space>
                 </List.Item>
