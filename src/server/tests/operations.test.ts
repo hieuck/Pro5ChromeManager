@@ -100,6 +100,14 @@ describe('Operations endpoints', () => {
         supportPagesReady: boolean;
         releaseReady: boolean;
         onboardingCompleted: boolean;
+        onboardingState: {
+          status: string;
+          currentStep: number;
+          selectedRuntime: string | null;
+          draftProfileName: string | null;
+          lastOpenedAt: string | null;
+          profileCreatedAt: string | null;
+        };
         profileCount: number;
         proxyCount: number;
         backupCount: number;
@@ -128,6 +136,12 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.supportPagesReady).toBe(true);
     expect(statusJson.data.releaseReady).toBe(true);
     expect(statusJson.data.onboardingCompleted).toBe(false);
+    expect(statusJson.data.onboardingState.status).toBe('not_started');
+    expect(statusJson.data.onboardingState.currentStep).toBe(0);
+    expect(statusJson.data.onboardingState.selectedRuntime).toBeNull();
+    expect(statusJson.data.onboardingState.draftProfileName).toBeNull();
+    expect(statusJson.data.onboardingState.lastOpenedAt).toBeNull();
+    expect(statusJson.data.onboardingState.profileCreatedAt).toBeNull();
     expect(statusJson.data.profileCount).toBe(0);
     expect(statusJson.data.proxyCount).toBe(0);
     expect(statusJson.data.backupCount).toBe(0);
@@ -250,6 +264,48 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.usageMetrics.lastSessionCheckAt).toBeTruthy();
   });
 
+  it('persists onboarding state and exposes it in support status', async () => {
+    const onboardingRes = await fetch(`${baseUrl}/api/support/onboarding-state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'profile_created',
+        currentStep: 2,
+        selectedRuntime: 'smoke',
+        draftProfileName: 'First profile',
+        createdProfileId: 'profile-123',
+        lastOpenedAt: new Date().toISOString(),
+        profileCreatedAt: new Date().toISOString(),
+      }),
+    });
+    expect(onboardingRes.status).toBe(200);
+
+    const statusRes = await fetch(`${baseUrl}/api/support/status`);
+    expect(statusRes.status).toBe(200);
+    const statusJson = await statusRes.json() as {
+      success: boolean;
+      data: {
+        onboardingState: {
+          status: string;
+          currentStep: number;
+          selectedRuntime: string | null;
+          draftProfileName: string | null;
+          createdProfileId: string | null;
+          lastOpenedAt: string | null;
+          profileCreatedAt: string | null;
+        };
+      };
+    };
+    expect(statusJson.success).toBe(true);
+    expect(statusJson.data.onboardingState.status).toBe('profile_created');
+    expect(statusJson.data.onboardingState.currentStep).toBe(2);
+    expect(statusJson.data.onboardingState.selectedRuntime).toBe('smoke');
+    expect(statusJson.data.onboardingState.draftProfileName).toBe('First profile');
+    expect(statusJson.data.onboardingState.createdProfileId).toBe('profile-123');
+    expect(statusJson.data.onboardingState.lastOpenedAt).toBeTruthy();
+    expect(statusJson.data.onboardingState.profileCreatedAt).toBeTruthy();
+  });
+
   it('accepts support feedback and exposes it in support status', async () => {
     const feedbackRes = await fetch(`${baseUrl}/api/support/feedback`, {
       method: 'POST',
@@ -346,6 +402,11 @@ describe('Operations endpoints', () => {
     const supportStatus = JSON.parse(await fs.readFile(path.join(extractDir, 'support-status.json'), 'utf-8')) as {
       diagnosticsReady: boolean;
       onboardingCompleted: boolean;
+      onboardingState: {
+        status: string;
+        currentStep: number;
+        selectedRuntime: string | null;
+      };
       profileCount: number;
       proxyCount: number;
       backupCount: number;
@@ -369,10 +430,19 @@ describe('Operations endpoints', () => {
       message: string;
       email: string | null;
     }>;
+    const onboardingState = JSON.parse(await fs.readFile(path.join(extractDir, 'onboarding-state.json'), 'utf-8')) as {
+      status: string;
+      currentStep: number;
+      selectedRuntime: string | null;
+      createdProfileId: string | null;
+    };
 
     expect(summary.dataDir).toBe(tmpDir);
     expect(supportStatus.diagnosticsReady).toBe(true);
     expect(supportStatus.onboardingCompleted).toBe(false);
+    expect(supportStatus.onboardingState.status).toBe('profile_created');
+    expect(supportStatus.onboardingState.currentStep).toBe(2);
+    expect(supportStatus.onboardingState.selectedRuntime).toBe('smoke');
     expect(supportStatus.profileCount).toBe(0);
     expect(supportStatus.proxyCount).toBe(0);
     expect(supportStatus.backupCount).toBe(0);
@@ -388,5 +458,9 @@ describe('Operations endpoints', () => {
     expect(feedbackEntries.some((entry) =>
       entry.message === 'The launch flow is confusing when no runtime is configured yet.' &&
       entry.email === 'tester@example.com')).toBe(true);
+    expect(onboardingState.status).toBe('profile_created');
+    expect(onboardingState.currentStep).toBe(2);
+    expect(onboardingState.selectedRuntime).toBe('smoke');
+    expect(onboardingState.createdProfileId).toBe('profile-123');
   });
 });

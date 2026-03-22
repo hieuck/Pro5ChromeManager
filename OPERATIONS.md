@@ -51,6 +51,7 @@ When a user reports a problem:
 3. Review:
    - app version
    - `support-status.json`, `self-test.json`, and `incidents.json` from the diagnostics bundle
+   - `onboarding-state.json` to see whether a new user stalled during initial setup
    - `support-feedback.json` to see the user's latest written feedback or bug report
    - usage snapshot in `support-status.json` to confirm whether the user is creating, importing, launching, or session-checking profiles
    - runtime in use

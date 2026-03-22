@@ -46,6 +46,18 @@ interface SupportStatusPayload {
   codeSigningConfigured: boolean;
   supportPagesReady: boolean;
   onboardingCompleted: boolean;
+  onboardingState: {
+    status: 'not_started' | 'in_progress' | 'profile_created' | 'completed' | 'skipped';
+    currentStep: number;
+    selectedRuntime: string | null;
+    draftProfileName: string | null;
+    createdProfileId: string | null;
+    lastOpenedAt: string | null;
+    lastUpdatedAt: string | null;
+    profileCreatedAt: string | null;
+    completedAt: string | null;
+    skippedAt: string | null;
+  };
   profileCount: number;
   proxyCount: number;
   backupCount: number;
@@ -77,6 +89,18 @@ const SupportFeedbackSchema = z.object({
   message: z.string().trim().min(10).max(5000),
   email: z.string().email().optional().or(z.literal('')).optional(),
   appVersion: z.string().max(64).optional().or(z.literal('')).optional(),
+});
+
+const OnboardingStateSchema = z.object({
+  status: z.enum(['not_started', 'in_progress', 'profile_created', 'completed', 'skipped']).optional(),
+  currentStep: z.number().int().min(0).max(10).optional(),
+  selectedRuntime: z.string().max(128).nullable().optional(),
+  draftProfileName: z.string().max(256).nullable().optional(),
+  createdProfileId: z.string().max(128).nullable().optional(),
+  lastOpenedAt: z.string().datetime().nullable().optional(),
+  profileCreatedAt: z.string().datetime().nullable().optional(),
+  completedAt: z.string().datetime().nullable().optional(),
+  skippedAt: z.string().datetime().nullable().optional(),
 });
 
 interface SupportSelfTestPayload {
@@ -166,13 +190,16 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const { backupManager } = await import('../managers/BackupManager');
   const { usageMetricsManager } = await import('../managers/UsageMetricsManager');
   const { supportInboxManager } = await import('../managers/SupportInboxManager');
+  const { onboardingStateManager } = await import('../managers/OnboardingStateManager');
 
   const config = configManager.get();
   const profiles = profileManager.listProfiles();
   const proxies = proxyManager.listProxies();
   const backups = await backupManager.listBackups();
   await usageMetricsManager.initialize();
+  await onboardingStateManager.initialize();
   const usageMetrics = usageMetricsManager.getSnapshot();
+  const onboardingState = onboardingStateManager.getSnapshot();
   const feedbackEntries = await supportInboxManager.listFeedback(50);
   const logFiles = await listLogFiles();
   const recentIncidents = await loadIncidentEntries(20);
@@ -201,6 +228,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     codeSigningConfigured,
     supportPagesReady,
     onboardingCompleted: config.onboardingCompleted,
+    onboardingState,
     profileCount: profiles.length,
     proxyCount: proxies.length,
     backupCount: backups.length,
@@ -329,6 +357,23 @@ router.post('/support/self-test', async (_req: Request, res: Response) => {
   }
 });
 
+router.post('/support/onboarding-state', async (req: Request, res: Response) => {
+  const parsed = OnboardingStateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: 'Invalid onboarding state payload', details: parsed.error.issues });
+    return;
+  }
+
+  try {
+    const { onboardingStateManager } = await import('../managers/OnboardingStateManager');
+    const state = await onboardingStateManager.update(parsed.data);
+    res.json({ success: true, data: state });
+  } catch (err) {
+    logger.error('POST /api/support/onboarding-state error', { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ success: false, error: 'Failed to save onboarding state' });
+  }
+});
+
 router.get('/support/feedback', async (req: Request, res: Response) => {
   try {
     const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
@@ -450,6 +495,7 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
         appendIfExists(archive, dataPath('instances.json'), 'instances.json', sanitizeJsonText),
         appendIfExists(archive, dataPath('proxies.json'), 'proxies.json', sanitizeJsonText),
         appendIfExists(archive, dataPath('activity.log'), 'activity.log'),
+        appendIfExists(archive, dataPath('onboarding-state.json'), 'onboarding-state.json', sanitizeJsonText),
         appendIfExists(archive, dataPath('support-feedback.json'), 'support-feedback.json', sanitizeJsonText),
       ]).then(async () => {
         try {

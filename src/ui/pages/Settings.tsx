@@ -50,6 +50,18 @@ interface SupportStatus {
   codeSigningConfigured: boolean;
   supportPagesReady: boolean;
   onboardingCompleted: boolean;
+  onboardingState: {
+    status: 'not_started' | 'in_progress' | 'profile_created' | 'completed' | 'skipped';
+    currentStep: number;
+    selectedRuntime: string | null;
+    draftProfileName: string | null;
+    createdProfileId: string | null;
+    lastOpenedAt: string | null;
+    lastUpdatedAt: string | null;
+    profileCreatedAt: string | null;
+    completedAt: string | null;
+    skippedAt: string | null;
+  };
   profileCount: number;
   proxyCount: number;
   backupCount: number;
@@ -553,6 +565,7 @@ const SupportTab: React.FC = () => {
       `Data dir: ${status.dataDir}`,
       `Diagnostics: ${status.diagnosticsReady ? 'ready' : 'missing base config'}`,
       `Onboarding: ${status.onboardingCompleted ? 'completed' : 'pending'}`,
+      `Onboarding state: ${status.onboardingState.status} (step ${status.onboardingState.currentStep})`,
       `Profiles: ${status.profileCount}`,
       `Proxies: ${status.proxyCount}`,
       `Backups: ${status.backupCount}`,
@@ -578,6 +591,12 @@ const SupportTab: React.FC = () => {
     }
     if (status.usageMetrics.lastSessionCheckAt) {
       summaryLines.push(`Last session check: ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`);
+    }
+    if (status.onboardingState.lastOpenedAt) {
+      summaryLines.push(`Last onboarding open: ${new Date(status.onboardingState.lastOpenedAt).toLocaleString()}`);
+    }
+    if (status.onboardingState.profileCreatedAt) {
+      summaryLines.push(`Onboarding profile created: ${new Date(status.onboardingState.profileCreatedAt).toLocaleString()}`);
     }
     if (status.lastFeedbackAt) {
       summaryLines.push(`Last feedback: ${new Date(status.lastFeedbackAt).toLocaleString()}`);
@@ -683,6 +702,10 @@ const SupportTab: React.FC = () => {
           <Typography.Text><strong>Data dir:</strong> {status.dataDir}</Typography.Text>
           <Typography.Text><strong>Log files:</strong> {status.logFileCount}</Typography.Text>
           <Typography.Text><strong>Onboarding:</strong> {status.onboardingCompleted ? 'Completed' : 'Pending'}</Typography.Text>
+          <Typography.Text><strong>Onboarding state:</strong> {status.onboardingState.status} / step {status.onboardingState.currentStep}</Typography.Text>
+          <Typography.Text><strong>Onboarding runtime:</strong> {status.onboardingState.selectedRuntime ?? 'None'}</Typography.Text>
+          <Typography.Text><strong>Onboarding draft profile:</strong> {status.onboardingState.draftProfileName ?? 'None'}</Typography.Text>
+          <Typography.Text><strong>Last onboarding open:</strong> {status.onboardingState.lastOpenedAt ? new Date(status.onboardingState.lastOpenedAt).toLocaleString() : 'None'}</Typography.Text>
           <Typography.Text><strong>Profiles:</strong> {status.profileCount}</Typography.Text>
           <Typography.Text><strong>Proxies:</strong> {status.proxyCount}</Typography.Text>
           <Typography.Text><strong>Backups:</strong> {status.backupCount}</Typography.Text>

@@ -186,6 +186,9 @@ async function start(): Promise<void> {
   const { usageMetricsManager } = await import('./managers/UsageMetricsManager');
   await usageMetricsManager.initialize();
 
+  const { onboardingStateManager } = await import('./managers/OnboardingStateManager');
+  await onboardingStateManager.initialize();
+
   const { instanceManager } = await import('./managers/InstanceManager');
   await instanceManager.initialize();
 
