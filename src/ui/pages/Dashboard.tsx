@@ -161,6 +161,18 @@ const Dashboard: React.FC = () => {
     [profiles],
   );
 
+  const launchReadyProfiles = useMemo(
+    () => profiles
+      .filter((profile) => {
+        const instanceStatus = instances[profile.id]?.status ?? 'stopped';
+        const proxyStatus = profile.proxy?.lastCheckStatus;
+        return instanceStatus !== 'running' && proxyStatus !== 'failing';
+      })
+      .sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime())
+      .slice(0, 5),
+    [instances, profiles],
+  );
+
   const failingProxyIds = useMemo(
     () => Array.from(new Set(
       profiles
@@ -521,6 +533,52 @@ const Dashboard: React.FC = () => {
             </Space>
           ) : (
             <Empty description={t.dashboard.selfTestEmpty} />
+          )}
+        </Card>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.launchReadyTitle}
+          extra={<Button type="link" onClick={() => navigate('/profiles')}>{t.dashboard.openProfiles}</Button>}
+        >
+          {launchReadyProfiles.length ? (
+            <List
+              dataSource={launchReadyProfiles}
+              renderItem={(profile) => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="start"
+                      type="link"
+                      icon={<PlayCircleOutlined />}
+                      loading={startingProfileId === profile.id}
+                      onClick={() => { void handleStartProfile(profile.id); }}
+                    >
+                      {t.profile.startProfile}
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={profile.name}
+                    description={(
+                      <Space wrap>
+                        <Tag color="green">{t.dashboard.readyTag}</Tag>
+                        {profile.proxy ? (
+                          <Tag color={profile.proxy.lastCheckStatus === 'healthy' ? 'blue' : 'default'}>
+                            {profile.proxy.label ?? `${profile.proxy.host}:${profile.proxy.port}`}
+                          </Tag>
+                        ) : (
+                          <Tag>{t.dashboard.noProxyTag}</Tag>
+                        )}
+                        {profile.runtime ? <Tag>{profile.runtime}</Tag> : null}
+                      </Space>
+                    )}
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty description={t.dashboard.noLaunchReadyProfiles} />
           )}
         </Card>
 
