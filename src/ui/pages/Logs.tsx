@@ -152,6 +152,15 @@ const Logs: React.FC = () => {
     void message.success(t.logs.selfTestRan);
   }, [t.logs.selfTestRan]);
 
+  const handleCopySingleLog = useCallback(async (raw: string) => {
+    try {
+      await navigator.clipboard.writeText(raw);
+      void message.success(t.logs.singleCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [t.logs.copyFailed, t.logs.singleCopied]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -255,6 +264,15 @@ const Logs: React.FC = () => {
           </Card>
         ) : null}
 
+        {!latestIssue && entries.length ? (
+          <Alert
+            type="success"
+            showIcon
+            message={t.logs.allClear}
+            description={t.logs.allClearHint}
+          />
+        ) : null}
+
         {(counts.warn || counts.error) ? (
           <Alert
             type={counts.error ? 'error' : 'warning'}
@@ -283,7 +301,13 @@ const Logs: React.FC = () => {
               dataSource={filteredEntries}
               locale={{ emptyText: t.logs.noMatch }}
               renderItem={(entry) => (
-                <List.Item>
+                <List.Item
+                  actions={[
+                    <Button key="copy-line" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopySingleLog(entry.raw); }}>
+                      {t.logs.copyLine}
+                    </Button>,
+                  ]}
+                >
                   <List.Item.Meta
                     title={(
                       <Space wrap>
