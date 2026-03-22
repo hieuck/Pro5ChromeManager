@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, Empty, Form, Input, List, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Empty, Form, Input, List, Progress, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
 import { ApiOutlined, ArrowRightOutlined, CopyOutlined, DownloadOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
@@ -588,6 +588,34 @@ const Dashboard: React.FC = () => {
     t.dashboard.startAllReady,
   ]);
 
+  const readinessPercent = useMemo(() => {
+    if (!setupChecklist.length) return 0;
+    const completed = setupChecklist.filter((item) => item.done).length;
+    const setupWeight = (completed / setupChecklist.length) * 80;
+    const diagnosticsWeight = support?.diagnosticsReady ? 10 : 0;
+    const warningsPenalty = Math.min(10, (support?.warnings.length ?? 0) * 5);
+    return Math.max(0, Math.min(100, Math.round(setupWeight + diagnosticsWeight - warningsPenalty)));
+  }, [setupChecklist, support?.diagnosticsReady, support?.warnings.length]);
+
+  const readinessStatus = useMemo(() => {
+    if (readinessPercent >= 90) {
+      return {
+        strokeColor: '#52c41a',
+        label: t.dashboard.readinessReady,
+      };
+    }
+    if (readinessPercent >= 60) {
+      return {
+        strokeColor: '#1677ff',
+        label: t.dashboard.readinessAlmost,
+      };
+    }
+    return {
+      strokeColor: '#faad14',
+      label: t.dashboard.readinessNeedsSetup,
+    };
+  }, [readinessPercent, t.dashboard.readinessAlmost, t.dashboard.readinessNeedsSetup, t.dashboard.readinessReady]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -687,6 +715,38 @@ const Dashboard: React.FC = () => {
             </Space>
           </Card>
         ) : null}
+
+        <Card style={cardStyle} title={t.dashboard.readinessTitle}>
+          <Row gutter={[24, 24]} align="middle">
+            <Col xs={24} md={10}>
+              <Progress
+                type="circle"
+                percent={readinessPercent}
+                strokeColor={readinessStatus.strokeColor}
+                format={(percent) => `${percent ?? 0}%`}
+              />
+            </Col>
+            <Col xs={24} md={14}>
+              <Space direction="vertical" size={8}>
+                <Tag color={readinessStatus.strokeColor === '#52c41a' ? 'green' : readinessStatus.strokeColor === '#1677ff' ? 'blue' : 'gold'}>
+                  {readinessStatus.label}
+                </Tag>
+                <Typography.Text type="secondary">
+                  {`${t.dashboard.readinessChecklist}: ${setupChecklist.filter((item) => item.done).length}/${setupChecklist.length}`}
+                </Typography.Text>
+                <Typography.Text type="secondary">
+                  {`${t.dashboard.readinessDiagnostics}: ${support?.diagnosticsReady ? t.dashboard.checkDone : t.dashboard.checkPending}`}
+                </Typography.Text>
+                <Typography.Text type="secondary">
+                  {`${t.dashboard.opsWarnings}: ${support?.warnings.length ?? 0}`}
+                </Typography.Text>
+                <Typography.Text type="secondary">
+                  {`${t.dashboard.healthyProxies}: ${healthyProxies}/${support?.proxyCount ?? proxies.length}`}
+                </Typography.Text>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
 
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} xl={6}>
