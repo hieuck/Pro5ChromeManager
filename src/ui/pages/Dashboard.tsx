@@ -118,6 +118,13 @@ interface SetupChecklistItem {
   onAction: () => void;
 }
 
+interface NextStepAction {
+  title: string;
+  detail: string;
+  actionLabel: string;
+  onAction: () => void;
+}
+
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
@@ -523,6 +530,64 @@ const Dashboard: React.FC = () => {
     t.dashboard.totalProfiles,
   ]);
 
+  const nextStep = useMemo<NextStepAction | null>(() => {
+    const pendingSetup = setupChecklist.find((item) => !item.done);
+    if (pendingSetup) {
+      return {
+        title: pendingSetup.label,
+        detail: pendingSetup.detail,
+        actionLabel: pendingSetup.actionLabel,
+        onAction: pendingSetup.onAction,
+      };
+    }
+
+    if (failingProxyIds.length) {
+      return {
+        title: t.dashboard.nextStepProxyTitle,
+        detail: `${t.dashboard.nextStepProxyHint}: ${failingProxyIds.length}`,
+        actionLabel: t.dashboard.retestAllFailing,
+        onAction: () => { void handleRetestAllFailingProxies(); },
+      };
+    }
+
+    if (launchReadyProfiles.length) {
+      return {
+        title: t.dashboard.nextStepLaunchTitle,
+        detail: `${t.dashboard.launchReadyTitle}: ${launchReadyProfiles.length}`,
+        actionLabel: t.dashboard.startAllReady,
+        onAction: () => { void handleStartAllReadyProfiles(); },
+      };
+    }
+
+    if (activeProfiles.length) {
+      return {
+        title: t.dashboard.nextStepObserveTitle,
+        detail: `${t.dashboard.runningNowTitle}: ${activeProfiles.length}`,
+        actionLabel: t.dashboard.openProfiles,
+        onAction: () => navigate('/profiles'),
+      };
+    }
+
+    return null;
+  }, [
+    activeProfiles.length,
+    failingProxyIds.length,
+    handleRetestAllFailingProxies,
+    handleStartAllReadyProfiles,
+    launchReadyProfiles.length,
+    navigate,
+    setupChecklist,
+    t.dashboard.launchReadyTitle,
+    t.dashboard.nextStepLaunchTitle,
+    t.dashboard.nextStepObserveTitle,
+    t.dashboard.nextStepProxyHint,
+    t.dashboard.nextStepProxyTitle,
+    t.dashboard.openProfiles,
+    t.dashboard.retestAllFailing,
+    t.dashboard.runningNowTitle,
+    t.dashboard.startAllReady,
+  ]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -601,6 +666,26 @@ const Dashboard: React.FC = () => {
               </Space>
             }
           />
+        ) : null}
+
+        {nextStep ? (
+          <Card style={cardStyle} bodyStyle={{ padding: 20 }}>
+            <Space direction="vertical" size={6} style={{ width: '100%' }}>
+              <Typography.Text type="secondary">{t.dashboard.nextStepLabel}</Typography.Text>
+              <Typography.Title level={4} style={{ margin: 0 }}>
+                {nextStep.title}
+              </Typography.Title>
+              <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+                {nextStep.detail}
+              </Typography.Paragraph>
+              <Space>
+                <Button type="primary" onClick={nextStep.onAction}>
+                  {nextStep.actionLabel}
+                </Button>
+                <Button onClick={() => navigate('/profiles')}>{t.dashboard.openProfiles}</Button>
+              </Space>
+            </Space>
+          </Card>
         ) : null}
 
         <Row gutter={[16, 16]}>
