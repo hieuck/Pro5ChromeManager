@@ -1,4 +1,6 @@
 const { spawn } = require('child_process');
+const fs = require('fs/promises');
+const os = require('os');
 const path = require('path');
 const electronBinary = require('electron');
 
@@ -11,12 +13,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchOk(url) {
-  const res = await fetch(url);
+async function fetchOk(url, options) {
+  const res = await fetch(url, options);
   if (!res.ok) {
     throw new Error(`${url} returned ${res.status}`);
   }
   return res;
+}
+
+async function fetchJson(url, options) {
+  const res = await fetchOk(url, options);
+  return res.json();
 }
 
 function killTree(child) {
@@ -37,11 +44,13 @@ function killTree(child) {
 }
 
 async function main() {
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pro5-local-smoke-'));
   const child = spawn(electronBinary, [electronEntry], {
     stdio: 'ignore',
     env: {
       ...process.env,
       NODE_ENV: 'development',
+      DATA_DIR: dataDir,
     },
     windowsHide: true,
   });
@@ -63,11 +72,60 @@ async function main() {
           throw new Error('UI shell response is not the expected HTML document');
         }
 
+        const configPayload = await fetchJson('http://127.0.0.1:3210/api/config');
+        if (!configPayload.success || configPayload.data.onboardingCompleted !== false) {
+          throw new Error('First-run config did not start with onboardingCompleted=false');
+        }
+
+        const profilesPayload = await fetchJson('http://127.0.0.1:3210/api/profiles');
+        if (!profilesPayload.success || profilesPayload.data.length !== 0) {
+          throw new Error('First-run app did not start with an empty profile list');
+        }
+
+        const supportPayload = await fetchJson('http://127.0.0.1:3210/api/support/status');
+        if (!supportPayload.success || supportPayload.data.profileCount !== 0) {
+          throw new Error('Support status did not report an empty first-run profile state');
+        }
+
+        const createRes = await fetch('http://127.0.0.1:3210/api/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Smoke Profile',
+            runtime: 'auto',
+          }),
+        });
+        if (createRes.status !== 201) {
+          throw new Error(`Creating the first profile failed with status ${createRes.status}`);
+        }
+        const createdPayload = await createRes.json();
+        if (!createdPayload.success || !createdPayload.data?.id) {
+          throw new Error('Creating the first profile did not return a profile id');
+        }
+
+        const profilesAfterPayload = await fetchJson('http://127.0.0.1:3210/api/profiles');
+        if (!profilesAfterPayload.success || profilesAfterPayload.data.length !== 1) {
+          throw new Error('Profile list did not contain the first created profile');
+        }
+
+        const supportAfterPayload = await fetchJson('http://127.0.0.1:3210/api/support/status');
+        if (!supportAfterPayload.success) {
+          throw new Error('Failed to load support status after creating the first profile');
+        }
+        if (supportAfterPayload.data.profileCount !== 1) {
+          throw new Error('Support status did not update profileCount after first profile creation');
+        }
+        if (supportAfterPayload.data.usageMetrics.profileCreates < 1) {
+          throw new Error('Support status did not record profile creation usage metrics');
+        }
+
         console.log(JSON.stringify({
           readyUrl,
           appUrl,
           pid: child.pid,
           backendStatus: ready.status,
+          dataDir,
+          firstProfileId: createdPayload.data.id,
         }, null, 2));
         return;
       } catch {
@@ -78,6 +136,7 @@ async function main() {
     throw new Error(`Local app did not become ready within ${timeoutMs}ms`);
   } finally {
     await killTree(child);
+    await fs.rm(dataDir, { recursive: true, force: true });
   }
 }
 

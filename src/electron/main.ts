@@ -42,7 +42,7 @@ async function startServer(): Promise<void> {
   if (serverStarted) return;
   serverStarted = true;
 
-  process.env['DATA_DIR'] = app.getPath('userData');
+  process.env['DATA_DIR'] = process.env['DATA_DIR'] || app.getPath('userData');
 
   const builtServerPath = path.join(__dirname, '../server/index.js');
   const sourceServerPath = path.join(__dirname, '../../src/server/index.ts');
