@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, Empty, List, Row, Space, Statistic, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Empty, Form, Input, List, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
 import { ApiOutlined, ArrowRightOutlined, DownloadOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
@@ -79,6 +79,16 @@ interface SelfTestResult {
   checks: SelfTestCheck[];
 }
 
+interface FeedbackEntry {
+  id: string;
+  createdAt: string;
+  category: 'bug' | 'feedback' | 'question';
+  sentiment: 'negative' | 'neutral' | 'positive';
+  message: string;
+  email: string | null;
+  appVersion: string | null;
+}
+
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
@@ -98,6 +108,7 @@ const Dashboard: React.FC = () => {
   const [support, setSupport] = useState<SupportStatus | null>(null);
   const [incidents, setIncidents] = useState<IncidentEntry[]>([]);
   const [selfTest, setSelfTest] = useState<SelfTestResult | null>(null);
+  const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
   const [startingAllReady, setStartingAllReady] = useState(false);
@@ -106,15 +117,18 @@ const Dashboard: React.FC = () => {
   const [retestingProfileId, setRetestingProfileId] = useState<string | null>(null);
   const [retestingAll, setRetestingAll] = useState(false);
   const [runningSelfTest, setRunningSelfTest] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackForm] = Form.useForm();
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
-    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes] = await Promise.all([
+    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes] = await Promise.all([
       apiClient.get<DashboardProfile[]>('/api/profiles'),
       apiClient.get<DashboardProxy[]>('/api/proxies'),
       apiClient.get<DashboardInstance[]>('/api/instances'),
       apiClient.get<SupportStatus>('/api/support/status'),
       apiClient.get<{ count: number; incidents: IncidentEntry[] }>('/api/support/incidents?limit=5'),
+      apiClient.get<{ count: number; entries: FeedbackEntry[] }>('/api/support/feedback?limit=3'),
     ]);
 
     if (profilesRes.success) setProfiles(profilesRes.data);
@@ -124,6 +138,7 @@ const Dashboard: React.FC = () => {
     }
     if (supportRes.success) setSupport(supportRes.data);
     if (incidentsRes.success) setIncidents(incidentsRes.data.incidents);
+    if (feedbackRes.success) setFeedbackEntries(feedbackRes.data.entries);
     setLoading(false);
   }, []);
 
@@ -320,6 +335,31 @@ const Dashboard: React.FC = () => {
     window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank');
     void message.success(t.dashboard.diagnosticsExportStarted);
   }, [t.dashboard.diagnosticsExportStarted]);
+
+  const handleSubmitFeedback = useCallback(async () => {
+    const values = await feedbackForm.validateFields() as {
+      category: 'bug' | 'feedback' | 'question';
+      sentiment: 'negative' | 'neutral' | 'positive';
+      message: string;
+      email?: string;
+    };
+
+    setSubmittingFeedback(true);
+    const res = await apiClient.post<FeedbackEntry>('/api/support/feedback', {
+      ...values,
+      appVersion: '',
+    });
+    setSubmittingFeedback(false);
+
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+
+    feedbackForm.resetFields();
+    void message.success(t.dashboard.feedbackSaved);
+    await loadDashboard();
+  }, [feedbackForm, loadDashboard, t.dashboard.feedbackSaved]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -719,6 +759,77 @@ const Dashboard: React.FC = () => {
           ) : (
             <Empty description={t.dashboard.noRunningProfiles} />
           )}
+        </Card>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.feedbackTitle}
+          extra={<Button type="link" onClick={() => navigate('/settings')}>{t.dashboard.openSettings}</Button>}
+        >
+          <Row gutter={[16, 16]}>
+            <Col xs={24} xl={12}>
+              <Form form={feedbackForm} layout="vertical">
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Form.Item name="category" label={t.dashboard.feedbackCategory} initialValue="feedback" rules={[{ required: true }]}>
+                      <Select
+                        options={[
+                          { label: 'Feedback', value: 'feedback' },
+                          { label: 'Bug', value: 'bug' },
+                          { label: 'Question', value: 'question' },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item name="sentiment" label={t.dashboard.feedbackSentiment} initialValue="neutral" rules={[{ required: true }]}>
+                      <Select
+                        options={[
+                          { label: 'Neutral', value: 'neutral' },
+                          { label: 'Positive', value: 'positive' },
+                          { label: 'Negative', value: 'negative' },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item name="message" label={t.dashboard.feedbackMessage} rules={[{ required: true, min: 10 }]}>
+                  <Input.TextArea rows={4} placeholder={t.dashboard.feedbackPlaceholder} />
+                </Form.Item>
+                <Form.Item name="email" label={t.dashboard.feedbackEmail} rules={[{ type: 'email' }]}>
+                  <Input placeholder="you@example.com" />
+                </Form.Item>
+                <Button type="primary" loading={submittingFeedback} onClick={() => { void handleSubmitFeedback(); }}>
+                  {t.dashboard.submitFeedback}
+                </Button>
+              </Form>
+            </Col>
+            <Col xs={24} xl={12}>
+              {feedbackEntries.length ? (
+                <List
+                  dataSource={feedbackEntries}
+                  renderItem={(entry) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        title={(
+                          <Space wrap>
+                            <Tag>{entry.category.toUpperCase()}</Tag>
+                            <Tag color={entry.sentiment === 'negative' ? 'red' : entry.sentiment === 'positive' ? 'green' : 'default'}>
+                              {entry.sentiment.toUpperCase()}
+                            </Tag>
+                            <Typography.Text type="secondary">{formatTime(entry.createdAt)}</Typography.Text>
+                          </Space>
+                        )}
+                        description={entry.message}
+                      />
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <Empty description={t.dashboard.noFeedbackYet} />
+              )}
+            </Col>
+          </Row>
         </Card>
 
         <Card style={cardStyle} title={t.dashboard.onboardingTitle}>
