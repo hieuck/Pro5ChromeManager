@@ -90,6 +90,14 @@ describe('Operations endpoints', () => {
     expect(ready.warnings).toEqual([]);
   });
 
+  it('serves the bundled UI shell', async () => {
+    const uiRes = await fetch(`${baseUrl}/ui/`);
+    expect(uiRes.status).toBe(200);
+    const html = await uiRes.text();
+    expect(html.toLowerCase()).toContain('<!doctype html>');
+    expect(html).toContain('<div id="root"></div>');
+  });
+
   it('exposes support status and self-test results', async () => {
     const statusRes = await fetch(`${baseUrl}/api/support/status`);
     expect(statusRes.status).toBe(200);

@@ -151,8 +151,14 @@ app.get('/api/logs', async (_req: Request, res: Response) => {
   }
 });
 
+function resolveUiDir(): string {
+  const packagedUiDir = path.join(__dirname, '../ui');
+  const devUiDir = path.resolve(process.cwd(), 'dist/ui');
+  return packagedUiDir.includes('app.asar') ? packagedUiDir : devUiDir;
+}
+
 // Serve static UI
-const uiDir = path.resolve('dist/ui');
+const uiDir = resolveUiDir();
 app.use('/ui', express.static(uiDir));
 app.get('/ui/*', (_req: Request, res: Response) => {
   res.sendFile(path.join(uiDir, 'index.html'));
