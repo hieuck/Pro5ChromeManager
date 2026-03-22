@@ -174,6 +174,7 @@ const Dashboard: React.FC = () => {
   const [copyingSummary, setCopyingSummary] = useState(false);
   const [copyingIncidentDigest, setCopyingIncidentDigest] = useState(false);
   const [copyingActivityDigest, setCopyingActivityDigest] = useState(false);
+  const [copyingLatestIncident, setCopyingLatestIncident] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
@@ -681,6 +682,37 @@ const Dashboard: React.FC = () => {
     t.dashboard.incidentDigestCopied,
     t.dashboard.incidentDigestCopyFailed,
     t.dashboard.incidentDigestUnavailable,
+  ]);
+
+  const handleCopyLatestIncident = useCallback(async () => {
+    if (!incidentDigest?.latestIncident) {
+      void message.warning(t.dashboard.latestIncidentUnavailable);
+      return;
+    }
+
+    setCopyingLatestIncident(true);
+    const latestIncident = incidentDigest.latestIncident;
+    const summaryLines = [
+      'Pro5 latest dashboard incident',
+      `Level: ${latestIncident.level.toUpperCase()}`,
+      `Timestamp: ${formatTime(latestIncident.timestamp)}`,
+      `Source: ${latestIncident.source}`,
+      `Message: ${latestIncident.message}`,
+    ];
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success(t.dashboard.latestIncidentCopied);
+    } catch {
+      void message.error(t.dashboard.latestIncidentCopyFailed);
+    } finally {
+      setCopyingLatestIncident(false);
+    }
+  }, [
+    incidentDigest,
+    t.dashboard.latestIncidentCopied,
+    t.dashboard.latestIncidentCopyFailed,
+    t.dashboard.latestIncidentUnavailable,
   ]);
 
   const handleCopyActivityDigest = useCallback(async () => {
@@ -1261,6 +1293,16 @@ const Dashboard: React.FC = () => {
           title={t.dashboard.incidentsTitle}
           extra={(
             <Space size={8}>
+              {incidentDigest ? (
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  loading={copyingLatestIncident}
+                  onClick={() => { void handleCopyLatestIncident(); }}
+                >
+                  {t.dashboard.copyLatestIncident}
+                </Button>
+              ) : null}
               {incidentDigest ? (
                 <Button
                   type="link"
