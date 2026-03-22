@@ -6,7 +6,9 @@ import { z } from 'zod';
 import { profileManager } from '../managers/ProfileManager';
 import { fingerprintEngine } from '../managers/FingerprintEngine';
 import { licenseManager } from '../managers/LicenseManager';
+import { usageMetricsManager } from '../managers/UsageMetricsManager';
 import { logger } from '../utils/logger';
+import { dataPath } from '../utils/dataPaths';
 
 const router = Router();
 
@@ -37,6 +39,15 @@ const SearchSchema = z.object({
   tags: z.string().optional(),   // comma-separated
   group: z.string().optional(),
   owner: z.string().optional(),
+});
+
+const CloneProfileSchema = z.object({
+  name: z.string().min(1).optional(),
+  notes: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  group: z.string().nullable().optional(),
+  owner: z.string().nullable().optional(),
+  runtime: z.string().optional(),
 });
 
 // ─── GET /api/profiles ─────────────────────────────────────────────────────────
@@ -81,6 +92,7 @@ router.post('/profiles', async (req: Request, res: Response) => {
       owner: body.owner ?? null,
       runtime: body.runtime,
     });
+    await usageMetricsManager.recordProfileCreated();
     res.status(201).json({ success: true, data: profile });
   } catch (err) {
     logger.error('POST /api/profiles error', { error: err instanceof Error ? err.message : String(err) });
@@ -113,6 +125,7 @@ router.post('/profiles/import', async (req: Request, res: Response) => {
     }
 
     const profile = await profileManager.importProfile(srcDir);
+    await usageMetricsManager.recordProfileImported();
     res.status(201).json({ success: true, data: profile });
   } catch (err) {
     logger.error('POST /api/profiles/import error', { error: err instanceof Error ? err.message : String(err) });
@@ -136,6 +149,7 @@ router.post('/profiles/import-bulk', async (req: Request, res: Response) => {
       }
       try {
         const profile = await profileManager.importProfile(srcDir);
+        await usageMetricsManager.recordProfileImported();
         results.push({ srcDir, success: true, profile });
       } catch (err) {
         results.push({ srcDir, success: false, error: err instanceof Error ? err.message : String(err) });
@@ -182,6 +196,38 @@ router.put('/profiles/:id', async (req: Request, res: Response) => {
 });
 
 // ─── DELETE /api/profiles/:id ─────────────────────────────────────────────────
+
+router.post('/profiles/:id/clone', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const body = CloneProfileSchema.parse(req.body ?? {});
+    const profilesUsed = profileManager.listProfiles().length;
+
+    if (!licenseManager.canCreateProfile(profilesUsed)) {
+      res.status(403).json({
+        success: false,
+        error: 'Đã đạt giới hạn 10 profiles của gói Free. Nâng cấp lên Pro để tạo không giới hạn.',
+        code: 'FREE_TIER_LIMIT',
+      });
+      return;
+    }
+
+    const profile = await profileManager.cloneProfile(id, {
+      name: body.name,
+      notes: body.notes,
+      tags: body.tags,
+      group: body.group ?? undefined,
+      owner: body.owner ?? undefined,
+      runtime: body.runtime,
+    });
+    await usageMetricsManager.recordProfileCreated();
+    res.status(201).json({ success: true, data: profile });
+  } catch (err) {
+    logger.error('POST /api/profiles/:id/clone error', { error: err instanceof Error ? err.message : String(err) });
+    const status = err instanceof Error && err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ success: false, error: err instanceof Error ? err.message : 'Bad request' });
+  }
+});
 
 router.delete('/profiles/:id', async (req: Request, res: Response) => {
   try {
@@ -235,7 +281,7 @@ router.get('/profiles/:id/activity', async (req: Request, res: Response) => {
       res.status(404).json({ success: false, error: 'Profile not found' });
       return;
     }
-    const activityPath = path.resolve('data/activity.log');
+    const activityPath = dataPath('activity.log');
     const content = await fs.readFile(activityPath, 'utf-8').catch(() => '');
     const sessions = content
       .split('\n')

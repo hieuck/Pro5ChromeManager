@@ -8,6 +8,7 @@ import { configManager } from './ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import type { FingerprintConfig } from './FingerprintEngine';
 import { sanitizePath } from '../utils/pathSanitizer';
+import { dataPath, resolveAppPath } from '../utils/dataPaths';
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -82,8 +83,8 @@ export class ProfileManager {
   private dataDir: string;
 
   constructor(profilesDir?: string, dataDir?: string) {
-    this.profilesDir = profilesDir ?? path.resolve(configManager.get().profilesDir);
-    this.dataDir = dataDir ?? path.resolve('data');
+    this.profilesDir = profilesDir ?? resolveAppPath(configManager.get().profilesDir);
+    this.dataDir = dataDir ?? dataPath();
   }
 
   /** Scan profilesDir, load all profiles into memory, run migrations */
@@ -158,6 +159,42 @@ export class ProfileManager {
     this.profiles.set(id, profile);
     logger.info('Profile created', { id, name });
     return profile;
+  }
+
+  /** Clone an existing profile into a new profile with fresh usage metadata */
+  async cloneProfile(
+    id: string,
+    overrides?: Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'schemaVersion' | 'lastUsedAt' | 'totalSessions'>>,
+  ): Promise<Profile> {
+    const existing = this.profiles.get(id);
+    if (!existing) throw new Error(`Profile not found: ${id}`);
+
+    const cloneId = uuidv4();
+    const now = new Date().toISOString();
+    const sourceDir = sanitizePath(this.profilesDir, id);
+    const cloneDir = sanitizePath(this.profilesDir, cloneId);
+
+    await this.copyDir(sourceDir, cloneDir);
+
+    const clone: Profile = {
+      ...JSON.parse(JSON.stringify(existing)) as Profile,
+      ...overrides,
+      id: cloneId,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      name: overrides?.name?.trim() || `${existing.name} Copy`,
+      tags: overrides?.tags ?? [...existing.tags],
+      fingerprint: overrides?.fingerprint ?? JSON.parse(JSON.stringify(existing.fingerprint)) as FingerprintConfig,
+      proxy: overrides?.proxy ? { ...overrides.proxy } : existing.proxy ? { ...existing.proxy } : null,
+      createdAt: now,
+      updatedAt: now,
+      lastUsedAt: null,
+      totalSessions: 0,
+    };
+
+    await this.saveProfile(clone);
+    this.profiles.set(cloneId, clone);
+    logger.info('Profile cloned', { sourceId: id, cloneId, name: clone.name });
+    return clone;
   }
 
   /** Update profile fields */

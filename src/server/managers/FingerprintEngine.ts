@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import https from 'https';
 import { logger } from '../utils/logger';
+import { dataPath } from '../utils/dataPaths';
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ interface DBVersionInfo {
 
 const VALID_HARDWARE_CONCURRENCY = [1, 2, 4, 6, 8, 10, 12, 16, 24, 32];
 const VALID_DEVICE_MEMORY = [0.25, 0.5, 1, 2, 4, 8];
-const DB_PATH = path.resolve('data/fingerprint-db.json');
+const DB_PATH = dataPath('fingerprint-db.json');
 const DB_VERSION_URL =
   process.env['FINGERPRINT_DB_REPO_URL'] ??
   'https://raw.githubusercontent.com/hieuck/Pro5ChromeManager/main/fingerprint-db-version.json';

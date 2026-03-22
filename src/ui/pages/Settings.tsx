@@ -6,7 +6,7 @@ import {
 import {
   PlusOutlined, DeleteOutlined, ReloadOutlined,
   DownloadOutlined, SaveOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  QuestionCircleOutlined,
+  QuestionCircleOutlined, CopyOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -35,6 +35,96 @@ interface BackupEntry {
   filename: string;
   timestamp: string;
   sizeBytes: number;
+}
+
+interface SupportStatus {
+  appVersion: string;
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  uptimeSeconds: number;
+  dataDir: string;
+  logFileCount: number;
+  diagnosticsReady: boolean;
+  offlineSecretConfigured: boolean;
+  codeSigningConfigured: boolean;
+  supportPagesReady: boolean;
+  onboardingCompleted: boolean;
+  onboardingState: {
+    status: 'not_started' | 'in_progress' | 'profile_created' | 'completed' | 'skipped';
+    currentStep: number;
+    selectedRuntime: string | null;
+    draftProfileName: string | null;
+    createdProfileId: string | null;
+    lastOpenedAt: string | null;
+    lastUpdatedAt: string | null;
+    profileCreatedAt: string | null;
+    completedAt: string | null;
+    skippedAt: string | null;
+  };
+  profileCount: number;
+  proxyCount: number;
+  backupCount: number;
+  feedbackCount: number;
+  lastFeedbackAt: string | null;
+  usageMetrics: {
+    profileCreates: number;
+    profileImports: number;
+    profileLaunches: number;
+    sessionChecks: number;
+    sessionCheckLoggedIn: number;
+    sessionCheckLoggedOut: number;
+    sessionCheckErrors: number;
+    lastProfileCreatedAt: string | null;
+    lastProfileImportedAt: string | null;
+    lastProfileLaunchAt: string | null;
+    lastSessionCheckAt: string | null;
+  };
+  recentIncidentCount: number;
+  recentErrorCount: number;
+  lastIncidentAt: string | null;
+  releaseReady: boolean;
+  warnings: string[];
+}
+
+interface SupportSelfTestCheck {
+  key: string;
+  label: string;
+  status: 'pass' | 'warn' | 'fail';
+  detail: string;
+}
+
+interface SupportSelfTestResult {
+  status: 'pass' | 'warn' | 'fail';
+  checkedAt: string;
+  checks: SupportSelfTestCheck[];
+}
+
+interface IncidentEntry {
+  timestamp: string;
+  level: 'warn' | 'error';
+  source: string;
+  message: string;
+}
+
+interface SupportIncidentsResult {
+  count: number;
+  incidents: IncidentEntry[];
+}
+
+interface SupportFeedbackEntry {
+  id: string;
+  createdAt: string;
+  category: 'bug' | 'feedback' | 'question';
+  sentiment: 'negative' | 'neutral' | 'positive';
+  message: string;
+  email: string | null;
+  appVersion: string | null;
+}
+
+interface SupportFeedbackResult {
+  count: number;
+  entries: SupportFeedbackEntry[];
 }
 
 // ─── Tab: General ─────────────────────────────────────────────────────────────
@@ -97,6 +187,10 @@ const GeneralTab: React.FC = () => {
     setWizardOpen(true);
   }
 
+  function handleExportDiagnostics(): void {
+    window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank');
+  }
+
   return (
     <Form form={form} layout="vertical" style={{ maxWidth: 560 }}>
       <Form.Item name="uiLanguage" label="Ngôn ngữ giao diện">
@@ -149,6 +243,14 @@ const GeneralTab: React.FC = () => {
         onClick={() => void handleResetOnboarding()}
       >
         Xem lại hướng dẫn
+      </Button>
+
+      <Button
+        style={{ marginLeft: 12 }}
+        icon={<DownloadOutlined />}
+        onClick={handleExportDiagnostics}
+      >
+        Export Diagnostics
       </Button>
 
       <OnboardingWizard open={wizardOpen} onFinish={() => setWizardOpen(false)} />
@@ -409,6 +511,385 @@ const LogsTab: React.FC = () => {
   );
 };
 
+const SupportTab: React.FC = () => {
+  const [status, setStatus] = useState<SupportStatus | null>(null);
+  const [selfTest, setSelfTest] = useState<SupportSelfTestResult | null>(null);
+  const [incidentState, setIncidentState] = useState<SupportIncidentsResult | null>(null);
+  const [feedbackState, setFeedbackState] = useState<SupportFeedbackResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selfTesting, setSelfTesting] = useState(false);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackForm] = Form.useForm();
+
+  const fetchStatus = useCallback(async () => {
+    setLoading(true);
+    const res = await apiClient.get<SupportStatus>('/api/support/status');
+    if (res.success) setStatus(res.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchStatus(); }, [fetchStatus]);
+
+  const fetchIncidents = useCallback(async () => {
+    setIncidentLoading(true);
+    const res = await apiClient.get<SupportIncidentsResult>('/api/support/incidents?limit=10');
+    if (res.success) setIncidentState(res.data);
+    setIncidentLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchIncidents(); }, [fetchIncidents]);
+
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    const res = await apiClient.get<SupportFeedbackResult>('/api/support/feedback?limit=5');
+    if (res.success) setFeedbackState(res.data);
+    setFeedbackLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchFeedback(); }, [fetchFeedback]);
+
+  async function handleCopySupportSummary(): Promise<void> {
+    if (!status) {
+      void message.warning('Support status is not available yet');
+      return;
+    }
+
+    const summaryLines = [
+      'Pro5 support summary',
+      `App version: ${status.appVersion}`,
+      `Node: ${status.nodeVersion}`,
+      `Platform: ${status.platform}/${status.arch}`,
+      `Uptime: ${formatUptime(status.uptimeSeconds)}`,
+      `Data dir: ${status.dataDir}`,
+      `Diagnostics: ${status.diagnosticsReady ? 'ready' : 'missing base config'}`,
+      `Onboarding: ${status.onboardingCompleted ? 'completed' : 'pending'}`,
+      `Onboarding state: ${status.onboardingState.status} (step ${status.onboardingState.currentStep})`,
+      `Profiles: ${status.profileCount}`,
+      `Proxies: ${status.proxyCount}`,
+      `Backups: ${status.backupCount}`,
+      `Feedback inbox: ${status.feedbackCount} entries`,
+      `Usage: ${status.usageMetrics.profileCreates} created / ${status.usageMetrics.profileImports} imported / ${status.usageMetrics.profileLaunches} launches`,
+      `Session checks: ${status.usageMetrics.sessionChecks} total / ${status.usageMetrics.sessionCheckLoggedIn} logged in / ${status.usageMetrics.sessionCheckLoggedOut} logged out / ${status.usageMetrics.sessionCheckErrors} errors`,
+      `Offline secret: ${status.offlineSecretConfigured ? 'configured' : 'missing'}`,
+      `Code signing: ${status.codeSigningConfigured ? 'configured' : 'missing'}`,
+      `Support pages: ${status.supportPagesReady ? 'ready' : 'missing'}`,
+      `Release readiness: ${status.releaseReady ? 'ready' : 'needs attention'}`,
+      `Recent incidents: ${status.recentIncidentCount} total / ${status.recentErrorCount} errors`,
+      `Last incident: ${status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'none'}`,
+    ];
+
+    if (status.usageMetrics.lastProfileCreatedAt) {
+      summaryLines.push(`Last profile created: ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`);
+    }
+    if (status.usageMetrics.lastProfileImportedAt) {
+      summaryLines.push(`Last profile imported: ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`);
+    }
+    if (status.usageMetrics.lastProfileLaunchAt) {
+      summaryLines.push(`Last launch: ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`);
+    }
+    if (status.usageMetrics.lastSessionCheckAt) {
+      summaryLines.push(`Last session check: ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`);
+    }
+    if (status.onboardingState.lastOpenedAt) {
+      summaryLines.push(`Last onboarding open: ${new Date(status.onboardingState.lastOpenedAt).toLocaleString()}`);
+    }
+    if (status.onboardingState.profileCreatedAt) {
+      summaryLines.push(`Onboarding profile created: ${new Date(status.onboardingState.profileCreatedAt).toLocaleString()}`);
+    }
+    if (status.lastFeedbackAt) {
+      summaryLines.push(`Last feedback: ${new Date(status.lastFeedbackAt).toLocaleString()}`);
+    }
+
+    if (status.warnings.length > 0) {
+      summaryLines.push(`Warnings: ${status.warnings.join(' | ')}`);
+    }
+
+    if (selfTest) {
+      summaryLines.push(`Self-test: ${selfTest.status.toUpperCase()} at ${new Date(selfTest.checkedAt).toLocaleString()}`);
+      summaryLines.push(
+        ...selfTest.checks.map((check) => `- ${check.label}: ${check.status.toUpperCase()} (${check.detail})`),
+      );
+    }
+
+    if (incidentState && incidentState.incidents.length > 0) {
+      summaryLines.push('Recent incident details:');
+      summaryLines.push(
+        ...incidentState.incidents.slice(0, 5).map((incident) =>
+          `- [${incident.level.toUpperCase()}] ${incident.source} @ ${new Date(incident.timestamp).toLocaleString()}: ${incident.message}`),
+      );
+    }
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success('Support summary copied');
+    } catch {
+      void message.error('Failed to copy support summary');
+    }
+  }
+
+  async function runSelfTest(): Promise<void> {
+    setSelfTesting(true);
+    const res = await apiClient.post<SupportSelfTestResult>('/api/support/self-test');
+    setSelfTesting(false);
+    if (res.success) {
+      setSelfTest(res.data);
+      void message.success('Support self-test completed');
+    } else {
+      void message.error(res.error);
+    }
+  }
+
+  async function handleSubmitFeedback(): Promise<void> {
+    const values = await feedbackForm.validateFields() as {
+      category: 'bug' | 'feedback' | 'question';
+      sentiment: 'negative' | 'neutral' | 'positive';
+      message: string;
+      email?: string;
+    };
+
+    setSubmittingFeedback(true);
+    const res = await apiClient.post<SupportFeedbackEntry>('/api/support/feedback', {
+      ...values,
+      appVersion: status?.appVersion ?? '',
+    });
+    setSubmittingFeedback(false);
+
+    if (res.success) {
+      feedbackForm.resetFields();
+      void message.success('Feedback saved locally');
+      await Promise.all([fetchStatus(), fetchFeedback()]);
+    } else {
+      void message.error(res.error);
+    }
+  }
+
+  function formatUptime(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${hours}h ${minutes}m ${secs}s`;
+  }
+
+  return (
+    <div>
+      <Row justify="end" style={{ marginBottom: 12 }}>
+        <Space>
+          <Button icon={<CopyOutlined />} onClick={() => void handleCopySupportSummary()}>
+            Copy support summary
+          </Button>
+          <Button icon={<DownloadOutlined />} onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
+            Export diagnostics
+          </Button>
+          <Button onClick={() => void fetchIncidents()} loading={incidentLoading}>
+            Refresh incidents
+          </Button>
+          <Button onClick={() => void runSelfTest()} loading={selfTesting}>
+            Run self-test
+          </Button>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void fetchStatus()}>
+            Lam moi
+          </Button>
+        </Space>
+      </Row>
+      {status ? (
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Typography.Text><strong>App version:</strong> {status.appVersion}</Typography.Text>
+          <Typography.Text><strong>Node:</strong> {status.nodeVersion}</Typography.Text>
+          <Typography.Text><strong>Platform:</strong> {status.platform} / {status.arch}</Typography.Text>
+          <Typography.Text><strong>Uptime:</strong> {formatUptime(status.uptimeSeconds)}</Typography.Text>
+          <Typography.Text><strong>Data dir:</strong> {status.dataDir}</Typography.Text>
+          <Typography.Text><strong>Log files:</strong> {status.logFileCount}</Typography.Text>
+          <Typography.Text><strong>Onboarding:</strong> {status.onboardingCompleted ? 'Completed' : 'Pending'}</Typography.Text>
+          <Typography.Text><strong>Onboarding state:</strong> {status.onboardingState.status} / step {status.onboardingState.currentStep}</Typography.Text>
+          <Typography.Text><strong>Onboarding runtime:</strong> {status.onboardingState.selectedRuntime ?? 'None'}</Typography.Text>
+          <Typography.Text><strong>Onboarding draft profile:</strong> {status.onboardingState.draftProfileName ?? 'None'}</Typography.Text>
+          <Typography.Text><strong>Last onboarding open:</strong> {status.onboardingState.lastOpenedAt ? new Date(status.onboardingState.lastOpenedAt).toLocaleString() : 'None'}</Typography.Text>
+          <Typography.Text><strong>Profiles:</strong> {status.profileCount}</Typography.Text>
+          <Typography.Text><strong>Proxies:</strong> {status.proxyCount}</Typography.Text>
+          <Typography.Text><strong>Backups:</strong> {status.backupCount}</Typography.Text>
+          <Typography.Text><strong>Feedback inbox:</strong> {status.feedbackCount}</Typography.Text>
+          <Typography.Text><strong>Last feedback:</strong> {status.lastFeedbackAt ? new Date(status.lastFeedbackAt).toLocaleString() : 'None'}</Typography.Text>
+          <Typography.Text>
+            <strong>Usage:</strong> {status.usageMetrics.profileCreates} created / {status.usageMetrics.profileImports} imported / {status.usageMetrics.profileLaunches} launches
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Session checks:</strong> {status.usageMetrics.sessionChecks} total / {status.usageMetrics.sessionCheckLoggedIn} logged in / {status.usageMetrics.sessionCheckLoggedOut} logged out / {status.usageMetrics.sessionCheckErrors} errors
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Last usage:</strong>{' '}
+            {status.usageMetrics.lastProfileLaunchAt
+              ? `Launch ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`
+              : status.usageMetrics.lastProfileCreatedAt
+                ? `Create ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`
+                : status.usageMetrics.lastProfileImportedAt
+                  ? `Import ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`
+                  : status.usageMetrics.lastSessionCheckAt
+                    ? `Session check ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`
+                    : 'None'}
+          </Typography.Text>
+          <Typography.Text><strong>Recent incidents:</strong> {status.recentIncidentCount} total / {status.recentErrorCount} errors</Typography.Text>
+          <Typography.Text><strong>Last incident:</strong> {status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'None'}</Typography.Text>
+          <Typography.Text>
+            <strong>Diagnostics:</strong> {status.diagnosticsReady ? 'Ready to export' : 'Missing base config'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Offline secret:</strong> {status.offlineSecretConfigured ? 'Configured' : 'Missing'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Code signing:</strong> {status.codeSigningConfigured ? 'Configured' : 'Missing'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Support pages:</strong> {status.supportPagesReady ? 'Ready' : 'Missing pages'}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>Release readiness:</strong> {status.releaseReady ? 'Ready' : 'Needs attention'}
+          </Typography.Text>
+          {status.warnings.length > 0 ? (
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Warnings</Typography.Text>
+              {status.warnings.map((warning) => (
+                <Tag key={warning} color="warning" style={{ marginBottom: 8 }}>
+                  {warning}
+                </Tag>
+              ))}
+            </div>
+          ) : (
+            <Tag color="success">Operationally ready</Tag>
+          )}
+          {selfTest ? (
+            <div style={{ marginTop: 8 }}>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
+                Self-test ({new Date(selfTest.checkedAt).toLocaleString()})
+              </Typography.Text>
+              <Tag color={selfTest.status === 'pass' ? 'success' : selfTest.status === 'warn' ? 'warning' : 'error'}>
+                {selfTest.status.toUpperCase()}
+              </Tag>
+              <div style={{ marginTop: 8 }}>
+                {selfTest.checks.map((check) => (
+                  <div key={check.key} style={{ marginBottom: 8 }}>
+                    <Tag color={check.status === 'pass' ? 'success' : check.status === 'warn' ? 'warning' : 'error'}>
+                      {check.status.toUpperCase()}
+                    </Tag>
+                    <Typography.Text strong>{check.label}:</Typography.Text>{' '}
+                    <Typography.Text type="secondary">{check.detail}</Typography.Text>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+              Feedback inbox
+            </Typography.Text>
+            <Form form={feedbackForm} layout="vertical">
+              <Row gutter={12}>
+                <Col span={8}>
+                  <Form.Item name="category" label="Category" initialValue="feedback" rules={[{ required: true }]}>
+                    <Select
+                      options={[
+                        { label: 'Feedback', value: 'feedback' },
+                        { label: 'Bug', value: 'bug' },
+                        { label: 'Question', value: 'question' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="sentiment" label="Sentiment" initialValue="neutral" rules={[{ required: true }]}>
+                    <Select
+                      options={[
+                        { label: 'Neutral', value: 'neutral' },
+                        { label: 'Positive', value: 'positive' },
+                        { label: 'Negative', value: 'negative' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="email" label="Contact email">
+                    <Input placeholder="optional@example.com" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item
+                name="message"
+                label="Message"
+                rules={[{ required: true, min: 10, message: 'Write at least 10 characters' }]}
+              >
+                <Input.TextArea rows={4} placeholder="What is working, broken, or confusing?" />
+              </Form.Item>
+              <Space style={{ marginBottom: 12 }}>
+                <Button type="primary" loading={submittingFeedback} onClick={() => void handleSubmitFeedback()}>
+                  Save feedback
+                </Button>
+                <Button loading={feedbackLoading} onClick={() => void fetchFeedback()}>
+                  Refresh feedback
+                </Button>
+              </Space>
+            </Form>
+            {feedbackState && feedbackState.entries.length > 0 ? (
+              <div style={{ marginBottom: 12 }}>
+                {feedbackState.entries.map((entry) => (
+                  <div key={entry.id} style={{ marginBottom: 10 }}>
+                    <Tag color={entry.category === 'bug' ? 'error' : entry.category === 'question' ? 'processing' : 'default'}>
+                      {entry.category.toUpperCase()}
+                    </Tag>
+                    <Tag color={entry.sentiment === 'negative' ? 'error' : entry.sentiment === 'positive' ? 'success' : 'default'}>
+                      {entry.sentiment.toUpperCase()}
+                    </Tag>
+                    <Typography.Text type="secondary">{new Date(entry.createdAt).toLocaleString()}</Typography.Text>
+                    <div>
+                      <Typography.Text>{entry.message}</Typography.Text>
+                    </div>
+                    <Typography.Text type="secondary">
+                      {entry.email ? `Contact: ${entry.email}` : 'No contact email'}{entry.appVersion ? ` | App ${entry.appVersion}` : ''}
+                    </Typography.Text>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                {feedbackLoading ? 'Loading feedback...' : 'No feedback saved yet'}
+              </Typography.Text>
+            )}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
+              Recent incidents
+            </Typography.Text>
+            {incidentState && incidentState.incidents.length > 0 ? (
+              <div>
+                {incidentState.incidents.map((incident, index) => (
+                  <div key={`${incident.timestamp}-${incident.source}-${index}`} style={{ marginBottom: 10 }}>
+                    <Tag color={incident.level === 'error' ? 'error' : 'warning'}>
+                      {incident.level.toUpperCase()}
+                    </Tag>
+                    <Typography.Text strong>{incident.source}</Typography.Text>{' '}
+                    <Typography.Text type="secondary">
+                      {new Date(incident.timestamp).toLocaleString()}
+                    </Typography.Text>
+                    <div>
+                      <Typography.Text>{incident.message}</Typography.Text>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Typography.Text type="secondary">
+                {incidentLoading ? 'Loading incidents...' : 'No recent warn/error incidents found'}
+              </Typography.Text>
+            )}
+          </div>
+        </Space>
+      ) : (
+        <Typography.Text type="secondary">Khong tai duoc support status</Typography.Text>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Settings ────────────────────────────────────────────────────────────
 
 const Settings: React.FC = () => {
@@ -419,6 +900,7 @@ const Settings: React.FC = () => {
     { key: 'runtimes', label: 'Runtimes', children: <RuntimesTab /> },
     { key: 'backup', label: 'Backup', children: <BackupTab /> },
     { key: 'logs', label: 'Logs', children: <LogsTab /> },
+    { key: 'support', label: 'Support', children: <SupportTab /> },
   ];
 
   return (

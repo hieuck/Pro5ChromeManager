@@ -228,6 +228,59 @@ describe('ProfileManager — CRUD operations', () => {
     expect(updated.lastUsedAt).not.toBeNull();
   });
 
+  it('cloneProfile duplicates settings into a new profile with reset usage data', async () => {
+    const mgr = await makeManager(tmpDir, dataDir);
+    const original = await mgr.createProfile('Source Profile', {
+      notes: 'ready to duplicate',
+      tags: ['warm', 'team-a'],
+      group: 'sales',
+      owner: 'alice',
+      runtime: 'chrome',
+    });
+    await mgr.updateLastUsed(original.id);
+
+    const clone = await mgr.cloneProfile(original.id);
+
+    expect(clone.id).not.toBe(original.id);
+    expect(clone.name).toBe('Source Profile Copy');
+    expect(clone.notes).toBe(original.notes);
+    expect(clone.tags).toEqual(original.tags);
+    expect(clone.group).toBe(original.group);
+    expect(clone.owner).toBe(original.owner);
+    expect(clone.runtime).toBe(original.runtime);
+    expect(clone.totalSessions).toBe(0);
+    expect(clone.lastUsedAt).toBeNull();
+
+    const originalDir = path.join(tmpDir, original.id);
+    const cloneDir = path.join(tmpDir, clone.id);
+    const originalProfile = JSON.parse(await fs.readFile(path.join(originalDir, 'profile.json'), 'utf-8')) as { id: string };
+    const clonedProfile = JSON.parse(await fs.readFile(path.join(cloneDir, 'profile.json'), 'utf-8')) as { id: string };
+
+    expect(originalProfile.id).toBe(original.id);
+    expect(clonedProfile.id).toBe(clone.id);
+  });
+
+  it('cloneProfile accepts overrides for the new profile', async () => {
+    const mgr = await makeManager(tmpDir, dataDir);
+    const original = await mgr.createProfile('Override Me', {
+      tags: ['baseline'],
+      group: 'ops',
+    });
+
+    const clone = await mgr.cloneProfile(original.id, {
+      name: 'Override Copy',
+      tags: ['priority'],
+      group: 'growth',
+      owner: 'bob',
+    });
+
+    expect(clone.name).toBe('Override Copy');
+    expect(clone.tags).toEqual(['priority']);
+    expect(clone.group).toBe('growth');
+    expect(clone.owner).toBe('bob');
+    expect(clone.id).not.toBe(original.id);
+  });
+
   it('throws when updating non-existent profile', async () => {
     const mgr = await makeManager(tmpDir, dataDir);
     await expect(mgr.updateProfile('non-existent', { name: 'X' })).rejects.toThrow('not found');

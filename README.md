@@ -49,6 +49,9 @@ npm run build
 
 # Tạo Windows installer (.exe) — output: dist/electron/
 npm run package:electron
+
+# Tạo bản dev test không cần signing/installer — output: dist/electron/win-unpacked/
+npm run package:electron:dev
 ```
 
 ## Release
@@ -68,6 +71,16 @@ npm test
 npx vitest run      # 86 tests, ~2s
 npx tsc --noEmit    # type check
 ```
+
+## Support
+
+- Trong app: vào `Settings` → `Xuất chẩn đoán` để lấy support bundle.
+- Trong `Settings -> Support`, có thể bấm `Copy support summary` để gửi nhanh runtime, readiness và recent incidents cho support.
+- Landing/support page: `landing/support.html`
+- GitHub Issues: dùng template `Support Request` để gửi lỗi có đủ ngữ cảnh.
+- Trước khi phát hành bản public: chạy `npm run release:preflight` để chặn build thiếu secret hoặc thiếu support surface.
+- Smoke check local sau build: chạy `npm run ops:smoke` để xác nhận server build boot được và trả `health`/`readyz`.
+- Trong `Settings -> Support`, có thể chạy `Run self-test` để kiểm tra nhanh runtime, diagnostics, profiles dir, support pages và license state.
 
 ## Automation qua CDP
 

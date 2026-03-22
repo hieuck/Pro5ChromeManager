@@ -4,6 +4,7 @@ import { createReadStream, createWriteStream } from 'fs';
 import archiver from 'archiver';
 import { logger } from '../utils/logger';
 import { configManager } from './ConfigManager';
+import { dataPath, resolveAppPath } from '../utils/dataPaths';
 
 export interface BackupEntry {
   filename: string;
@@ -11,7 +12,7 @@ export interface BackupEntry {
   sizeBytes: number;
 }
 
-const BACKUPS_DIR = path.resolve('data/backups');
+const BACKUPS_DIR = dataPath('backups');
 const MAX_BACKUPS = 7;
 const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -44,9 +45,9 @@ export class BackupManager {
     const filename = `backup-${timestamp}.zip`;
     const destPath = path.join(this.backupsDir, filename);
 
-    const profilesDir = path.resolve(configManager.get().profilesDir);
-    const configPath = path.resolve('data/config.json');
-    const proxiesPath = path.resolve('data/proxies.json');
+    const profilesDir = resolveAppPath(configManager.get().profilesDir);
+    const configPath = dataPath('config.json');
+    const proxiesPath = dataPath('proxies.json');
 
     // Check which optional files exist before entering the sync Promise callback
     const configExists = await fs.access(configPath).then(() => true).catch(() => false);
@@ -107,7 +108,7 @@ export class BackupManager {
     const backupPath = path.join(this.backupsDir, filename);
     await fs.access(backupPath); // throws ENOENT if not found
 
-    const profilesDir = path.resolve(configManager.get().profilesDir);
+    const profilesDir = resolveAppPath(configManager.get().profilesDir);
     const tmpDir = path.join(this.backupsDir, `restore-tmp-${Date.now()}`);
 
     try {

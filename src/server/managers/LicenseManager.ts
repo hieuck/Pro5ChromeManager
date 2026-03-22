@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { encrypt, decrypt, getMachineId } from '../utils/crypto';
 import { logger } from '../utils/logger';
+import { dataPath } from '../utils/dataPaths';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -11,12 +12,17 @@ const FREE_TIER_LIMIT = 10;
 const REVALIDATE_INTERVAL_DAYS = 30;
 const GRACE_PERIOD_DAYS = 7;
 const LICENSE_API = 'https://api.lemonsqueezy.com/v1/licenses/validate';
-const LICENSE_FILE = path.resolve('data/license.dat');
+const LICENSE_FILE = dataPath('license.dat');
+const DEFAULT_OFFLINE_SECRET = 'pro5-chrome-manager-offline-secret-v1';
 
 // Offline key secret — đổi giá trị này trước khi release production
 // Không commit secret thật vào repo — dùng env var PRO5_OFFLINE_SECRET
-const OFFLINE_SECRET = process.env['PRO5_OFFLINE_SECRET'] ?? 'pro5-chrome-manager-offline-secret-v1';
+const OFFLINE_SECRET = process.env['PRO5_OFFLINE_SECRET'] ?? DEFAULT_OFFLINE_SECRET;
 const OFFLINE_KEY_PREFIX = 'PRO5-OFFLINE-';
+
+function offlineKeysEnabled(): boolean {
+  return process.env['NODE_ENV'] !== 'production' || OFFLINE_SECRET !== DEFAULT_OFFLINE_SECRET;
+}
 
 // ─── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +97,10 @@ export class LicenseManager {
 
   /** Activate offline key — no network required */
   private async activateOffline(licenseKey: string): Promise<LicenseStatus> {
+    if (!offlineKeysEnabled()) {
+      throw new Error('Offline key bá»‹ táº¯t trÃªn báº£n production cho Ä‘áº¿n khi cáº¥u hÃ¬nh PRO5_OFFLINE_SECRET.');
+    }
+
     const payload = this.verifyOfflineKey(licenseKey);
     if (!payload) {
       throw new Error('Offline key không hợp lệ hoặc đã bị giả mạo.');
@@ -327,6 +337,10 @@ export class LicenseManager {
     expiresAt: string | null = null,
     secret: string = OFFLINE_SECRET,
   ): string {
+    if (process.env['NODE_ENV'] === 'production' && secret === DEFAULT_OFFLINE_SECRET) {
+      throw new Error('Offline key generation requires PRO5_OFFLINE_SECRET in production.');
+    }
+
     const payload: OfflineKeyPayload = {
       machineId,
       issuedAt: new Date().toISOString(),

@@ -1,0 +1,56 @@
+name: Support Request
+description: Report a bug or request technical support with enough context to reproduce the issue.
+title: "[Support]: "
+labels:
+  - support
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include the diagnostics bundle exported from the app when possible.
+  - type: input
+    id: version
+    attributes:
+      label: App Version
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Browser Runtime
+      options:
+        - Google Chrome
+        - Microsoft Edge
+        - CentBrowser
+        - Chromium
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem Summary
+      description: Describe what happened and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps To Reproduce
+      placeholder: |
+        1. Open profile ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics / Logs
+      description: Mention whether you attached the diagnostics bundle from Settings > Export Diagnostics.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional Context
+      description: Screenshots, proxy context, license activation state, or anything else useful.

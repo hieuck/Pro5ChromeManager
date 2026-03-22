@@ -1,8 +1,8 @@
-import path from 'path';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
+import { dataPath } from './dataPaths';
 
-const LOG_DIR = path.resolve('data/logs');
+const LOG_DIR = dataPath('logs');
 const isDev = process.env.NODE_ENV !== 'production';
 
 const fileTransport = new DailyRotateFile({
@@ -11,6 +11,30 @@ const fileTransport = new DailyRotateFile({
   datePattern: 'YYYY-MM-DD',
   maxSize: '10m',
   maxFiles: '5',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+});
+
+const exceptionTransport = new DailyRotateFile({
+  dirname: LOG_DIR,
+  filename: 'exceptions-%DATE%.log',
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '10m',
+  maxFiles: '7',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+});
+
+const rejectionTransport = new DailyRotateFile({
+  dirname: LOG_DIR,
+  filename: 'rejections-%DATE%.log',
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '10m',
+  maxFiles: '7',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.json()
@@ -32,6 +56,14 @@ export const logger = winston.createLogger({
   level: isDev ? 'debug' : 'info',
   transports: [
     fileTransport,
+    ...(isDev ? [consoleTransport] : []),
+  ],
+  exceptionHandlers: [
+    exceptionTransport,
+    ...(isDev ? [consoleTransport] : []),
+  ],
+  rejectionHandlers: [
+    rejectionTransport,
     ...(isDev ? [consoleTransport] : []),
   ],
 });

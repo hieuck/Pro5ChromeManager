@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support Guide
+    url: https://hieuck.github.io/Pro5ChromeManager/support.html
+    about: Read the support checklist before opening a request.
+  - name: Privacy Policy
+    url: https://hieuck.github.io/Pro5ChromeManager/privacy.html
+    about: Review how diagnostics and landing analytics are handled.
