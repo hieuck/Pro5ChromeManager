@@ -122,6 +122,21 @@ const Logs: React.FC = () => {
     [entries],
   );
 
+  const issueStreak = useMemo(() => {
+    let streak = 0;
+
+    for (const entry of entries) {
+      if (entry.level === 'warn' || entry.level === 'error') {
+        streak += 1;
+        continue;
+      }
+
+      break;
+    }
+
+    return streak;
+  }, [entries]);
+
   const handleCopyVisibleLogs = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(filteredEntries.map((entry) => entry.raw).join('\n'));
@@ -327,6 +342,11 @@ const Logs: React.FC = () => {
                 <Tag color={latestIssue.level === 'error' ? 'red' : 'gold'}>
                   {latestIssue.level.toUpperCase()}
                 </Tag>
+                {issueStreak > 1 ? (
+                  <Tag color="volcano">
+                    {t.logs.issueStreak.replace('{count}', String(issueStreak))}
+                  </Tag>
+                ) : null}
                 <Typography.Text type="secondary">{formatTimestamp(latestIssue.timestamp)}</Typography.Text>
                 <Typography.Text type="secondary">
                   {formatRelativeTime(latestIssue.timestamp, {
@@ -360,7 +380,7 @@ const Logs: React.FC = () => {
             type={counts.error ? 'error' : 'warning'}
             showIcon
             message={`${t.logs.incidentSummary}: ${counts.error} ${t.logs.filterError.toLowerCase()} · ${counts.warn} ${t.logs.filterWarn.toLowerCase()}`}
-            description={t.logs.incidentHint}
+            description={`${t.logs.incidentHint}${issueStreak > 1 ? ` ${t.logs.incidentStreakHint.replace('{count}', String(issueStreak))}` : ''}`}
             action={(
               <Space wrap>
                 <Button size="small" onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
