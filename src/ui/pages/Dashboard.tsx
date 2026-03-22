@@ -466,6 +466,16 @@ const Dashboard: React.FC = () => {
     });
   }, [navigate]);
 
+  const handleOpenIncidentInLogs = useCallback((incident: IncidentEntry) => {
+    navigate('/logs', {
+      state: {
+        presetQuery: incident.message,
+        presetFilter: 'issues',
+        presetRecentWindowOnly: true,
+      },
+    });
+  }, [navigate]);
+
   const handleCreateBackup = useCallback(async () => {
     setCreatingBackup(true);
     const res = await apiClient.post<BackupEntry>('/api/backups');
@@ -1014,7 +1024,13 @@ const Dashboard: React.FC = () => {
             <List
               dataSource={incidents}
               renderItem={(incident) => (
-                <List.Item>
+                <List.Item
+                  actions={[
+                    <Button key={`${incident.timestamp}-${incident.message}`} type="link" onClick={() => handleOpenIncidentInLogs(incident)}>
+                      {t.dashboard.openInLogs}
+                    </Button>,
+                  ]}
+                >
                   <List.Item.Meta
                     title={(
                       <Space wrap>
