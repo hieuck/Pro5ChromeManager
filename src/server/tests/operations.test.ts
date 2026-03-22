@@ -98,12 +98,23 @@ describe('Operations endpoints', () => {
         diagnosticsReady: boolean;
         supportPagesReady: boolean;
         releaseReady: boolean;
+        recentIncidentCount: number;
+        recentErrorCount: number;
+        lastIncidentAt: string | null;
       };
     };
     expect(statusJson.success).toBe(true);
     expect(statusJson.data.diagnosticsReady).toBe(true);
     expect(statusJson.data.supportPagesReady).toBe(true);
     expect(statusJson.data.releaseReady).toBe(true);
+    expect(statusJson.data.recentIncidentCount).toBeGreaterThanOrEqual(0);
+    expect(statusJson.data.recentErrorCount).toBeGreaterThanOrEqual(0);
+    expect(statusJson.data.recentErrorCount).toBeLessThanOrEqual(statusJson.data.recentIncidentCount);
+    if (statusJson.data.recentIncidentCount === 0) {
+      expect(statusJson.data.lastIncidentAt).toBeNull();
+    } else {
+      expect(statusJson.data.lastIncidentAt).toBeTruthy();
+    }
 
     const selfTestRes = await fetch(`${baseUrl}/api/support/self-test`, { method: 'POST' });
     expect(selfTestRes.status).toBe(200);
@@ -145,5 +156,20 @@ describe('Operations endpoints', () => {
       incident.source === 'electron-main.log' &&
       incident.level === 'error' &&
       incident.message === 'Renderer failed to load URL')).toBe(true);
+
+    const statusRes = await fetch(`${baseUrl}/api/support/status`);
+    expect(statusRes.status).toBe(200);
+    const statusJson = await statusRes.json() as {
+      success: boolean;
+      data: {
+        recentIncidentCount: number;
+        recentErrorCount: number;
+        lastIncidentAt: string | null;
+      };
+    };
+    expect(statusJson.success).toBe(true);
+    expect(statusJson.data.recentIncidentCount).toBeGreaterThan(0);
+    expect(statusJson.data.recentErrorCount).toBeGreaterThan(0);
+    expect(statusJson.data.lastIncidentAt).toBeTruthy();
   });
 });

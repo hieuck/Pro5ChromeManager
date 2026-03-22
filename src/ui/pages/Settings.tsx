@@ -6,7 +6,7 @@ import {
 import {
   PlusOutlined, DeleteOutlined, ReloadOutlined,
   DownloadOutlined, SaveOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  QuestionCircleOutlined,
+  QuestionCircleOutlined, CopyOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -49,6 +49,9 @@ interface SupportStatus {
   offlineSecretConfigured: boolean;
   codeSigningConfigured: boolean;
   supportPagesReady: boolean;
+  recentIncidentCount: number;
+  recentErrorCount: number;
+  lastIncidentAt: string | null;
   releaseReady: boolean;
   warnings: string[];
 }
@@ -488,6 +491,55 @@ const SupportTab: React.FC = () => {
 
   useEffect(() => { void fetchIncidents(); }, [fetchIncidents]);
 
+  async function handleCopySupportSummary(): Promise<void> {
+    if (!status) {
+      void message.warning('Support status is not available yet');
+      return;
+    }
+
+    const summaryLines = [
+      'Pro5 support summary',
+      `App version: ${status.appVersion}`,
+      `Node: ${status.nodeVersion}`,
+      `Platform: ${status.platform}/${status.arch}`,
+      `Uptime: ${formatUptime(status.uptimeSeconds)}`,
+      `Data dir: ${status.dataDir}`,
+      `Diagnostics: ${status.diagnosticsReady ? 'ready' : 'missing base config'}`,
+      `Offline secret: ${status.offlineSecretConfigured ? 'configured' : 'missing'}`,
+      `Code signing: ${status.codeSigningConfigured ? 'configured' : 'missing'}`,
+      `Support pages: ${status.supportPagesReady ? 'ready' : 'missing'}`,
+      `Release readiness: ${status.releaseReady ? 'ready' : 'needs attention'}`,
+      `Recent incidents: ${status.recentIncidentCount} total / ${status.recentErrorCount} errors`,
+      `Last incident: ${status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'none'}`,
+    ];
+
+    if (status.warnings.length > 0) {
+      summaryLines.push(`Warnings: ${status.warnings.join(' | ')}`);
+    }
+
+    if (selfTest) {
+      summaryLines.push(`Self-test: ${selfTest.status.toUpperCase()} at ${new Date(selfTest.checkedAt).toLocaleString()}`);
+      summaryLines.push(
+        ...selfTest.checks.map((check) => `- ${check.label}: ${check.status.toUpperCase()} (${check.detail})`),
+      );
+    }
+
+    if (incidentState && incidentState.incidents.length > 0) {
+      summaryLines.push('Recent incident details:');
+      summaryLines.push(
+        ...incidentState.incidents.slice(0, 5).map((incident) =>
+          `- [${incident.level.toUpperCase()}] ${incident.source} @ ${new Date(incident.timestamp).toLocaleString()}: ${incident.message}`),
+      );
+    }
+
+    try {
+      await navigator.clipboard.writeText(summaryLines.join('\n'));
+      void message.success('Support summary copied');
+    } catch {
+      void message.error('Failed to copy support summary');
+    }
+  }
+
   async function runSelfTest(): Promise<void> {
     setSelfTesting(true);
     const res = await apiClient.post<SupportSelfTestResult>('/api/support/self-test');
@@ -511,6 +563,12 @@ const SupportTab: React.FC = () => {
     <div>
       <Row justify="end" style={{ marginBottom: 12 }}>
         <Space>
+          <Button icon={<CopyOutlined />} onClick={() => void handleCopySupportSummary()}>
+            Copy support summary
+          </Button>
+          <Button icon={<DownloadOutlined />} onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
+            Export diagnostics
+          </Button>
           <Button onClick={() => void fetchIncidents()} loading={incidentLoading}>
             Refresh incidents
           </Button>
@@ -530,6 +588,8 @@ const SupportTab: React.FC = () => {
           <Typography.Text><strong>Uptime:</strong> {formatUptime(status.uptimeSeconds)}</Typography.Text>
           <Typography.Text><strong>Data dir:</strong> {status.dataDir}</Typography.Text>
           <Typography.Text><strong>Log files:</strong> {status.logFileCount}</Typography.Text>
+          <Typography.Text><strong>Recent incidents:</strong> {status.recentIncidentCount} total / {status.recentErrorCount} errors</Typography.Text>
+          <Typography.Text><strong>Last incident:</strong> {status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'None'}</Typography.Text>
           <Typography.Text>
             <strong>Diagnostics:</strong> {status.diagnosticsReady ? 'Ready to export' : 'Missing base config'}
           </Typography.Text>

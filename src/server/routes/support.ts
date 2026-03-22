@@ -101,6 +101,7 @@ async function loadIncidentEntries(limit: number): Promise<IncidentEntry[]> {
 router.get('/support/status', async (_req: Request, res: Response) => {
   try {
     const logFiles = await listLogFiles();
+    const recentIncidents = await loadIncidentEntries(20);
 
     const diagnosticsReady = await fileExists(dataPath('config.json'));
     const offlineSecretConfigured = Boolean(process.env['PRO5_OFFLINE_SECRET']);
@@ -132,6 +133,9 @@ router.get('/support/status', async (_req: Request, res: Response) => {
         offlineSecretConfigured,
         codeSigningConfigured,
         supportPagesReady,
+        recentIncidentCount: recentIncidents.length,
+        recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
+        lastIncidentAt: recentIncidents[0]?.timestamp ?? null,
         releaseReady: diagnosticsReady && offlineSecretConfigured && supportPagesReady,
         warnings,
       },

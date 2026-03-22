@@ -72,6 +72,7 @@ npx tsc --noEmit    # type check
 ## Support
 
 - Trong app: vào `Settings` → `Xuất chẩn đoán` để lấy support bundle.
+- Trong `Settings -> Support`, có thể bấm `Copy support summary` để gửi nhanh runtime, readiness và recent incidents cho support.
 - Landing/support page: `landing/support.html`
 - GitHub Issues: dùng template `Support Request` để gửi lỗi có đủ ngữ cảnh.
 - Trước khi phát hành bản public: chạy `npm run release:preflight` để chặn build thiếu secret hoặc thiếu support surface.
