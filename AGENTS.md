@@ -1,82 +1,160 @@
-# Pro5 Chrome Manager Agent Rules
+# Everything Claude Code (ECC) — Agent Instructions
 
-This repository follows an ECC-style harness, adapted for a Codex workspace and this Electron product.
+This is a **production-ready AI coding plugin** providing 28 specialized agents, 116 skills, 59 commands, and automated hook workflows for software development.
 
-## Mission
-
-Act as the product engineer responsible for shipping and operating this app end to end.
-The user is the business owner and should not be pulled into day-to-day engineering work.
-Default behavior is to investigate, implement, verify, and commit without asking for help when the answer can be discovered locally.
+**Version:** 1.9.0
 
 ## Core Principles
 
-1. Agent-first when specialization helps, but keep ownership with the parent task.
-2. Research and reuse before writing net-new code.
-3. Local runtime verification before package or release verification.
-4. Security-first and no secret leakage.
-5. Plan before executing broad or risky changes.
-6. Prefer outcomes over explanations.
+1. **Agent-First** — Delegate to specialized agents for domain tasks
+2. **Test-Driven** — Write tests before implementation, 80%+ coverage required
+3. **Security-First** — Never compromise on security; validate all inputs
+4. **Immutability** — Always create new objects, never mutate existing ones
+5. **Plan Before Execute** — Plan complex features before writing code
 
-## Execution Order
+## Available Agents
 
-Always work in this order unless a task clearly requires a different path:
+| Agent | Purpose | When to Use |
+|-------|---------|-------------|
+| planner | Implementation planning | Complex features, refactoring |
+| architect | System design and scalability | Architectural decisions |
+| tdd-guide | Test-driven development | New features, bug fixes |
+| code-reviewer | Code quality and maintainability | After writing/modifying code |
+| security-reviewer | Vulnerability detection | Before commits, sensitive code |
+| build-error-resolver | Fix build/type errors | When build fails |
+| e2e-runner | End-to-end Playwright testing | Critical user flows |
+| refactor-cleaner | Dead code cleanup | Code maintenance |
+| doc-updater | Documentation and codemaps | Updating docs |
+| docs-lookup | Documentation and API reference research | Library/API documentation questions |
+| cpp-reviewer | C++ code review | C++ projects |
+| cpp-build-resolver | C++ build errors | C++ build failures |
+| go-reviewer | Go code review | Go projects |
+| go-build-resolver | Go build errors | Go build failures |
+| kotlin-reviewer | Kotlin code review | Kotlin/Android/KMP projects |
+| kotlin-build-resolver | Kotlin/Gradle build errors | Kotlin build failures |
+| database-reviewer | PostgreSQL/Supabase specialist | Schema design, query optimization |
+| python-reviewer | Python code review | Python projects |
+| java-reviewer | Java and Spring Boot code review | Java/Spring Boot projects |
+| java-build-resolver | Java/Maven/Gradle build errors | Java build failures |
+| chief-of-staff | Communication triage and drafts | Multi-channel email, Slack, LINE, Messenger |
+| loop-operator | Autonomous loop execution | Run loops safely, monitor stalls, intervene |
+| harness-optimizer | Harness config tuning | Reliability, cost, throughput |
+| rust-reviewer | Rust code review | Rust projects |
+| rust-build-resolver | Rust build errors | Rust build failures |
+| pytorch-build-resolver | PyTorch runtime/CUDA/training errors | PyTorch build/training failures |
+| typescript-reviewer | TypeScript/JavaScript code review | TypeScript/JavaScript projects |
 
-1. Understand the current code and git state.
-2. Research existing code, logs, docs, and prior patterns.
-3. Reproduce the problem locally.
-4. Fix the issue in code or config.
-5. Verify with the strongest local check available.
-6. Review the diff and operational impact.
-7. Commit a clean, focused change.
-8. Only then consider packaging, release, or broader rollout steps.
+## Agent Orchestration
 
-## Research And Reuse Rules
+Use agents proactively without user prompt:
+- Complex feature requests → **planner**
+- Code just written/modified → **code-reviewer**
+- Bug fix or new feature → **tdd-guide**
+- Architectural decision → **architect**
+- Security-sensitive code → **security-reviewer**
+- Multi-channel communication triage → **chief-of-staff**
+- Autonomous loops / loop monitoring → **loop-operator**
+- Harness config reliability and cost → **harness-optimizer**
 
-- Search the repository first before introducing new patterns, utilities, or workflows.
-- Prefer existing project code, proven libraries, and official framework capabilities over hand-rolled replacements.
-- For external or unstable behavior, verify against primary documentation before changing code.
-- Prefer adapting a battle-tested approach over inventing a new one when it fits the requirement.
+Use parallel execution for independent operations — launch multiple agents simultaneously.
 
-## Local-First Rules
+## Security Guidelines
 
-- Prefer local runtime verification before packaged verification.
-- For Electron, UI, onboarding, boot, or packaging-path changes: run `npm run ops:smoke:local` before claiming success.
-- For backend, route, manager, diagnostics, or support-surface changes: run `npm test` at minimum.
-- Do not jump to packaging if local app flow is still broken.
-- Treat `local run`, `first-run onboarding`, `create first profile`, and `launch first profile` as critical user journeys.
+**Before ANY commit:**
+- No hardcoded secrets (API keys, passwords, tokens)
+- All user inputs validated
+- SQL injection prevention (parameterized queries)
+- XSS prevention (sanitized HTML)
+- CSRF protection enabled
+- Authentication/authorization verified
+- Rate limiting on all endpoints
+- Error messages don't leak sensitive data
 
-## Autonomy Rules
+**Secret management:** NEVER hardcode secrets. Use environment variables or a secret manager. Validate required secrets at startup. Rotate any exposed secrets immediately.
 
-- Do not ask the user questions that can be answered by reading code, running tests, inspecting logs, checking git state, or exercising the local app.
-- Do not wait for the user to report the next failure if a stronger local verification step can surface it first.
-- Use the available tools proactively: shell, tests, logs, git, browser/Electron checks, and primary docs when needed.
-- Escalate only for true external blockers such as missing third-party credentials, legal or business decisions, or irreversible destructive actions.
+**If security issue found:** STOP → use security-reviewer agent → fix CRITICAL issues → rotate exposed secrets → review codebase for similar issues.
 
-## Product Operations Rules
+## Coding Style
 
-- Think beyond code changes: startup, config, logging, diagnostics, supportability, rollback, and release readiness.
-- Keep support surfaces working: diagnostics, self-test, readiness, incident visibility, onboarding status, and feedback intake.
-- When changing boot or packaging behavior, verify both the runtime path and the user-facing entry path.
-- Favor small, reviewable commits that map to one operationally meaningful change.
-- Keep files focused; avoid sprawling edits when a smaller scoped change will do.
+**Immutability (CRITICAL):** Always create new objects, never mutate. Return new copies with changes applied.
 
-## Security Rules
+**File organization:** Many small files over few large ones. 200-400 lines typical, 800 max. Organize by feature/domain, not by type. High cohesion, low coupling.
 
-- Never hardcode secrets, tokens, passwords, or signing material.
-- Validate inputs at system boundaries.
-- Prevent avoidable data loss during migrations, cleanup, or packaging path changes.
-- Review logs, diagnostics, and support bundles for accidental secret exposure.
+**Error handling:** Handle errors at every level. Provide user-friendly messages in UI code. Log detailed context server-side. Never silently swallow errors.
 
-## Review And Verification Rules
+**Input validation:** Validate all user input at system boundaries. Use schema-based validation. Fail fast with clear messages. Never trust external data.
 
-- Review your own diff before committing.
-- Prioritize correctness, regressions, broken user journeys, and missing verification over style cleanup.
-- Strengthen smoke tests when a real failure is discovered instead of relying on the user to rediscover it.
-- Prefer adding or tightening regression coverage after every user-visible runtime failure.
+**Code quality checklist:**
+- Functions small (<50 lines), files focused (<800 lines)
+- No deep nesting (>4 levels)
+- Proper error handling, no hardcoded values
+- Readable, well-named identifiers
 
-## User Interaction Rules
+## Testing Requirements
 
-- Keep updates short and action-oriented.
-- Prefer doing the work over discussing the work.
-- Assume the user wants outcomes, not implementation babysitting.
-- The user's role is to collect business value from the product, not to act as QA for avoidable local issues.
+**Minimum coverage: 80%**
+
+Test types (all required):
+1. **Unit tests** — Individual functions, utilities, components
+2. **Integration tests** — API endpoints, database operations
+3. **E2E tests** — Critical user flows
+
+**TDD workflow (mandatory):**
+1. Write test first (RED) — test should FAIL
+2. Write minimal implementation (GREEN) — test should PASS
+3. Refactor (IMPROVE) — verify coverage 80%+
+
+Troubleshoot failures: check test isolation → verify mocks → fix implementation (not tests, unless tests are wrong).
+
+## Development Workflow
+
+1. **Plan** — Use planner agent, identify dependencies and risks, break into phases
+2. **TDD** — Use tdd-guide agent, write tests first, implement, refactor
+3. **Review** — Use code-reviewer agent immediately, address CRITICAL/HIGH issues
+4. **Capture knowledge in the right place**
+   - Personal debugging notes, preferences, and temporary context → auto memory
+   - Team/project knowledge (architecture decisions, API changes, runbooks) → the project's existing docs structure
+   - If the current task already produces the relevant docs or code comments, do not duplicate the same information elsewhere
+   - If there is no obvious project doc location, ask before creating a new top-level file
+5. **Commit** — Conventional commits format, comprehensive PR summaries
+
+## Git Workflow
+
+**Commit format:** `<type>: <description>` — Types: feat, fix, refactor, docs, test, chore, perf, ci
+
+**PR workflow:** Analyze full commit history → draft comprehensive summary → include test plan → push with `-u` flag.
+
+## Architecture Patterns
+
+**API response format:** Consistent envelope with success indicator, data payload, error message, and pagination metadata.
+
+**Repository pattern:** Encapsulate data access behind standard interface (findAll, findById, create, update, delete). Business logic depends on abstract interface, not storage mechanism.
+
+**Skeleton projects:** Search for battle-tested templates, evaluate with parallel agents (security, extensibility, relevance), clone best match, iterate within proven structure.
+
+## Performance
+
+**Context management:** Avoid last 20% of context window for large refactoring and multi-file features. Lower-sensitivity tasks (single edits, docs, simple fixes) tolerate higher utilization.
+
+**Build troubleshooting:** Use build-error-resolver agent → analyze errors → fix incrementally → verify after each fix.
+
+## Project Structure
+
+```
+agents/          — 28 specialized subagents
+skills/          — 115 workflow skills and domain knowledge
+commands/        — 59 slash commands
+hooks/           — Trigger-based automations
+rules/           — Always-follow guidelines (common + per-language)
+scripts/         — Cross-platform Node.js utilities
+mcp-configs/     — 14 MCP server configurations
+tests/           — Test suite
+```
+
+## Success Metrics
+
+- All tests pass with 80%+ coverage
+- No security vulnerabilities
+- Code is readable and maintainable
+- Performance is acceptable
+- User requirements are met

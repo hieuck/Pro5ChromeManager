@@ -1,46 +1,82 @@
-# Pro5 Codex Workspace Rules
+# ECC for Codex CLI
 
-This file supplements the root [AGENTS.md](/E:/GitHub/Pro5ChromeManager/AGENTS.md) with ECC-style Codex guidance for this repository.
+This supplements the root `AGENTS.md` with Codex-specific guidance.
 
-## Codex Behavior
+## Model Recommendations
 
-- Act as the product engineer responsible for local development, runtime verification, and operational readiness.
-- Prefer execution over explanation.
-- Do not ask the user to perform checks that can be completed with local tools, logs, tests, or runtime verification.
-- Treat project-local `.codex/` and `.agents/skills/` as the active Codex harness baseline.
+| Task Type | Recommended Model |
+|-----------|------------------|
+| Routine coding, tests, formatting | GPT 5.4 |
+| Complex features, architecture | GPT 5.4 |
+| Debugging, refactoring | GPT 5.4 |
+| Security review | GPT 5.4 |
 
 ## Skills Discovery
 
-Skills are loaded from `.agents/skills/`.
-Use them when their workflow matches the current task, especially for TDD, verification, E2E, security review, and deep research.
+Skills are auto-loaded from `.agents/skills/`. Each skill contains:
+- `SKILL.md` — Detailed instructions and workflow
+- `agents/openai.yaml` — Codex interface metadata
 
-## Codex Verification Rules
+Available skills:
+- tdd-workflow — Test-driven development with 80%+ coverage
+- security-review — Comprehensive security checklist
+- coding-standards — Universal coding standards
+- frontend-patterns — React/Next.js patterns
+- frontend-slides — Viewport-safe HTML presentations and PPTX-to-web conversion
+- article-writing — Long-form writing from notes and voice references
+- content-engine — Platform-native social content and repurposing
+- market-research — Source-attributed market and competitor research
+- investor-materials — Decks, memos, models, and one-pagers
+- investor-outreach — Personalized investor outreach and follow-ups
+- backend-patterns — API design, database, caching
+- e2e-testing — Playwright E2E tests
+- eval-harness — Eval-driven development
+- strategic-compact — Context management
+- api-design — REST API design patterns
+- verification-loop — Build, test, lint, typecheck, security
+- deep-research — Multi-source research with firecrawl and exa MCPs
+- exa-search — Neural search via Exa MCP for web, code, and companies
+- claude-api — Anthropic Claude API patterns and SDKs
+- x-api — X/Twitter API integration for posting, threads, and analytics
+- crosspost — Multi-platform content distribution
+- fal-ai-media — AI image/video/audio generation via fal.ai
+- dmux-workflows — Multi-agent orchestration with dmux
 
-- For Electron, UI, onboarding, boot, or packaging-path changes: run `npm run ops:smoke:local`.
-- For backend, route, manager, diagnostics, or support-surface changes: run `npm test`.
-- Verify local runtime behavior before packaged runtime behavior.
+## MCP Servers
 
-## Investigation Discipline
+Treat the project-local `.codex/config.toml` as the default Codex baseline for ECC. The current ECC baseline enables GitHub, Context7, Exa, Memory, Playwright, and Sequential Thinking; add heavier extras in `~/.codex/config.toml` only when a task actually needs them.
 
-- Trace the real execution path before proposing or applying a fix.
-- Search existing repo code and current project patterns before introducing new abstractions.
-- Prefer local logs, runtime checks, and targeted reads over speculation.
-- Verify external-library or framework behavior against primary documentation when it affects runtime behavior.
-- When a smoke test fails, tighten the failing check or fix the implementation; do not weaken the test to go green.
+## Multi-Agent Support
 
-## Multi-Agent Roles
+Codex now supports multi-agent workflows behind the experimental `features.multi_agent` flag.
 
-- Use the project-local roles defined in `.codex/agents/` when deeper evidence gathering or read-only review is useful.
-- Keep those roles read-only by default so they help investigation without introducing edit conflicts.
-- Use agents proactively for evidence gathering, review, and doc verification when they reduce risk.
+- Enable it in `.codex/config.toml` with `[features] multi_agent = true`
+- Define project-local roles under `[agents.<name>]`
+- Point each role at a TOML layer under `.codex/agents/`
+- Use `/agent` inside Codex CLI to inspect and steer child agents
+
+Sample role configs in this repo:
+- `.codex/agents/explorer.toml` — read-only evidence gathering
+- `.codex/agents/reviewer.toml` — correctness/security review
+- `.codex/agents/docs-researcher.toml` — API and release-note verification
+
+## Key Differences from Claude Code
+
+| Feature | Claude Code | Codex CLI |
+|---------|------------|-----------|
+| Hooks | 8+ event types | Not yet supported |
+| Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
+| Skills | Skills loaded via plugin | `.agents/skills/` directory |
+| Commands | `/slash` commands | Instruction-based |
+| Agents | Subagent Task tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
+| Security | Hook-based enforcement | Instruction + sandbox |
+| MCP | Full support | Supported via `config.toml` and `codex mcp add` |
 
 ## Security Without Hooks
 
-- Codex does not provide Claude-style hooks here, so enforcement is instruction-based.
-- Review diffs before commit.
-- Do not commit secrets, credentials, or generated support artifacts containing sensitive data.
-
-## Commit Discipline
-
-- Keep commits focused and operationally meaningful.
-- Prefer one verified outcome per commit, not one commit per conversational turn.
+Since Codex lacks hooks, security enforcement is instruction-based:
+1. Always validate inputs at system boundaries
+2. Never hardcode secrets — use environment variables
+3. Run `npm audit` / `pip audit` before committing
+4. Review `git diff` before every push
+5. Use `sandbox_mode = "workspace-write"` in config
