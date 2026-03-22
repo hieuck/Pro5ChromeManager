@@ -148,6 +148,15 @@ function isWithinLastMinutes(value?: string | null, minutes = 60): boolean {
   return diffMs >= 0 && diffMs <= minutes * 60_000;
 }
 
+function summarizeIssueMessage(message: string, maxLength = 44): string {
+  const normalized = message.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -1561,7 +1570,7 @@ const Dashboard: React.FC = () => {
               ) : null}
               {hottestRecentIssue ? (
                 <Tag color="magenta">
-                  {`${t.dashboard.hottestIssueLabel} ×${hottestRecentIssue.count}`}
+                  {`${t.dashboard.hottestIssueLabel}: ${summarizeIssueMessage(hottestRecentIssue.entry.message)} ×${hottestRecentIssue.count}`}
                 </Tag>
               ) : null}
               {hottestRecentIssue ? (
@@ -1605,7 +1614,7 @@ const Dashboard: React.FC = () => {
                       onClick={() => handleOpenActivityIssue(issue.entry.message)}
                     >
                       <Tag color={index === 0 ? 'magenta' : 'purple'}>
-                        {`${index === 0 ? t.dashboard.hottestIssueLabel : t.dashboard.topIssuesLabel}: ×${issue.count}`}
+                        {`${index === 0 ? t.dashboard.hottestIssueLabel : t.dashboard.topIssuesLabel}: ${summarizeIssueMessage(issue.entry.message)} ×${issue.count}`}
                       </Tag>
                     </Button>
                   ))}
