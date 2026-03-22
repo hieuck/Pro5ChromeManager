@@ -49,6 +49,9 @@ npm run build
 
 # Tạo Windows installer (.exe) — output: dist/electron/
 npm run package:electron
+
+# Tạo bản dev test không cần signing/installer — output: dist/electron/win-unpacked/
+npm run package:electron:dev
 ```
 
 ## Release

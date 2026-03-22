@@ -8,6 +8,7 @@
     "build:ui": "vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
     "build": "npm run build:server && npm run build:ui && npm run build:electron",
+    "ops:verify:dev-package": "node scripts/verify-dev-package.js",
     "ops:artifacts": "node scripts/release-artifacts.js",
     "ops:artifacts:verify": "node scripts/release-artifacts.js --verify",
     "ops:preflight": "node scripts/release-preflight.js",
@@ -18,6 +19,7 @@
     "dev:server": "ts-node-dev --respawn --transpile-only src/server/index.ts",
     "dev:ui": "vite",
     "dev:electron": "npm run build:electron && electron dist/electron-main/main.js",
+    "package:electron:dev": "npm run generate:icons && npm run build && electron-builder --dir --win --config electron-builder.yml --config.win.signAndEditExecutable=false && npm run ops:verify:dev-package",
     "generate:icons": "node scripts/generate-icons.js",
     "package:electron": "npm run generate:icons && npm run build && electron-builder --config electron-builder.yml && npm run ops:artifacts && npm run ops:artifacts:verify",
     "test": "vitest run"

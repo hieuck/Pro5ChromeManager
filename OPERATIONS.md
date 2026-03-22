@@ -13,6 +13,12 @@ npm run package:electron
 npm run ops:artifacts:verify
 ```
 
+For an unsigned local dev test build, use:
+
+```bash
+npm run package:electron:dev
+```
+
 Verify the following manually:
 
 - `PRO5_OFFLINE_SECRET` is configured for production builds.
@@ -33,6 +39,8 @@ npm run ops:artifacts:verify
 ```
 
 Artifacts are emitted to `dist/electron/`.
+
+For a local QA/dev handoff without installer signing, use `dist/electron/win-unpacked/` from `npm run package:electron:dev`.
 
 After packaging, verify:
 
