@@ -425,6 +425,8 @@ const vi = {
     recentIssueSourcesCopied: 'Đã sao chép các nguồn sự cố gần đây',
     focusRecentIssueSource: 'Lọc theo nguồn',
     focusRecentIssueSourceApplied: 'Đã lọc theo nguồn sự cố gần đây',
+    openRecentIssueSourceLatest: 'Mở issue mới nhất',
+    openRecentIssueSourceApplied: 'Đã mở issue mới nhất của nguồn này',
     copyRepeatedRecentIssues: 'Sao chép cụm lặp lại',
     repeatedRecentIssuesCopied: 'Đã sao chép các vấn đề lặp lại gần đây',
     focusRepeatedRecentIssue: 'Lọc vấn đề lặp lại',

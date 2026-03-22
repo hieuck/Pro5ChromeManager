@@ -576,6 +576,15 @@ const Logs: React.FC = () => {
     void message.success(t.logs.focusRecentIssueSourceApplied);
   }, [t.logs.focusRecentIssueSourceApplied]);
 
+  const handleOpenRecentIssueSourceLatest = useCallback((entry: ParsedLogEntry | null | undefined) => {
+    if (!entry) return;
+
+    setFilter('issues');
+    setRecentWindowOnly(true);
+    setQuery(entry.message);
+    void message.success(t.logs.openRecentIssueSourceApplied);
+  }, [t.logs.openRecentIssueSourceApplied]);
+
   const handleCopyRepeatedRecentIssues = useCallback(async () => {
     const lines = [
       'Pro5 repeated recent issues',
@@ -919,9 +928,14 @@ const Logs: React.FC = () => {
             message={t.logs.recentIssueSourceTitle}
             description={`${hottestRecentSource.source} · ${t.logs.recentIssueSourceCount.replace('{count}', String(hottestRecentSource.count))} · ${hottestRecentSource.latestEntry.message}`}
             action={(
-              <Button size="small" onClick={() => handleFocusRecentIssueSource(hottestRecentSource.source)}>
-                {t.logs.focusRecentIssueSource}
-              </Button>
+              <Space size={4}>
+                <Button size="small" onClick={() => handleFocusRecentIssueSource(hottestRecentSource.source)}>
+                  {t.logs.focusRecentIssueSource}
+                </Button>
+                <Button size="small" type="link" onClick={() => handleOpenRecentIssueSourceLatest(hottestRecentSource.latestEntry)}>
+                  {t.logs.openRecentIssueSourceLatest}
+                </Button>
+              </Space>
             )}
           />
         ) : null}
@@ -944,6 +958,9 @@ const Logs: React.FC = () => {
                   actions={[
                     <Button key={`focus-source-${item.source}`} type="link" onClick={() => handleFocusRecentIssueSource(item.source)}>
                       {t.logs.focusRecentIssueSource}
+                    </Button>,
+                    <Button key={`open-source-${item.source}`} type="link" onClick={() => handleOpenRecentIssueSourceLatest(item.latestEntry)}>
+                      {t.logs.openRecentIssueSourceLatest}
                     </Button>,
                   ]}
                 >

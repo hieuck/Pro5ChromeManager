@@ -427,6 +427,8 @@ const en: TranslationKeys = {
     recentIssueSourcesCopied: 'Recent issue sources copied',
     focusRecentIssueSource: 'Filter source',
     focusRecentIssueSourceApplied: 'Filtered by recent issue source',
+    openRecentIssueSourceLatest: 'Open latest issue',
+    openRecentIssueSourceApplied: 'Opened the latest issue for this source',
     copyRepeatedRecentIssues: 'Copy repeated cluster',
     repeatedRecentIssuesCopied: 'Repeated recent issues copied',
     focusRepeatedRecentIssue: 'Filter repeated issue',
