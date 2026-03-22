@@ -99,6 +99,10 @@ describe('Operations endpoints', () => {
         diagnosticsReady: boolean;
         supportPagesReady: boolean;
         releaseReady: boolean;
+        onboardingCompleted: boolean;
+        profileCount: number;
+        proxyCount: number;
+        backupCount: number;
         recentIncidentCount: number;
         recentErrorCount: number;
         lastIncidentAt: string | null;
@@ -108,6 +112,10 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.diagnosticsReady).toBe(true);
     expect(statusJson.data.supportPagesReady).toBe(true);
     expect(statusJson.data.releaseReady).toBe(true);
+    expect(statusJson.data.onboardingCompleted).toBe(false);
+    expect(statusJson.data.profileCount).toBe(0);
+    expect(statusJson.data.proxyCount).toBe(0);
+    expect(statusJson.data.backupCount).toBe(0);
     expect(statusJson.data.recentIncidentCount).toBeGreaterThanOrEqual(0);
     expect(statusJson.data.recentErrorCount).toBeGreaterThanOrEqual(0);
     expect(statusJson.data.recentErrorCount).toBeLessThanOrEqual(statusJson.data.recentIncidentCount);
@@ -212,6 +220,10 @@ describe('Operations endpoints', () => {
     };
     const supportStatus = JSON.parse(await fs.readFile(path.join(extractDir, 'support-status.json'), 'utf-8')) as {
       diagnosticsReady: boolean;
+      onboardingCompleted: boolean;
+      profileCount: number;
+      proxyCount: number;
+      backupCount: number;
       recentIncidentCount: number;
     };
     const selfTest = JSON.parse(await fs.readFile(path.join(extractDir, 'self-test.json'), 'utf-8')) as {
@@ -225,6 +237,10 @@ describe('Operations endpoints', () => {
 
     expect(summary.dataDir).toBe(tmpDir);
     expect(supportStatus.diagnosticsReady).toBe(true);
+    expect(supportStatus.onboardingCompleted).toBe(false);
+    expect(supportStatus.profileCount).toBe(0);
+    expect(supportStatus.proxyCount).toBe(0);
+    expect(supportStatus.backupCount).toBe(0);
     expect(supportStatus.recentIncidentCount).toBeGreaterThan(0);
     expect(selfTest.status).toBe('pass');
     expect(selfTest.checks.some((check) => check.key === 'diagnostics')).toBe(true);

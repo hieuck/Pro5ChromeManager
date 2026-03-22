@@ -49,6 +49,10 @@ interface SupportStatus {
   offlineSecretConfigured: boolean;
   codeSigningConfigured: boolean;
   supportPagesReady: boolean;
+  onboardingCompleted: boolean;
+  profileCount: number;
+  proxyCount: number;
+  backupCount: number;
   recentIncidentCount: number;
   recentErrorCount: number;
   lastIncidentAt: string | null;
@@ -505,6 +509,10 @@ const SupportTab: React.FC = () => {
       `Uptime: ${formatUptime(status.uptimeSeconds)}`,
       `Data dir: ${status.dataDir}`,
       `Diagnostics: ${status.diagnosticsReady ? 'ready' : 'missing base config'}`,
+      `Onboarding: ${status.onboardingCompleted ? 'completed' : 'pending'}`,
+      `Profiles: ${status.profileCount}`,
+      `Proxies: ${status.proxyCount}`,
+      `Backups: ${status.backupCount}`,
       `Offline secret: ${status.offlineSecretConfigured ? 'configured' : 'missing'}`,
       `Code signing: ${status.codeSigningConfigured ? 'configured' : 'missing'}`,
       `Support pages: ${status.supportPagesReady ? 'ready' : 'missing'}`,
@@ -588,6 +596,10 @@ const SupportTab: React.FC = () => {
           <Typography.Text><strong>Uptime:</strong> {formatUptime(status.uptimeSeconds)}</Typography.Text>
           <Typography.Text><strong>Data dir:</strong> {status.dataDir}</Typography.Text>
           <Typography.Text><strong>Log files:</strong> {status.logFileCount}</Typography.Text>
+          <Typography.Text><strong>Onboarding:</strong> {status.onboardingCompleted ? 'Completed' : 'Pending'}</Typography.Text>
+          <Typography.Text><strong>Profiles:</strong> {status.profileCount}</Typography.Text>
+          <Typography.Text><strong>Proxies:</strong> {status.proxyCount}</Typography.Text>
+          <Typography.Text><strong>Backups:</strong> {status.backupCount}</Typography.Text>
           <Typography.Text><strong>Recent incidents:</strong> {status.recentIncidentCount} total / {status.recentErrorCount} errors</Typography.Text>
           <Typography.Text><strong>Last incident:</strong> {status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'None'}</Typography.Text>
           <Typography.Text>

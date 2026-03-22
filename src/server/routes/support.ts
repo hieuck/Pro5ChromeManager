@@ -44,6 +44,10 @@ interface SupportStatusPayload {
   offlineSecretConfigured: boolean;
   codeSigningConfigured: boolean;
   supportPagesReady: boolean;
+  onboardingCompleted: boolean;
+  profileCount: number;
+  proxyCount: number;
+  backupCount: number;
   recentIncidentCount: number;
   recentErrorCount: number;
   lastIncidentAt: string | null;
@@ -132,6 +136,15 @@ async function getSupportPagesReady(): Promise<boolean> {
 }
 
 async function buildSupportStatus(): Promise<SupportStatusPayload> {
+  const { configManager } = await import('../managers/ConfigManager');
+  const { profileManager } = await import('../managers/ProfileManager');
+  const { proxyManager } = await import('../managers/ProxyManager');
+  const { backupManager } = await import('../managers/BackupManager');
+
+  const config = configManager.get();
+  const profiles = profileManager.listProfiles();
+  const proxies = proxyManager.listProxies();
+  const backups = await backupManager.listBackups();
   const logFiles = await listLogFiles();
   const recentIncidents = await loadIncidentEntries(20);
   const diagnosticsReady = await fileExists(dataPath('config.json'));
@@ -158,6 +171,10 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     offlineSecretConfigured,
     codeSigningConfigured,
     supportPagesReady,
+    onboardingCompleted: config.onboardingCompleted,
+    profileCount: profiles.length,
+    proxyCount: proxies.length,
+    backupCount: backups.length,
     recentIncidentCount: recentIncidents.length,
     recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
     lastIncidentAt: recentIncidents[0]?.timestamp ?? null,
