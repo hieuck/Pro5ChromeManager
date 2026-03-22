@@ -406,6 +406,28 @@ const Logs: React.FC = () => {
     visibleTopSourceShare,
   ]);
 
+  const visibleSourceActionButtonLabel = useMemo(() => {
+    if (!visibleTopSource) return '';
+
+    if (visibleTopSource.latestEntry.level === 'error' || visibleTopSourceShare >= 60) {
+      return t.logs.visibleSourceActionButtonFocus;
+    }
+
+    if (visibleSourceMode.label === t.logs.visibleSourceModeMixed) {
+      return t.logs.visibleSourceActionButtonInspect;
+    }
+
+    return t.logs.visibleSourceActionButtonMonitor;
+  }, [
+    t.logs.visibleSourceActionButtonFocus,
+    t.logs.visibleSourceActionButtonInspect,
+    t.logs.visibleSourceActionButtonMonitor,
+    t.logs.visibleSourceModeMixed,
+    visibleSourceMode.label,
+    visibleTopSource,
+    visibleTopSourceShare,
+  ]);
+
   const repeatedRecentIssues = useMemo(() => {
     const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
 
@@ -1178,6 +1200,25 @@ const Logs: React.FC = () => {
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
               {`${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`}
             </Typography.Text>
+            <Button
+              size="small"
+              style={{ marginBottom: 12 }}
+              onClick={() => {
+                if (visibleTopSource.latestEntry.level === 'error' || visibleTopSourceShare >= 60) {
+                  handleFocusVisibleSource(visibleTopSource.source);
+                  return;
+                }
+
+                if (visibleSourceMode.label === t.logs.visibleSourceModeMixed) {
+                  handleOpenVisibleSourceLatest(visibleTopSource.latestEntry);
+                  return;
+                }
+
+                handleFocusVisibleSource(visibleTopSource.source);
+              }}
+            >
+              {visibleSourceActionButtonLabel}
+            </Button>
             <Typography.Text style={{ display: 'block', marginBottom: 8 }}>
               {visibleTopSource.latestEntry.message}
             </Typography.Text>
