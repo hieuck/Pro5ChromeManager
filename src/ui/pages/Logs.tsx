@@ -728,14 +728,23 @@ const Logs: React.FC = () => {
     void message.success(t.logs.openVisibleSourceLatestApplied);
   }, [t.logs.openVisibleSourceLatestApplied]);
 
-  const handleCopyVisibleSourceLatest = useCallback(async (entry: ParsedLogEntry | null | undefined) => {
-    if (!entry) {
+  const handleCopyVisibleSourceLatest = useCallback(async (
+    source: {
+      count: number;
+      source: string;
+      latestEntry: ParsedLogEntry;
+    } | null | undefined,
+  ) => {
+    if (!source?.latestEntry) {
       void message.error(t.logs.visibleSourceLatestUnavailable);
       return;
     }
 
+    const entry = source.latestEntry;
     const lines = [
       'Pro5 visible source latest',
+      `Source: ${source.source}`,
+      `Visible lines: ${source.count}`,
       `Level: ${entry.level.toUpperCase()}`,
       `Timestamp: ${entry.timestamp ?? 'unknown'}`,
       `Message: ${entry.message}`,
@@ -1158,7 +1167,7 @@ const Logs: React.FC = () => {
                   <Button size="small" type="link" onClick={() => handleOpenVisibleSourceLatest(visibleTopSource.latestEntry)}>
                     {t.logs.openVisibleSourceLatest}
                   </Button>
-                  <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceLatest(visibleTopSource.latestEntry); }}>
+                  <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceLatest(visibleTopSource); }}>
                     {t.logs.copyVisibleSourceLatest}
                   </Button>
                   <Button size="small" type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceDigest(visibleTopSource); }}>
@@ -1178,6 +1187,9 @@ const Logs: React.FC = () => {
                     </Button>,
                     <Button key={`open-visible-source-${item.source}`} type="link" onClick={() => handleOpenVisibleSourceLatest(item.latestEntry)}>
                       {t.logs.openVisibleSourceLatest}
+                    </Button>,
+                    <Button key={`copy-visible-source-latest-${item.source}`} type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceLatest(item); }}>
+                      {t.logs.copyVisibleSourceLatest}
                     </Button>,
                     <Button key={`copy-visible-source-${item.source}`} type="link" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSourceDigest(item); }}>
                       {t.logs.copyVisibleSourceDigest}
