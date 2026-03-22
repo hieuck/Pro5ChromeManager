@@ -384,6 +384,8 @@ const vi = {
     visibleSourcesUnavailable: 'Hiện chưa có nguồn nào trong phần đang xem để sao chép',
     visibleTopSourceShareLabel: 'Tỷ trọng nguồn chính',
     visibleTopSourcesConcentrationLabel: 'Độ tập trung top 3',
+    visibleTopSourceFreshnessLabel: 'Độ mới nguồn chính',
+    visibleTopSourceLatestLevelLabel: 'Mức độ nguồn chính',
     visibleSourceModeLabel: 'Kiểu phân bố nguồn',
     visibleSourceModeHintLabel: 'Diễn giải nguồn',
     visibleSourceModeFocused: 'Tập trung',

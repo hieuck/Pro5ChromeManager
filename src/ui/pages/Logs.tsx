@@ -338,6 +338,16 @@ const Logs: React.FC = () => {
     return Math.round((visibleTopSource.count / matchedEntries.length) * 100);
   }, [matchedEntries.length, visibleTopSource]);
 
+  const visibleTopSourceFreshness = useMemo(() => {
+    if (!visibleTopSource?.latestEntry.timestamp) return 'â€”';
+    return formatRelativeTime(visibleTopSource.latestEntry.timestamp, {
+      justNow: t.logs.justNow,
+      minutesAgo: (count) => t.logs.minutesAgo.replace('{count}', String(count)),
+      hoursAgo: (count) => t.logs.hoursAgo.replace('{count}', String(count)),
+      daysAgo: (count) => t.logs.daysAgo.replace('{count}', String(count)),
+    });
+  }, [t.logs.daysAgo, t.logs.hoursAgo, t.logs.justNow, t.logs.minutesAgo, visibleTopSource?.latestEntry.timestamp]);
+
   const visibleTopSourcesConcentration = useMemo(() => {
     if (!matchedEntries.length) return 0;
     const visibleTopCount = visibleSources.reduce((sum, source) => sum + source.count, 0);
@@ -738,6 +748,7 @@ const Logs: React.FC = () => {
       `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
       `Source mode: ${visibleSourceMode.label}`,
       `Source hint: ${visibleSourceMode.hint}`,
+      `Top source freshness: ${visibleTopSourceFreshness}`,
       `Latest level: ${source.latestEntry.level.toUpperCase()}`,
       `Latest timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
       `Latest message: ${source.latestEntry.message}`,
@@ -756,6 +767,7 @@ const Logs: React.FC = () => {
     t.logs.visibleSourceDigestUnavailable,
     visibleSourceMode.hint,
     visibleSourceMode.label,
+    visibleTopSourceFreshness,
     visibleTopSourceShare,
     visibleTopSourcesConcentration,
   ]);
@@ -1109,6 +1121,10 @@ const Logs: React.FC = () => {
                         <Tag color="blue">{`${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`}</Tag>
                         <Tag color="purple">{`${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`}</Tag>
                         <Tag color="geekblue">{`${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`}</Tag>
+                        <Tag color={item.latestEntry.level === 'error' ? 'red' : item.latestEntry.level === 'warn' ? 'gold' : 'blue'}>
+                          {`${t.logs.visibleTopSourceLatestLevelLabel}: ${item.latestEntry.level.toUpperCase()}`}
+                        </Tag>
+                        <Tag>{`${t.logs.visibleTopSourceFreshnessLabel}: ${visibleTopSourceFreshness}`}</Tag>
                       </Space>
                     ) : null}
                     <Space wrap>

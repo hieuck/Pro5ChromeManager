@@ -386,6 +386,8 @@ const en: TranslationKeys = {
     visibleSourcesUnavailable: 'No visible sources are available right now',
     visibleTopSourceShareLabel: 'Top source share',
     visibleTopSourcesConcentrationLabel: 'Top 3 concentration',
+    visibleTopSourceFreshnessLabel: 'Top source freshness',
+    visibleTopSourceLatestLevelLabel: 'Top source level',
     visibleSourceModeLabel: 'Source mode',
     visibleSourceModeHintLabel: 'Source read',
     visibleSourceModeFocused: 'Focused',
