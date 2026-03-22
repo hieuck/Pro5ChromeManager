@@ -125,6 +125,7 @@ const en: TranslationKeys = {
       incidentSourceModeDistributedHint: 'Incidents are spread across many sources right now.',
       incidentSourceModeHintLabel: 'Distribution',
       incidentActionHintLabel: 'Suggested action',
+      incidentActionButtonLabel: 'Go to',
       incidentActionImmediate: 'Prioritize this now. Recent incidents are still spiking.',
       incidentActionFocused: 'Start with the hottest source first. A few sources dominate the stream.',
       incidentActionDistributed: 'Check for a broader regression. Incidents are spread across multiple sources.',

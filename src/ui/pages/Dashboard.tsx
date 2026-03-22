@@ -726,6 +726,65 @@ const Dashboard: React.FC = () => {
     });
   }, [navigate]);
 
+  const handleIncidentSuggestedAction = useCallback(() => {
+    if (!incidentDigest) {
+      return;
+    }
+
+    if (incidentDigest.incidentActionHint === t.dashboard.incidentActionImmediate) {
+      handleOpenLatestIncident();
+      return;
+    }
+
+    if (incidentDigest.incidentActionHint === t.dashboard.incidentActionFocused) {
+      handleOpenTopIncidentSource();
+      return;
+    }
+
+    if (incidentDigest.incidentActionHint === t.dashboard.incidentActionDistributed) {
+      handleOpenRecentLogs();
+      return;
+    }
+
+    handleOpenLatestIncident();
+  }, [
+    handleOpenLatestIncident,
+    handleOpenRecentLogs,
+    handleOpenTopIncidentSource,
+    incidentDigest,
+    t.dashboard.incidentActionDistributed,
+    t.dashboard.incidentActionFocused,
+    t.dashboard.incidentActionImmediate,
+  ]);
+
+  const incidentSuggestedActionLabel = useMemo(() => {
+    if (!incidentDigest) {
+      return t.dashboard.openLatestIncident;
+    }
+
+    if (incidentDigest.incidentActionHint === t.dashboard.incidentActionImmediate) {
+      return t.dashboard.openLatestIncident;
+    }
+
+    if (incidentDigest.incidentActionHint === t.dashboard.incidentActionFocused) {
+      return t.dashboard.openTopSource;
+    }
+
+    if (incidentDigest.incidentActionHint === t.dashboard.incidentActionDistributed) {
+      return t.dashboard.openRecentLogs;
+    }
+
+    return t.dashboard.openLatestIncident;
+  }, [
+    incidentDigest,
+    t.dashboard.incidentActionDistributed,
+    t.dashboard.incidentActionFocused,
+    t.dashboard.incidentActionImmediate,
+    t.dashboard.openLatestIncident,
+    t.dashboard.openRecentLogs,
+    t.dashboard.openTopSource,
+  ]);
+
   const handleOpenHottestIssueLogs = useCallback(() => {
     if (!hottestRecentIssue) {
       return;
@@ -1726,6 +1785,14 @@ const Dashboard: React.FC = () => {
                   <Typography.Text type="secondary">
                     {`${t.dashboard.incidentActionHintLabel}: ${incidentDigest.incidentActionHint}`}
                   </Typography.Text>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ paddingInline: 0, justifyContent: 'flex-start' }}
+                    onClick={handleIncidentSuggestedAction}
+                  >
+                    {`${t.dashboard.incidentActionButtonLabel}: ${incidentSuggestedActionLabel}`}
+                  </Button>
                   {incidentDigest.topSourceLatestIncident ? (
                     <Space direction="vertical" size={2} style={{ width: '100%' }}>
                       <Space wrap>

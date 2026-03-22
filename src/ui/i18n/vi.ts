@@ -123,6 +123,7 @@ const vi = {
       incidentSourceModeDistributedHint: 'Incident hiện đang trải rộng trên nhiều nguồn khác nhau.',
       incidentSourceModeHintLabel: 'Diễn giải',
       incidentActionHintLabel: 'Gợi ý ưu tiên',
+      incidentActionButtonLabel: 'Đi tới',
       incidentActionImmediate: 'Ưu tiên xử lý ngay. Incident mới vẫn đang tăng nhanh.',
       incidentActionFocused: 'Khoanh vùng từ nguồn nóng nhất trước. Chỉ vài nguồn đang chi phối stream.',
       incidentActionDistributed: 'Kiểm tra khả năng lỗi lan rộng. Incident đang trải trên nhiều nguồn.',
