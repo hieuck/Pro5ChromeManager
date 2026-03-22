@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, Empty, List, Row, Space, Statistic, Tag, Typography } from 'antd';
-import { ApiOutlined, ArrowRightOutlined, PlayCircleOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, Empty, List, Row, Space, Statistic, Tag, Typography, message } from 'antd';
+import { ApiOutlined, ArrowRightOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -77,6 +77,8 @@ const Dashboard: React.FC = () => {
   const [instances, setInstances] = useState<Record<string, DashboardInstance>>({});
   const [support, setSupport] = useState<SupportStatus | null>(null);
   const [loading, setLoading] = useState(false);
+  const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
+  const [retestingProfileId, setRetestingProfileId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -132,6 +134,39 @@ const Dashboard: React.FC = () => {
       .slice(0, 5),
     [profiles],
   );
+
+  const handleStartProfile = useCallback(async (profileId: string) => {
+    setStartingProfileId(profileId);
+    const res = await apiClient.post(`/api/profiles/${profileId}/start`);
+    setStartingProfileId(null);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void message.success(t.dashboard.profileStarted);
+    await loadDashboard();
+  }, [loadDashboard, t.dashboard.profileStarted]);
+
+  const handleRetestProxy = useCallback(async (profile: DashboardProfile) => {
+    if (!profile.proxy?.id) {
+      return;
+    }
+    setRetestingProfileId(profile.id);
+    const res = await apiClient.post<{
+      total: number;
+      healthy: number;
+      failing: number;
+    }>('/api/proxies/test-bulk', { ids: [profile.proxy.id] });
+    setRetestingProfileId(null);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void message.success(
+      `${t.dashboard.proxyRetested}: OK ${res.data.healthy} · FAIL ${res.data.failing}`,
+    );
+    await loadDashboard();
+  }, [loadDashboard, t.dashboard.proxyRetested]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -226,6 +261,15 @@ const Dashboard: React.FC = () => {
                   renderItem={(profile) => (
                     <List.Item
                       actions={[
+                        <Button
+                          key="retest"
+                          type="link"
+                          icon={<ReloadOutlined />}
+                          loading={retestingProfileId === profile.id}
+                          onClick={() => { void handleRetestProxy(profile); }}
+                        >
+                          {t.dashboard.retestProxy}
+                        </Button>,
                         <Button key="open" type="link" icon={<ArrowRightOutlined />} onClick={() => navigate('/profiles')}>
                           {t.dashboard.review}
                         </Button>,
@@ -269,9 +313,18 @@ const Dashboard: React.FC = () => {
                           key="start"
                           type="link"
                           icon={<PlayCircleOutlined />}
-                          onClick={() => navigate('/profiles')}
+                          loading={startingProfileId === profile.id}
+                          onClick={() => { void handleStartProfile(profile.id); }}
                         >
                           {t.profile.startProfile}
+                        </Button>,
+                        <Button
+                          key="open"
+                          type="link"
+                          icon={<ArrowRightOutlined />}
+                          onClick={() => navigate('/profiles')}
+                        >
+                          {t.dashboard.review}
                         </Button>,
                       ]}
                     >
