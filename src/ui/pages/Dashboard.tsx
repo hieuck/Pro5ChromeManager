@@ -109,6 +109,13 @@ interface RuntimeEntry {
   executablePath?: string | null;
 }
 
+interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  raw: string;
+}
+
 interface SetupChecklistItem {
   key: string;
   label: string;
@@ -147,6 +154,7 @@ const Dashboard: React.FC = () => {
   const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [runtimes, setRuntimes] = useState<RuntimeEntry[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
   const [startingAllReady, setStartingAllReady] = useState(false);
@@ -163,7 +171,7 @@ const Dashboard: React.FC = () => {
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
-    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes, runtimesRes] = await Promise.all([
+    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes, runtimesRes, logsRes] = await Promise.all([
       apiClient.get<DashboardProfile[]>('/api/profiles'),
       apiClient.get<DashboardProxy[]>('/api/proxies'),
       apiClient.get<DashboardInstance[]>('/api/instances'),
@@ -172,6 +180,7 @@ const Dashboard: React.FC = () => {
       apiClient.get<{ count: number; entries: FeedbackEntry[] }>('/api/support/feedback?limit=3'),
       apiClient.get<BackupEntry[]>('/api/backups'),
       apiClient.get<RuntimeEntry[]>('/api/runtimes'),
+      apiClient.get<string[]>('/api/logs'),
     ]);
 
     if (profilesRes.success) setProfiles(profilesRes.data);
@@ -184,6 +193,30 @@ const Dashboard: React.FC = () => {
     if (feedbackRes.success) setFeedbackEntries(feedbackRes.data.entries);
     if (backupsRes.success) setBackups(backupsRes.data.slice(0, 3));
     if (runtimesRes.success) setRuntimes(runtimesRes.data);
+    if (logsRes.success) {
+      setLogs(
+        logsRes.data
+          .slice(-8)
+          .reverse()
+          .map((line) => {
+            const match = line.match(/^(\S+)\s+\[(\w+)\]\s+(.*)$/);
+            if (!match) {
+              return {
+                timestamp: '',
+                level: 'info',
+                message: line,
+                raw: line,
+              };
+            }
+            return {
+              timestamp: match[1],
+              level: match[2].toLowerCase(),
+              message: match[3],
+              raw: line,
+            };
+          }),
+      );
+    }
     setLoading(false);
   }, []);
 
@@ -991,6 +1024,37 @@ const Dashboard: React.FC = () => {
             />
           ) : (
             <Empty description={t.dashboard.noIncidents} />
+          )}
+        </Card>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.activityTitle}
+          extra={<Button type="link" onClick={() => navigate('/logs')}>{t.nav.logs}</Button>}
+        >
+          {logs.length ? (
+            <List
+              dataSource={logs}
+              renderItem={(entry) => (
+                <List.Item>
+                  <List.Item.Meta
+                    title={(
+                      <Space wrap>
+                        <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
+                          {entry.level.toUpperCase()}
+                        </Tag>
+                        {entry.timestamp ? (
+                          <Typography.Text type="secondary">{formatTime(entry.timestamp)}</Typography.Text>
+                        ) : null}
+                      </Space>
+                    )}
+                    description={entry.message}
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty description={t.dashboard.noActivity} />
           )}
         </Card>
 
