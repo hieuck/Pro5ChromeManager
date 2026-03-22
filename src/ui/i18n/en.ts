@@ -230,9 +230,12 @@ const en: TranslationKeys = {
     showing: 'Showing',
     noMatch: 'No log entries match this filter.',
     copyVisible: 'Copy visible logs',
+    copyIssues: 'Copy issues',
     copied: 'Visible logs copied',
+    issuesCopied: 'Issue logs copied',
     copyFailed: 'Failed to copy logs',
     autoRefresh: 'Auto refresh',
+    issuesOnly: 'Issues only',
   },
 };
 

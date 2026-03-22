@@ -42,7 +42,7 @@ const Logs: React.FC = () => {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<ParsedLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
+  const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>('all');
   const [query, setQuery] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
 
@@ -76,7 +76,8 @@ const Logs: React.FC = () => {
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return entries.filter((entry) => {
-      const levelMatches = filter === 'all' || entry.level === filter;
+      const levelMatches = filter === 'all'
+        || (filter === 'issues' ? entry.level === 'warn' || entry.level === 'error' : entry.level === filter);
       const queryMatches = !normalizedQuery || entry.raw.toLowerCase().includes(normalizedQuery);
       return levelMatches && queryMatches;
     });
@@ -97,6 +98,20 @@ const Logs: React.FC = () => {
     }
   }, [filteredEntries, t.logs.copied, t.logs.copyFailed]);
 
+  const issueEntries = useMemo(
+    () => filteredEntries.filter((entry) => entry.level === 'warn' || entry.level === 'error'),
+    [filteredEntries],
+  );
+
+  const handleCopyIssues = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(issueEntries.map((entry) => entry.raw).join('\n'));
+      void message.success(t.logs.issuesCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [issueEntries, t.logs.copyFailed, t.logs.issuesCopied]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -111,6 +126,7 @@ const Logs: React.FC = () => {
                 onChange={(value) => setFilter(value)}
                 options={[
                   { label: t.logs.filterAll, value: 'all' },
+                  { label: t.logs.issuesOnly, value: 'issues' },
                   { label: t.logs.filterInfo, value: 'info' },
                   { label: t.logs.filterWarn, value: 'warn' },
                   { label: t.logs.filterError, value: 'error' },
@@ -128,6 +144,12 @@ const Logs: React.FC = () => {
               </Button>
               <Button icon={<CopyOutlined />} disabled={!filteredEntries.length} onClick={() => { void handleCopyVisibleLogs(); }}>
                 {t.logs.copyVisible}
+              </Button>
+              <Button disabled={!issueEntries.length} onClick={() => { void handleCopyIssues(); }}>
+                {t.logs.copyIssues}
+              </Button>
+              <Button onClick={() => setFilter('issues')}>
+                {t.logs.issuesOnly}
               </Button>
               <Space size={6}>
                 <Typography.Text type="secondary">{t.logs.autoRefresh}</Typography.Text>

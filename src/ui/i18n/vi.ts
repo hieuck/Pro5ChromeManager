@@ -228,9 +228,12 @@ const vi = {
     showing: 'Đang hiển thị',
     noMatch: 'Không có dòng nhật ký nào khớp bộ lọc hiện tại.',
     copyVisible: 'Sao chép log đang thấy',
+    copyIssues: 'Sao chép lỗi/cảnh báo',
     copied: 'Đã sao chép log đang thấy',
+    issuesCopied: 'Đã sao chép lỗi/cảnh báo',
     copyFailed: 'Không thể sao chép log',
     autoRefresh: 'Tự làm mới',
+    issuesOnly: 'Chỉ lỗi/cảnh báo',
   },
 } as const;
 
