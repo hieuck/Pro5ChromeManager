@@ -166,6 +166,7 @@ const en: TranslationKeys = {
       latestActivityLevelLabel: 'Latest level',
       activitySignalModeLabel: 'Signal mode',
       activitySignalHintLabel: 'Signal read',
+      hottestIssueRepeatsLabel: 'Repeats',
       hottestIssueFreshnessLabel: 'Hottest issue freshness',
       hottestIssueLevelLabel: 'Hottest issue level',
       activitySignalHeavy: 'Issue-heavy',

@@ -1069,6 +1069,7 @@ const Dashboard: React.FC = () => {
       `Signal hint: ${activityDigest.activitySignalMode.hint}`,
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
       `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
+      activityDigest.hottestRecentIssue ? `Hottest issue repeats: ${activityDigest.hottestRecentIssue.count}` : null,
       activityDigest.hottestRecentIssue ? `Hottest issue freshness: ${activityDigest.hottestIssueFreshness.label}` : null,
       activityDigest.hottestRecentIssue ? `Hottest issue level: ${activityDigest.hottestIssueLevel.label}` : null,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
@@ -2053,6 +2054,9 @@ const Dashboard: React.FC = () => {
                         {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
                       </Typography.Text>
                       <Space wrap>
+                        <Tag color="magenta">
+                          {`${t.dashboard.hottestIssueRepeatsLabel}: ${activityDigest.topRecentIssues[0].count}`}
+                        </Tag>
                         <Tag color={activityDigest.hottestIssueFreshness.color}>
                           {`${t.dashboard.hottestIssueFreshnessLabel}: ${activityDigest.hottestIssueFreshness.label}`}
                         </Tag>
