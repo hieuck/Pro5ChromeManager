@@ -233,6 +233,7 @@ const en: TranslationKeys = {
       showing: 'Showing',
     visibleBreakdown: 'Visible breakdown',
     visibleEntries: 'visible entries',
+    searchMatches: '{count} search matches',
     copyVisibleSlice: 'Copy visible slice',
     visibleSliceCopied: 'Visible slice summary copied',
     visibleTrendTitle: 'Issue trend in view',

@@ -718,7 +718,7 @@ const Logs: React.FC = () => {
             type={(filteredCounts.error || filteredCounts.warn) ? 'warning' : 'info'}
             showIcon
             message={t.logs.visibleBreakdown}
-            description={`${filteredEntries.length} ${t.logs.visibleEntries} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
+            description={`${filteredEntries.length} ${t.logs.visibleEntries}${query.trim() ? ` · ${t.logs.searchMatches.replace('{count}', String(filteredEntries.length))}` : ''} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
             action={(
               <Button size="small" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSliceSummary(); }}>
                 {t.logs.copyVisibleSlice}
