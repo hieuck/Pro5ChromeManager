@@ -243,6 +243,8 @@ const en: TranslationKeys = {
       issuesOnly: 'Issues only',
       resetFilters: 'Reset filters',
       filtersReset: 'Filters reset',
+      lastRefreshed: 'Last refreshed',
+      autoRefreshOn: 'auto refresh on',
       incidentSummary: 'Incident summary',
     incidentHint: 'Focus on recent errors and warnings first before reading the full stream.',
     latestIssue: 'Latest issue',

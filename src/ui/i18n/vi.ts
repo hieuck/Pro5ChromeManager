@@ -241,6 +241,8 @@ const vi = {
       issuesOnly: 'Chỉ lỗi/cảnh báo',
       resetFilters: 'Xóa bộ lọc',
       filtersReset: 'Đã xóa bộ lọc',
+      lastRefreshed: 'Lần làm mới gần nhất',
+      autoRefreshOn: 'đang tự làm mới',
       incidentSummary: 'Tóm tắt sự cố',
     incidentHint: 'Ưu tiên xem lỗi và cảnh báo gần đây trước khi đọc toàn bộ dòng log.',
     latestIssue: 'Vấn đề mới nhất',

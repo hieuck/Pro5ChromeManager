@@ -71,6 +71,7 @@ const Logs: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>('all');
   const [query, setQuery] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -83,6 +84,7 @@ const Logs: React.FC = () => {
     }
 
     setEntries(res.data.slice().reverse().map(parseLogEntry));
+    setLastRefreshedAt(new Date().toISOString());
   }, []);
 
   useEffect(() => {
@@ -263,6 +265,9 @@ const Logs: React.FC = () => {
             </Space>
             <Typography.Text type="secondary">
               {`${t.logs.showing}: ${filteredEntries.length}/${entries.length}`}
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              {`${t.logs.lastRefreshed}: ${formatTimestamp(lastRefreshedAt)}${autoRefresh ? ` · ${t.logs.autoRefreshOn}` : ''}`}
             </Typography.Text>
           </Space>
         </Card>
