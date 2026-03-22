@@ -435,6 +435,45 @@ const Logs: React.FC = () => {
     }
   }, [latestVisibleIssue, t.logs.copyFailed, t.logs.visibleIssueCopied]);
 
+  const handleCopyVisibleSliceSummary = useCallback(async () => {
+    const lines = [
+      'Pro5 visible log slice',
+      `Visible entries: ${filteredEntries.length}/${entries.length}`,
+      `Visible errors: ${filteredCounts.error}`,
+      `Visible warnings: ${filteredCounts.warn}`,
+      `Visible info: ${filteredCounts.info}`,
+      `Recent window only: ${recentWindowOnly ? 'yes' : 'no'}`,
+      `Sort order: ${sortOrder}`,
+      `Search: ${query.trim() || 'none'}`,
+      `Visible issues in last 15 minutes: ${visibleIssueTrend.last15m}`,
+      `Visible issues in last 60 minutes: ${visibleIssueTrend.last60m}`,
+      latestVisibleIssue
+        ? `Latest visible issue: ${latestVisibleIssue.level.toUpperCase()} | ${latestVisibleIssue.timestamp ?? 'unknown'} | ${latestVisibleIssue.message}`
+        : 'Latest visible issue: none',
+    ];
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      void message.success(t.logs.visibleSliceCopied);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [
+    entries.length,
+    filteredCounts.error,
+    filteredCounts.info,
+    filteredCounts.warn,
+    filteredEntries.length,
+    latestVisibleIssue,
+    query,
+    recentWindowOnly,
+    sortOrder,
+    t.logs.copyFailed,
+    t.logs.visibleSliceCopied,
+    visibleIssueTrend.last15m,
+    visibleIssueTrend.last60m,
+  ]);
+
   const handleFocusRepeatedRecentIssue = useCallback((messageText: string) => {
     if (!messageText) return;
 
@@ -641,6 +680,11 @@ const Logs: React.FC = () => {
             showIcon
             message={t.logs.visibleBreakdown}
             description={`${filteredEntries.length} ${t.logs.visibleEntries} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
+            action={(
+              <Button size="small" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSliceSummary(); }}>
+                {t.logs.copyVisibleSlice}
+              </Button>
+            )}
           />
         ) : null}
 

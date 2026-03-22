@@ -231,6 +231,8 @@ const vi = {
       showing: 'Đang hiển thị',
     visibleBreakdown: 'Phân rã phần đang xem',
     visibleEntries: 'dòng đang hiển thị',
+    copyVisibleSlice: 'Sao chép phần đang xem',
+    visibleSliceCopied: 'Đã sao chép tóm tắt phần đang xem',
     visibleTrendTitle: 'Xu hướng sự cố trong phần đang xem',
     visibleTrendLast15: '{count} sự cố trong 15 phút gần nhất',
     visibleTrendLast60: '{count} sự cố trong 60 phút gần nhất',
