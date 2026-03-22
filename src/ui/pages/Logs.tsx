@@ -328,7 +328,12 @@ const Logs: React.FC = () => {
   const repeatedRecentIssue = repeatedRecentIssues[0] ?? null;
 
   const repeatedRecentSources = useMemo(() => {
-    const countsBySource = new Map<string, { count: number; level: 'warn' | 'error'; source: string }>();
+    const countsBySource = new Map<string, {
+      count: number;
+      level: 'warn' | 'error';
+      source: string;
+      latestEntry: ParsedLogEntry;
+    }>();
 
     for (const entry of recentIssueEntries) {
       if (!entry.source) continue;
@@ -337,6 +342,9 @@ const Logs: React.FC = () => {
       if (current) {
         current.count += 1;
         if (entry.level === 'error') current.level = 'error';
+        if ((entry.timestamp ?? '') > (current.latestEntry.timestamp ?? '')) {
+          current.latestEntry = entry;
+        }
         continue;
       }
 
@@ -344,6 +352,7 @@ const Logs: React.FC = () => {
         count: 1,
         level: entry.level,
         source: entry.source,
+        latestEntry: entry,
       });
     }
 
@@ -908,7 +917,7 @@ const Logs: React.FC = () => {
             type={hottestRecentSource.level === 'error' ? 'error' : 'warning'}
             showIcon
             message={t.logs.recentIssueSourceTitle}
-            description={`${hottestRecentSource.source} · ${t.logs.recentIssueSourceCount.replace('{count}', String(hottestRecentSource.count))}`}
+            description={`${hottestRecentSource.source} · ${t.logs.recentIssueSourceCount.replace('{count}', String(hottestRecentSource.count))} · ${hottestRecentSource.latestEntry.message}`}
             action={(
               <Button size="small" onClick={() => handleFocusRecentIssueSource(hottestRecentSource.source)}>
                 {t.logs.focusRecentIssueSource}
@@ -947,6 +956,9 @@ const Logs: React.FC = () => {
                     </Space>
                     <Typography.Text type="secondary">
                       {t.logs.recentIssueSourceCount.replace('{count}', String(item.count))}
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                      {item.latestEntry.message}
                     </Typography.Text>
                   </Space>
                 </List.Item>
