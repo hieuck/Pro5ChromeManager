@@ -346,6 +346,10 @@ const Dashboard: React.FC = () => {
     void message.success(t.dashboard.diagnosticsExportStarted);
   }, [t.dashboard.diagnosticsExportStarted]);
 
+  const handleOpenCreateProfile = useCallback(() => {
+    navigate('/profiles', { state: { openCreate: true } });
+  }, [navigate]);
+
   const handleCreateBackup = useCallback(async () => {
     setCreatingBackup(true);
     const res = await apiClient.post<BackupEntry>('/api/backups');
@@ -396,7 +400,11 @@ const Dashboard: React.FC = () => {
                 {t.dashboard.subtitle}
               </Typography.Paragraph>
               <Space wrap>
-                <Button type="primary" icon={<UserOutlined />} onClick={() => navigate('/profiles')}>
+                <Button
+                  type="primary"
+                  icon={<UserOutlined />}
+                  onClick={profiles.length ? () => navigate('/profiles') : handleOpenCreateProfile}
+                >
                   {t.dashboard.openProfiles}
                 </Button>
                 <Button icon={<ApiOutlined />} onClick={() => navigate('/proxies')}>
@@ -477,7 +485,12 @@ const Dashboard: React.FC = () => {
               extra={<Button type="link" onClick={() => navigate('/profiles')}>{t.dashboard.review}</Button>}
             >
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Button type="primary" block icon={<UserOutlined />} onClick={() => navigate('/profiles')}>
+                <Button
+                  type="primary"
+                  block
+                  icon={<UserOutlined />}
+                  onClick={profiles.length ? () => navigate('/profiles') : handleOpenCreateProfile}
+                >
                   {profiles.length ? t.dashboard.openProfiles : t.dashboard.createFirstProfile}
                 </Button>
                 <Button

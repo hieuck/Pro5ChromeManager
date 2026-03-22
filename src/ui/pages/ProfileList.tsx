@@ -34,6 +34,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import ProfileForm from '../components/ProfileForm';
 import OnboardingWizard from '../components/OnboardingWizard';
@@ -100,6 +101,8 @@ const cardStyle: React.CSSProperties = {
 
 const ProfileList: React.FC = () => {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [proxies, setProxies] = useState<ProxyOption[]>([]);
   const [instances, setInstances] = useState<Record<string, Instance>>({});
@@ -169,6 +172,17 @@ const ProfileList: React.FC = () => {
     void fetchInstances();
     void fetchConfig();
   }, [fetchConfig, fetchInstances, fetchProfiles, fetchProxies]);
+
+  useEffect(() => {
+    const state = location.state as { openCreate?: boolean } | null;
+    if (!state?.openCreate) {
+      return;
+    }
+
+    setEditingId(undefined);
+    setDrawerOpen(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   useWebSocket((event) => {
     if (
