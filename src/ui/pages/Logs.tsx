@@ -215,6 +215,11 @@ const Logs: React.FC = () => {
     error: filteredEntries.filter((entry) => entry.level === 'error').length,
   }), [filteredEntries]);
 
+  const visibleIssueRatio = useMemo(() => {
+    if (!filteredEntries.length) return 0;
+    return Math.round(((filteredCounts.error + filteredCounts.warn) / filteredEntries.length) * 100);
+  }, [filteredCounts.error, filteredCounts.warn, filteredEntries.length]);
+
   const latestIssue = useMemo(
     () => entries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
     [entries],
@@ -718,7 +723,7 @@ const Logs: React.FC = () => {
             type={(filteredCounts.error || filteredCounts.warn) ? 'warning' : 'info'}
             showIcon
             message={t.logs.visibleBreakdown}
-            description={`${filteredEntries.length} ${t.logs.visibleEntries}${query.trim() ? ` · ${t.logs.searchMatches.replace('{count}', String(filteredEntries.length))}` : ''} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
+            description={`${filteredEntries.length} ${t.logs.visibleEntries}${query.trim() ? ` · ${t.logs.searchMatches.replace('{count}', String(filteredEntries.length))}` : ''} · ${t.logs.visibleIssueRatio.replace('{count}', String(visibleIssueRatio))} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
             action={(
               <Button size="small" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSliceSummary(); }}>
                 {t.logs.copyVisibleSlice}

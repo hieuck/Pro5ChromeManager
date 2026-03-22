@@ -234,6 +234,7 @@ const en: TranslationKeys = {
     visibleBreakdown: 'Visible breakdown',
     visibleEntries: 'visible entries',
     searchMatches: '{count} search matches',
+    visibleIssueRatio: '{count}% issues',
     copyVisibleSlice: 'Copy visible slice',
     visibleSliceCopied: 'Visible slice summary copied',
     visibleTrendTitle: 'Issue trend in view',

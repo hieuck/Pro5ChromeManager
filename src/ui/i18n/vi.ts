@@ -232,6 +232,7 @@ const vi = {
     visibleBreakdown: 'Phân rã phần đang xem',
     visibleEntries: 'dòng đang hiển thị',
     searchMatches: '{count} dòng khớp search',
+    visibleIssueRatio: '{count}% là lỗi/cảnh báo',
     copyVisibleSlice: 'Sao chép phần đang xem',
     visibleSliceCopied: 'Đã sao chép tóm tắt phần đang xem',
     visibleTrendTitle: 'Xu hướng sự cố trong phần đang xem',
