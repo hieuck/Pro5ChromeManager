@@ -379,6 +379,12 @@ const Dashboard: React.FC = () => {
     ).sort((a, b) => b[1] - a[1]);
 
     const topSource = topSources[0] ?? null;
+    const topSourceLatestIncident = topSource
+      ? incidents
+          .filter((incident) => incident.source === topSource[0])
+          .slice()
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null
+      : null;
     const incidents15 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 15)).length;
     const incidents60 = incidents.filter((incident) => isWithinLastMinutes(incident.timestamp, 60)).length;
     const heat =
@@ -405,6 +411,7 @@ const Dashboard: React.FC = () => {
       errorRatio: incidents.length ? Math.round((incidents.filter((incident) => incident.level === 'error').length / incidents.length) * 100) : 0,
       latestIncident,
       topSource,
+      topSourceLatestIncident,
       topSourceRatio: topSource ? Math.round((topSource[1] / incidents.length) * 100) : 0,
       topSources: topSources.slice(0, 3),
     };
@@ -717,6 +724,10 @@ const Dashboard: React.FC = () => {
       `Warnings: ${incidentDigest.warnings}`,
       `Error ratio: ${incidentDigest.errorRatio}%`,
       incidentDigest.topSource ? `Top source share: ${incidentDigest.topSource[0]} (${incidentDigest.topSourceRatio}%)` : null,
+      incidentDigest.topSourceLatestIncident
+        ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
+        : null,
+      incidentDigest.topSourceLatestIncident ? `Top source message: ${incidentDigest.topSourceLatestIncident.message}` : null,
       `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
       `Latest source: ${incidentDigest.latestIncident.source}`,
       `Latest message: ${incidentDigest.latestIncident.message}`,
@@ -782,8 +793,10 @@ const Dashboard: React.FC = () => {
       'Pro5 top incident source',
       `Source: ${incidentDigest.topSource[0]}`,
       `Count (recent incidents): ${incidentDigest.topSource[1]}`,
-      `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
-      `Latest message: ${incidentDigest.latestIncident.message}`,
+      incidentDigest.topSourceLatestIncident
+        ? `Latest incident: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
+        : null,
+      incidentDigest.topSourceLatestIncident ? `Latest message: ${incidentDigest.topSourceLatestIncident.message}` : null,
     ];
 
     try {
@@ -1587,6 +1600,11 @@ const Dashboard: React.FC = () => {
                   <Typography.Text type="secondary">
                     {`${t.dashboard.latestMessageLabel}: ${summarizeIssueMessage(incidentDigest.latestIncident.message, 120)}`}
                   </Typography.Text>
+                  {incidentDigest.topSourceLatestIncident ? (
+                    <Typography.Text type="secondary">
+                      {`${t.dashboard.topSourceLatestMessageLabel}: ${summarizeIssueMessage(incidentDigest.topSourceLatestIncident.message, 120)}`}
+                    </Typography.Text>
+                  ) : null}
                 </Space>
               ) : null}
               <List
