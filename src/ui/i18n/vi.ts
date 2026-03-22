@@ -239,6 +239,8 @@ const vi = {
       copyFailed: 'Không thể sao chép log',
     autoRefresh: 'Tự làm mới',
     issuesOnly: 'Chỉ lỗi/cảnh báo',
+    recentIssuesPreset: 'Sự cố gần đây',
+    recentIssuesPresetApplied: 'Đã bật preset sự cố gần đây',
     recentWindowOnly: '60 phút gần nhất',
     recentWindowOnlyActive: 'lọc 60 phút gần nhất',
     resetFilters: 'Xóa bộ lọc',

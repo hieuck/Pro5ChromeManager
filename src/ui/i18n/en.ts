@@ -241,6 +241,8 @@ const en: TranslationKeys = {
       copyFailed: 'Failed to copy logs',
     autoRefresh: 'Auto refresh',
     issuesOnly: 'Issues only',
+    recentIssuesPreset: 'Recent incidents',
+    recentIssuesPresetApplied: 'Recent incident preset applied',
     recentWindowOnly: 'Last 60 minutes',
     recentWindowOnlyActive: 'last 60 minutes only',
     resetFilters: 'Reset filters',

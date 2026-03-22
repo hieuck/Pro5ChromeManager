@@ -216,6 +216,12 @@ const Logs: React.FC = () => {
     void message.success(t.logs.filtersReset);
   }, [t.logs.filtersReset]);
 
+  const handleRecentIssuesPreset = useCallback(() => {
+    setFilter('issues');
+    setRecentWindowOnly(true);
+    void message.success(t.logs.recentIssuesPresetApplied);
+  }, [t.logs.recentIssuesPresetApplied]);
+
   const handleCopyIssueDigest = useCallback(async () => {
     const digestLines = [
       'Pro5 log digest',
@@ -303,6 +309,9 @@ const Logs: React.FC = () => {
               </Button>
               <Button onClick={() => setFilter('issues')}>
                 {t.logs.issuesOnly}
+              </Button>
+              <Button onClick={handleRecentIssuesPreset}>
+                {t.logs.recentIssuesPreset}
               </Button>
               <Button type={recentWindowOnly ? 'primary' : 'default'} onClick={() => setRecentWindowOnly((value) => !value)}>
                 {t.logs.recentWindowOnly}
