@@ -333,6 +333,47 @@ const Logs: React.FC = () => {
 
   const visibleTopSource = visibleSources[0] ?? null;
 
+  const visibleTopSourceShare = useMemo(() => {
+    if (!visibleTopSource || !matchedEntries.length) return 0;
+    return Math.round((visibleTopSource.count / matchedEntries.length) * 100);
+  }, [matchedEntries.length, visibleTopSource]);
+
+  const visibleTopSourcesConcentration = useMemo(() => {
+    if (!matchedEntries.length) return 0;
+    const visibleTopCount = visibleSources.reduce((sum, source) => sum + source.count, 0);
+    return Math.round((visibleTopCount / matchedEntries.length) * 100);
+  }, [matchedEntries.length, visibleSources]);
+
+  const visibleSourceMode = useMemo(() => {
+    if (visibleTopSourceShare >= 60 || visibleTopSourcesConcentration >= 85) {
+      return {
+        label: t.logs.visibleSourceModeFocused,
+        hint: t.logs.visibleSourceModeFocusedHint,
+      };
+    }
+
+    if (visibleTopSourceShare >= 35 || visibleTopSourcesConcentration >= 65) {
+      return {
+        label: t.logs.visibleSourceModeMixed,
+        hint: t.logs.visibleSourceModeMixedHint,
+      };
+    }
+
+    return {
+      label: t.logs.visibleSourceModeDistributed,
+      hint: t.logs.visibleSourceModeDistributedHint,
+    };
+  }, [
+    t.logs.visibleSourceModeDistributed,
+    t.logs.visibleSourceModeDistributedHint,
+    t.logs.visibleSourceModeFocused,
+    t.logs.visibleSourceModeFocusedHint,
+    t.logs.visibleSourceModeMixed,
+    t.logs.visibleSourceModeMixedHint,
+    visibleTopSourceShare,
+    visibleTopSourcesConcentration,
+  ]);
+
   const repeatedRecentIssues = useMemo(() => {
     const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
 
@@ -693,6 +734,10 @@ const Logs: React.FC = () => {
       'Pro5 visible source digest',
       `Source: ${source.source}`,
       `Visible lines: ${source.count}`,
+      `Top source share: ${visibleTopSourceShare}%`,
+      `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
+      `Source mode: ${visibleSourceMode.label}`,
+      `Source hint: ${visibleSourceMode.hint}`,
       `Latest level: ${source.latestEntry.level.toUpperCase()}`,
       `Latest timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
       `Latest message: ${source.latestEntry.message}`,
@@ -705,7 +750,15 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [t.logs.copyFailed, t.logs.visibleSourceDigestCopied, t.logs.visibleSourceDigestUnavailable]);
+  }, [
+    t.logs.copyFailed,
+    t.logs.visibleSourceDigestCopied,
+    t.logs.visibleSourceDigestUnavailable,
+    visibleSourceMode.hint,
+    visibleSourceMode.label,
+    visibleTopSourceShare,
+    visibleTopSourcesConcentration,
+  ]);
 
   const handleCopyVisibleSources = useCallback(async () => {
     if (!visibleSources.length) {
@@ -1051,6 +1104,13 @@ const Logs: React.FC = () => {
                   ]}
                 >
                   <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    {item.source === visibleTopSource?.source ? (
+                      <Space wrap>
+                        <Tag color="blue">{`${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`}</Tag>
+                        <Tag color="purple">{`${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`}</Tag>
+                        <Tag color="geekblue">{`${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`}</Tag>
+                      </Space>
+                    ) : null}
                     <Space wrap>
                       <Typography.Text strong>{item.source}</Typography.Text>
                       <Tag>{t.logs.visibleSourceCount.replace('{count}', String(item.count))}</Tag>
@@ -1061,6 +1121,11 @@ const Logs: React.FC = () => {
                     <Typography.Text type="secondary">
                       {item.latestEntry.message}
                     </Typography.Text>
+                    {item.source === visibleTopSource?.source ? (
+                      <Typography.Text type="secondary">
+                        {`${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`}
+                      </Typography.Text>
+                    ) : null}
                   </Space>
                 </List.Item>
               )}
