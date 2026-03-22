@@ -89,6 +89,12 @@ interface FeedbackEntry {
   appVersion: string | null;
 }
 
+interface BackupEntry {
+  filename: string;
+  timestamp: string;
+  sizeBytes: number;
+}
+
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
@@ -109,6 +115,7 @@ const Dashboard: React.FC = () => {
   const [incidents, setIncidents] = useState<IncidentEntry[]>([]);
   const [selfTest, setSelfTest] = useState<SelfTestResult | null>(null);
   const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
+  const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
   const [startingAllReady, setStartingAllReady] = useState(false);
@@ -118,17 +125,19 @@ const Dashboard: React.FC = () => {
   const [retestingAll, setRetestingAll] = useState(false);
   const [runningSelfTest, setRunningSelfTest] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
   const [feedbackForm] = Form.useForm();
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
-    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes] = await Promise.all([
+    const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes] = await Promise.all([
       apiClient.get<DashboardProfile[]>('/api/profiles'),
       apiClient.get<DashboardProxy[]>('/api/proxies'),
       apiClient.get<DashboardInstance[]>('/api/instances'),
       apiClient.get<SupportStatus>('/api/support/status'),
       apiClient.get<{ count: number; incidents: IncidentEntry[] }>('/api/support/incidents?limit=5'),
       apiClient.get<{ count: number; entries: FeedbackEntry[] }>('/api/support/feedback?limit=3'),
+      apiClient.get<BackupEntry[]>('/api/backups'),
     ]);
 
     if (profilesRes.success) setProfiles(profilesRes.data);
@@ -139,6 +148,7 @@ const Dashboard: React.FC = () => {
     if (supportRes.success) setSupport(supportRes.data);
     if (incidentsRes.success) setIncidents(incidentsRes.data.incidents);
     if (feedbackRes.success) setFeedbackEntries(feedbackRes.data.entries);
+    if (backupsRes.success) setBackups(backupsRes.data.slice(0, 3));
     setLoading(false);
   }, []);
 
@@ -336,6 +346,18 @@ const Dashboard: React.FC = () => {
     void message.success(t.dashboard.diagnosticsExportStarted);
   }, [t.dashboard.diagnosticsExportStarted]);
 
+  const handleCreateBackup = useCallback(async () => {
+    setCreatingBackup(true);
+    const res = await apiClient.post<BackupEntry>('/api/backups');
+    setCreatingBackup(false);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void message.success(`${t.dashboard.backupCreated}: ${res.data.filename}`);
+    await loadDashboard();
+  }, [loadDashboard, t.dashboard.backupCreated]);
+
   const handleSubmitFeedback = useCallback(async () => {
     const values = await feedbackForm.validateFields() as {
       category: 'bug' | 'feedback' | 'question';
@@ -382,6 +404,9 @@ const Dashboard: React.FC = () => {
                 </Button>
                 <Button icon={<DownloadOutlined />} onClick={handleExportDiagnostics}>
                   {t.dashboard.exportDiagnostics}
+                </Button>
+                <Button loading={creatingBackup} onClick={() => { void handleCreateBackup(); }}>
+                  {t.dashboard.createBackup}
                 </Button>
                 <Button icon={<SettingOutlined />} onClick={() => navigate('/settings')}>
                   {t.dashboard.openSettings}
@@ -648,6 +673,51 @@ const Dashboard: React.FC = () => {
             </Space>
           ) : (
             <Empty description={t.dashboard.selfTestEmpty} />
+          )}
+        </Card>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.backupTitle}
+          extra={(
+            <Space>
+              <Button loading={creatingBackup} onClick={() => { void handleCreateBackup(); }}>
+                {t.dashboard.createBackup}
+              </Button>
+              <Button type="link" onClick={() => navigate('/settings')}>{t.dashboard.openSettings}</Button>
+            </Space>
+          )}
+        >
+          {backups.length ? (
+            <List
+              dataSource={backups}
+              renderItem={(backup) => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="download"
+                      type="link"
+                      icon={<DownloadOutlined />}
+                      onClick={() => window.open(`http://127.0.0.1:3210/api/backups/export/${encodeURIComponent(backup.filename)}`, '_blank')}
+                    >
+                      {t.dashboard.downloadBackup}
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={backup.filename}
+                    description={(
+                      <Space wrap>
+                        <Typography.Text type="secondary">{formatTime(backup.timestamp)}</Typography.Text>
+                        <Tag>{`${Math.max(1, Math.round(backup.sizeBytes / 1024))} KB`}</Tag>
+                      </Space>
+                    )}
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty description={t.dashboard.noBackupsYet} />
           )}
         </Card>
 
