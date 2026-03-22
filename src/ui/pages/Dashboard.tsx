@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, List, Row, Space, Statistic, Tag, Typography, message } from 'antd';
-import { ApiOutlined, ArrowRightOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { ApiOutlined, ArrowRightOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -101,6 +101,8 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
   const [startingAllReady, setStartingAllReady] = useState(false);
+  const [stoppingProfileId, setStoppingProfileId] = useState<string | null>(null);
+  const [stoppingAllRunning, setStoppingAllRunning] = useState(false);
   const [retestingProfileId, setRetestingProfileId] = useState<string | null>(null);
   const [retestingAll, setRetestingAll] = useState(false);
   const [runningSelfTest, setRunningSelfTest] = useState(false);
@@ -162,6 +164,14 @@ const Dashboard: React.FC = () => {
     [profiles],
   );
 
+  const activeProfiles = useMemo(
+    () => profiles
+      .filter((profile) => instances[profile.id]?.status === 'running')
+      .sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime())
+      .slice(0, 5),
+    [instances, profiles],
+  );
+
   const launchReadyProfiles = useMemo(
     () => profiles
       .filter((profile) => {
@@ -196,6 +206,18 @@ const Dashboard: React.FC = () => {
     await loadDashboard();
   }, [loadDashboard, t.dashboard.profileStarted]);
 
+  const handleStopProfile = useCallback(async (profileId: string) => {
+    setStoppingProfileId(profileId);
+    const res = await apiClient.post(`/api/profiles/${profileId}/stop`);
+    setStoppingProfileId(null);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+    void message.success(t.dashboard.profileStopped);
+    await loadDashboard();
+  }, [loadDashboard, t.dashboard.profileStopped]);
+
   const handleStartAllReadyProfiles = useCallback(async () => {
     if (!launchReadyProfiles.length) {
       return;
@@ -217,6 +239,28 @@ const Dashboard: React.FC = () => {
     }
     await loadDashboard();
   }, [launchReadyProfiles, loadDashboard, t.dashboard.bulkStartReadyResult]);
+
+  const handleStopAllRunningProfiles = useCallback(async () => {
+    if (!activeProfiles.length) {
+      return;
+    }
+    setStoppingAllRunning(true);
+    const results = await Promise.all(
+      activeProfiles.map(async (profile) => ({
+        id: profile.id,
+        res: await apiClient.post(`/api/profiles/${profile.id}/stop`),
+      })),
+    );
+    setStoppingAllRunning(false);
+
+    const failures = results.filter(({ res }) => !res.success);
+    if (failures.length) {
+      void message.warning(`${t.dashboard.bulkStopRunningResult}: ${results.length - failures.length}/${results.length}`);
+    } else {
+      void message.success(`${t.dashboard.bulkStopRunningResult}: ${results.length}/${results.length}`);
+    }
+    await loadDashboard();
+  }, [activeProfiles, loadDashboard, t.dashboard.bulkStopRunningResult]);
 
   const handleRetestProxy = useCallback(async (profile: DashboardProfile) => {
     if (!profile.proxy?.id) {
@@ -614,6 +658,58 @@ const Dashboard: React.FC = () => {
             />
           ) : (
             <Empty description={t.dashboard.noLaunchReadyProfiles} />
+          )}
+        </Card>
+
+        <Card
+          style={cardStyle}
+          title={t.dashboard.runningNowTitle}
+          extra={(
+            <Space>
+              <Button
+                type="link"
+                loading={stoppingAllRunning}
+                disabled={!activeProfiles.length}
+                onClick={() => { void handleStopAllRunningProfiles(); }}
+              >
+                {t.dashboard.stopAllRunning}
+              </Button>
+              <Button type="link" onClick={() => navigate('/profiles')}>{t.dashboard.openProfiles}</Button>
+            </Space>
+          )}
+        >
+          {activeProfiles.length ? (
+            <List
+              dataSource={activeProfiles}
+              renderItem={(profile) => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="stop"
+                      type="link"
+                      icon={<StopOutlined />}
+                      loading={stoppingProfileId === profile.id}
+                      onClick={() => { void handleStopProfile(profile.id); }}
+                    >
+                      {t.profile.stopProfile}
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={profile.name}
+                    description={(
+                      <Space wrap>
+                        <Tag color="green">{t.dashboard.runningTag}</Tag>
+                        {profile.group ? <Tag>{profile.group}</Tag> : null}
+                        {profile.runtime ? <Tag>{profile.runtime}</Tag> : null}
+                      </Space>
+                    )}
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty description={t.dashboard.noRunningProfiles} />
           )}
         </Card>
 
