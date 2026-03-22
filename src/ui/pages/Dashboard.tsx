@@ -100,6 +100,7 @@ const Dashboard: React.FC = () => {
   const [selfTest, setSelfTest] = useState<SelfTestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [startingProfileId, setStartingProfileId] = useState<string | null>(null);
+  const [startingAllReady, setStartingAllReady] = useState(false);
   const [retestingProfileId, setRetestingProfileId] = useState<string | null>(null);
   const [retestingAll, setRetestingAll] = useState(false);
   const [runningSelfTest, setRunningSelfTest] = useState(false);
@@ -194,6 +195,28 @@ const Dashboard: React.FC = () => {
     void message.success(t.dashboard.profileStarted);
     await loadDashboard();
   }, [loadDashboard, t.dashboard.profileStarted]);
+
+  const handleStartAllReadyProfiles = useCallback(async () => {
+    if (!launchReadyProfiles.length) {
+      return;
+    }
+    setStartingAllReady(true);
+    const results = await Promise.all(
+      launchReadyProfiles.map(async (profile) => ({
+        id: profile.id,
+        res: await apiClient.post(`/api/profiles/${profile.id}/start`),
+      })),
+    );
+    setStartingAllReady(false);
+
+    const failures = results.filter(({ res }) => !res.success);
+    if (failures.length) {
+      void message.warning(`${t.dashboard.bulkStartReadyResult}: ${results.length - failures.length}/${results.length}`);
+    } else {
+      void message.success(`${t.dashboard.bulkStartReadyResult}: ${results.length}/${results.length}`);
+    }
+    await loadDashboard();
+  }, [launchReadyProfiles, loadDashboard, t.dashboard.bulkStartReadyResult]);
 
   const handleRetestProxy = useCallback(async (profile: DashboardProfile) => {
     if (!profile.proxy?.id) {
@@ -539,7 +562,19 @@ const Dashboard: React.FC = () => {
         <Card
           style={cardStyle}
           title={t.dashboard.launchReadyTitle}
-          extra={<Button type="link" onClick={() => navigate('/profiles')}>{t.dashboard.openProfiles}</Button>}
+          extra={(
+            <Space>
+              <Button
+                type="link"
+                loading={startingAllReady}
+                disabled={!launchReadyProfiles.length}
+                onClick={() => { void handleStartAllReadyProfiles(); }}
+              >
+                {t.dashboard.startAllReady}
+              </Button>
+              <Button type="link" onClick={() => navigate('/profiles')}>{t.dashboard.openProfiles}</Button>
+            </Space>
+          )}
         >
           {launchReadyProfiles.length ? (
             <List

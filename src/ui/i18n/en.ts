@@ -45,6 +45,8 @@ const en: TranslationKeys = {
     lastSelfTest: 'Last self-test',
     selfTestEmpty: 'No self-test has been run yet.',
     launchReadyTitle: 'Ready to launch',
+    startAllReady: 'Start all ready',
+    bulkStartReadyResult: 'Ready profiles started',
     readyTag: 'Ready',
     noProxyTag: 'No proxy',
     noLaunchReadyProfiles: 'No launch-ready profiles yet.',

@@ -43,6 +43,8 @@ const vi = {
     lastSelfTest: 'Lần self-test gần nhất',
     selfTestEmpty: 'Chưa có self-test nào được chạy.',
     launchReadyTitle: 'Sẵn sàng khởi động',
+    startAllReady: 'Khởi động tất cả',
+    bulkStartReadyResult: 'Đã khởi động hồ sơ sẵn sàng',
     readyTag: 'Sẵn sàng',
     noProxyTag: 'Không proxy',
     noLaunchReadyProfiles: 'Chưa có hồ sơ nào sẵn sàng để khởi động.',
