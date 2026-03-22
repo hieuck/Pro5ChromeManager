@@ -495,6 +495,15 @@ const Dashboard: React.FC = () => {
         : latestEntry.level === 'warn'
           ? { color: 'gold', label: t.dashboard.warningCountLabel }
           : { color: 'blue', label: t.dashboard.infoCountLabel };
+    const issueRatio = logs.length
+      ? Math.round(((logs.filter((entry) => entry.level === 'error' || entry.level === 'warn').length) / logs.length) * 100)
+      : 0;
+    const activitySignalMode =
+      issueRatio >= 60
+        ? { color: 'red', label: t.dashboard.activitySignalHeavy, hint: t.dashboard.activitySignalHeavyHint }
+        : issueRatio >= 30
+          ? { color: 'gold', label: t.dashboard.activitySignalMixed, hint: t.dashboard.activitySignalMixedHint }
+          : { color: 'green', label: t.dashboard.activitySignalLight, hint: t.dashboard.activitySignalLightHint };
     const activityActionHint =
       logHeat.incidents15 >= 3 && hottestRecentIssue
         ? t.dashboard.activityActionHottest
@@ -509,10 +518,11 @@ const Dashboard: React.FC = () => {
       errors: logs.filter((entry) => entry.level === 'error').length,
       warnings: logs.filter((entry) => entry.level === 'warn').length,
       infos: logs.filter((entry) => entry.level === 'info').length,
-      issueRatio: logs.length ? Math.round(((logs.filter((entry) => entry.level === 'error' || entry.level === 'warn').length) / logs.length) * 100) : 0,
+      issueRatio,
       latestEntry,
       activityFreshness,
       latestActivityLevel,
+      activitySignalMode,
       hottestRecentIssue,
       topRecentIssues,
       activityActionHint,
@@ -1042,6 +1052,8 @@ const Dashboard: React.FC = () => {
       `Warnings: ${activityDigest.warnings}`,
       `Info: ${activityDigest.infos}`,
       `Issue ratio: ${activityDigest.issueRatio}%`,
+      `Signal mode: ${activityDigest.activitySignalMode.label}`,
+      `Signal hint: ${activityDigest.activitySignalMode.hint}`,
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
       `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
@@ -1986,6 +1998,7 @@ const Dashboard: React.FC = () => {
                     <Tag color="blue">{`${t.dashboard.activityEntriesLabel}: ${activityDigest.total}`}</Tag>
                     <Tag color={activityDigest.activityFreshness.color}>{`${t.dashboard.activityFreshnessLabel}: ${activityDigest.activityFreshness.label}`}</Tag>
                     <Tag color={activityDigest.latestActivityLevel.color}>{`${t.dashboard.latestActivityLevelLabel}: ${activityDigest.latestActivityLevel.label}`}</Tag>
+                    <Tag color={activityDigest.activitySignalMode.color}>{`${t.dashboard.activitySignalModeLabel}: ${activityDigest.activitySignalMode.label}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${activityDigest.errors}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${activityDigest.warnings}`}</Tag>
                     <Tag color="blue">{`${t.dashboard.infoCountLabel}: ${activityDigest.infos}`}</Tag>
@@ -2020,10 +2033,13 @@ const Dashboard: React.FC = () => {
                     ))}
                   </Space>
                   {activityDigest.topRecentIssues[0] ? (
-                    <Typography.Text type="secondary">
-                      {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
-                    </Typography.Text>
+                  <Typography.Text type="secondary">
+                    {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
+                  </Typography.Text>
                   ) : null}
+                  <Typography.Text type="secondary">
+                    {`${t.dashboard.activitySignalHintLabel}: ${activityDigest.activitySignalMode.hint}`}
+                  </Typography.Text>
                   <Typography.Text type="secondary">
                     {`${t.dashboard.activityActionHintLabel}: ${activityDigest.activityActionHint}`}
                   </Typography.Text>
