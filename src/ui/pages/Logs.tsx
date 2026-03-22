@@ -295,13 +295,16 @@ const Logs: React.FC = () => {
       'Pro5 log digest',
       `Visible entries: ${filteredEntries.length}/${entries.length}`,
       `Issues: ${issueEntries.length}`,
-      `Errors: ${counts.error}`,
-      `Warnings: ${counts.warn}`,
+      `Visible errors: ${filteredCounts.error}`,
+      `Visible warnings: ${filteredCounts.warn}`,
+      `Visible info: ${filteredCounts.info}`,
       `Active filter: ${filter}`,
+      `Recent window only: ${recentWindowOnly ? 'yes' : 'no'}`,
+      `Sort order: ${sortOrder}`,
       query.trim() ? `Search: ${query.trim()}` : 'Search: none',
-      latestIssue
-        ? `Latest issue: ${latestIssue.level.toUpperCase()} | ${latestIssue.timestamp ?? 'unknown'} | ${latestIssue.message}`
-        : 'Latest issue: none',
+      latestVisibleIssue
+        ? `Latest visible issue: ${latestVisibleIssue.level.toUpperCase()} | ${latestVisibleIssue.timestamp ?? 'unknown'} | ${latestVisibleIssue.message}`
+        : 'Latest visible issue: none',
     ];
 
     try {
@@ -310,7 +313,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [counts.error, counts.warn, entries.length, filter, filteredEntries.length, issueEntries.length, latestIssue, query, t.logs.copyFailed, t.logs.digestCopied]);
+  }, [entries.length, filter, filteredCounts.error, filteredCounts.info, filteredCounts.warn, filteredEntries.length, issueEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.logs.copyFailed, t.logs.digestCopied]);
 
   const handleCopyLatestIssue = useCallback(async () => {
     if (!latestIssue) return;
