@@ -135,7 +135,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
       tags: values.tags ?? [],
       group: values.group ?? null,
       runtime: values.runtime ?? 'auto',
-      proxy: proxyId ? { id: proxyId } : null,
+      proxyId,
       fingerprint,
     };
 

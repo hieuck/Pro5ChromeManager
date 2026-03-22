@@ -471,4 +471,65 @@ describe('Operations endpoints', () => {
     expect(onboardingState.selectedRuntime).toBe('smoke');
     expect(onboardingState.createdProfileId).toBe('profile-123');
   });
+
+  it('resolves proxyId into a full proxy config when creating and updating profiles', async () => {
+    const createProxyRes = await fetch(`${baseUrl}/api/proxies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'http',
+        host: '10.0.0.1',
+        port: 8080,
+        username: 'alice',
+        password: 'secret',
+      }),
+    });
+    expect(createProxyRes.status).toBe(201);
+    const createdProxyJson = await createProxyRes.json() as {
+      success: boolean;
+      data: { id: string };
+    };
+    expect(createdProxyJson.success).toBe(true);
+
+    const createProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Proxy bound profile',
+        runtime: 'auto',
+        proxyId: createdProxyJson.data.id,
+      }),
+    });
+    expect(createProfileRes.status).toBe(201);
+    const createdProfileJson = await createProfileRes.json() as {
+      success: boolean;
+      data: {
+        id: string;
+        proxy: { id: string; host: string; port: number; type: string; username?: string };
+      };
+    };
+    expect(createdProfileJson.success).toBe(true);
+    expect(createdProfileJson.data.proxy.id).toBe(createdProxyJson.data.id);
+    expect(createdProfileJson.data.proxy.host).toBe('10.0.0.1');
+    expect(createdProfileJson.data.proxy.port).toBe(8080);
+    expect(createdProfileJson.data.proxy.type).toBe('http');
+    expect(createdProfileJson.data.proxy.username).toBe('alice');
+
+    const clearProxyRes = await fetch(`${baseUrl}/api/profiles/${createdProfileJson.data.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        proxyId: null,
+      }),
+    });
+    expect(clearProxyRes.status).toBe(200);
+    const clearedProfileJson = await clearProxyRes.json() as {
+      success: boolean;
+      data: {
+        proxy: null;
+      };
+    };
+    expect(clearedProfileJson.success).toBe(true);
+    expect(clearedProfileJson.data.proxy).toBeNull();
+  });
 });

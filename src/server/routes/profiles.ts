@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { profileManager } from '../managers/ProfileManager';
 import { fingerprintEngine } from '../managers/FingerprintEngine';
 import { licenseManager } from '../managers/LicenseManager';
+import { proxyManager } from '../managers/ProxyManager';
 import { usageMetricsManager } from '../managers/UsageMetricsManager';
 import { logger } from '../utils/logger';
 import { dataPath } from '../utils/dataPaths';
@@ -21,6 +22,7 @@ const CreateProfileSchema = z.object({
   group: z.string().nullable().optional(),
   owner: z.string().nullable().optional(),
   runtime: z.string().optional(),
+  proxyId: z.string().nullable().optional(),
 });
 
 const UpdateProfileSchema = z.object({
@@ -30,7 +32,7 @@ const UpdateProfileSchema = z.object({
   group: z.string().nullable().optional(),
   owner: z.string().nullable().optional(),
   runtime: z.string().optional(),
-  proxy: z.unknown().optional(),
+  proxyId: z.string().nullable().optional(),
   fingerprint: z.unknown().optional(),
 });
 
@@ -49,6 +51,21 @@ const CloneProfileSchema = z.object({
   owner: z.string().nullable().optional(),
   runtime: z.string().optional(),
 });
+
+function resolveProxySelection(proxyId?: string | null) {
+  if (proxyId === undefined) {
+    return undefined;
+  }
+  if (proxyId === null) {
+    return null;
+  }
+
+  const proxy = proxyManager.getProxy(proxyId);
+  if (!proxy) {
+    throw new Error(`Proxy not found: ${proxyId}`);
+  }
+  return { ...proxy };
+}
 
 // ─── GET /api/profiles ─────────────────────────────────────────────────────────
 
@@ -91,6 +108,7 @@ router.post('/profiles', async (req: Request, res: Response) => {
       group: body.group ?? null,
       owner: body.owner ?? null,
       runtime: body.runtime,
+      proxy: resolveProxySelection(body.proxyId) ?? null,
     });
     await usageMetricsManager.recordProfileCreated();
     res.status(201).json({ success: true, data: profile });
@@ -186,7 +204,16 @@ router.put('/profiles/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const body = UpdateProfileSchema.parse(req.body);
-    const profile = await profileManager.updateProfile(id, body as Parameters<typeof profileManager.updateProfile>[1]);
+    const profile = await profileManager.updateProfile(id, {
+      name: body.name,
+      notes: body.notes,
+      tags: body.tags,
+      group: body.group,
+      owner: body.owner,
+      runtime: body.runtime,
+      proxy: resolveProxySelection(body.proxyId),
+      fingerprint: body.fingerprint as Parameters<typeof profileManager.updateProfile>[1]['fingerprint'],
+    });
     res.json({ success: true, data: profile });
   } catch (err) {
     logger.error('PUT /api/profiles/:id error', { error: err instanceof Error ? err.message : String(err) });
