@@ -327,6 +327,22 @@ const ProfileList: React.FC = () => {
     void fetchProfiles();
   }
 
+  function selectFilteredProfiles(): void {
+    setSelectedIds(filtered.map((profile) => profile.id));
+  }
+
+  function selectFilteredRunningProfiles(): void {
+    setSelectedIds(
+      filtered
+        .filter((profile) => getProfileStatus(profile.id) === 'running')
+        .map((profile) => profile.id),
+    );
+  }
+
+  function clearSelection(): void {
+    setSelectedIds([]);
+  }
+
   async function handleBulkAssignProxy(): Promise<void> {
     if (!selectedIds.length || bulkProxySelection === undefined) {
       return;
@@ -791,7 +807,18 @@ const ProfileList: React.FC = () => {
 
         <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
           <Col>
-            <Typography.Text type="secondary">{showingResults}</Typography.Text>
+            <Space wrap>
+              <Typography.Text type="secondary">{showingResults}</Typography.Text>
+              <Button size="small" onClick={selectFilteredProfiles} disabled={filtered.length === 0}>
+                Chọn tất cả kết quả lọc
+              </Button>
+              <Button size="small" onClick={selectFilteredRunningProfiles} disabled={filtered.every((profile) => getProfileStatus(profile.id) !== 'running')}>
+                Chọn đang chạy
+              </Button>
+              <Button size="small" onClick={clearSelection} disabled={selectedIds.length === 0}>
+                Bỏ chọn
+              </Button>
+            </Space>
           </Col>
           <Col>
             {selectedIds.length > 0 ? (
