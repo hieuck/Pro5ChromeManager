@@ -166,6 +166,7 @@ const en: TranslationKeys = {
       latestActivityLevelLabel: 'Latest level',
       activitySignalModeLabel: 'Signal mode',
       activitySignalHintLabel: 'Signal read',
+      hottestIssueFreshnessLabel: 'Hottest issue freshness',
       activitySignalHeavy: 'Issue-heavy',
       activitySignalHeavyHint: 'Warn and error signals are dominating the current stream.',
       activitySignalMixed: 'Mixed',

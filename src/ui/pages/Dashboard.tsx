@@ -495,6 +495,13 @@ const Dashboard: React.FC = () => {
         : latestEntry.level === 'warn'
           ? { color: 'gold', label: t.dashboard.warningCountLabel }
           : { color: 'blue', label: t.dashboard.infoCountLabel };
+    const hottestIssueMinutes = minutesSince(hottestRecentIssue?.entry.timestamp ?? null);
+    const hottestIssueFreshness =
+      hottestIssueMinutes !== null && hottestIssueMinutes <= 5
+        ? { color: 'volcano', label: t.dashboard.incidentFreshnessHot }
+        : hottestIssueMinutes !== null && hottestIssueMinutes <= 30
+          ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
+          : { color: 'green', label: t.dashboard.incidentFreshnessStale };
     const issueRatio = logs.length
       ? Math.round(((logs.filter((entry) => entry.level === 'error' || entry.level === 'warn').length) / logs.length) * 100)
       : 0;
@@ -522,6 +529,7 @@ const Dashboard: React.FC = () => {
       latestEntry,
       activityFreshness,
       latestActivityLevel,
+      hottestIssueFreshness,
       activitySignalMode,
       hottestRecentIssue,
       topRecentIssues,
@@ -1056,6 +1064,7 @@ const Dashboard: React.FC = () => {
       `Signal hint: ${activityDigest.activitySignalMode.hint}`,
       `Activity freshness: ${activityDigest.activityFreshness.label}`,
       `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
+      activityDigest.hottestRecentIssue ? `Hottest issue freshness: ${activityDigest.hottestIssueFreshness.label}` : null,
       `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
       `Latest message: ${activityDigest.latestEntry.message}`,
       activityDigest.topRecentIssues.length
@@ -2033,9 +2042,14 @@ const Dashboard: React.FC = () => {
                     ))}
                   </Space>
                   {activityDigest.topRecentIssues[0] ? (
-                  <Typography.Text type="secondary">
-                    {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
-                  </Typography.Text>
+                    <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Typography.Text type="secondary">
+                        {`${t.dashboard.hottestPatternLabel}: ${summarizeIssueMessage(activityDigest.topRecentIssues[0].entry.message, 120)}`}
+                      </Typography.Text>
+                      <Tag color={activityDigest.hottestIssueFreshness.color}>
+                        {`${t.dashboard.hottestIssueFreshnessLabel}: ${activityDigest.hottestIssueFreshness.label}`}
+                      </Tag>
+                    </Space>
                   ) : null}
                   <Typography.Text type="secondary">
                     {`${t.dashboard.activitySignalHintLabel}: ${activityDigest.activitySignalMode.hint}`}

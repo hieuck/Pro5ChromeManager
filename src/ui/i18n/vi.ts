@@ -164,6 +164,7 @@ const vi = {
       latestActivityLevelLabel: 'Mức độ mới nhất',
       activitySignalModeLabel: 'Kiểu tín hiệu',
       activitySignalHintLabel: 'Diễn giải tín hiệu',
+      hottestIssueFreshnessLabel: 'Độ mới issue nóng',
       activitySignalHeavy: 'Nghiêng về issue',
       activitySignalHeavyHint: 'Warn và error đang chiếm phần lớn stream hiện tại.',
       activitySignalMixed: 'Pha trộn',
