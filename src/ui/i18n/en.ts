@@ -136,6 +136,7 @@ const en: TranslationKeys = {
       topSourceLabel: 'Top source',
       topSourcesLabel: 'Also hot',
       topSourceFreshnessLabel: 'Top source freshness',
+      topSourceLatestLevelLabel: 'Top source level',
       topSourceLatestMessageLabel: 'Open top source latest',
       copyTopSourceLatestIncident: 'Copy top source latest',
       topSourceLatestIncidentCopied: 'Top source latest incident copied',

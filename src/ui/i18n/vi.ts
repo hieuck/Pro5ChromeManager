@@ -134,6 +134,7 @@ const vi = {
       topSourceLabel: 'Nguồn chính',
       topSourcesLabel: 'Nguồn nóng khác',
       topSourceFreshnessLabel: 'Độ mới nguồn chính',
+      topSourceLatestLevelLabel: 'Mức độ nguồn chính',
       topSourceLatestMessageLabel: 'Mở nguồn chính mới nhất',
       copyTopSourceLatestIncident: 'Sao chép nguồn chính mới nhất',
       topSourceLatestIncidentCopied: 'Đã sao chép incident mới nhất của nguồn chính',

@@ -437,6 +437,10 @@ const Dashboard: React.FC = () => {
         : topSourceLatestMinutes !== null && topSourceLatestMinutes <= 30
           ? { color: 'gold', label: t.dashboard.incidentFreshnessWarm }
           : { color: 'green', label: t.dashboard.incidentFreshnessStale };
+    const topSourceLatestLevel =
+      topSourceLatestIncident?.level === 'error'
+        ? { color: 'red', label: t.dashboard.errorCountLabel }
+        : { color: 'gold', label: t.dashboard.warningCountLabel };
 
     return {
       total: incidents.length,
@@ -454,6 +458,7 @@ const Dashboard: React.FC = () => {
       topSource,
       topSourceLatestIncident,
       topSourceFreshness,
+      topSourceLatestLevel,
       topSourceRatio: topSource ? Math.round((topSource[1] / incidents.length) * 100) : 0,
       topSourcesConcentration,
       topSources: topSourcesSlice,
@@ -782,6 +787,7 @@ const Dashboard: React.FC = () => {
       incidentDigest.topSourceLatestIncident
         ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
         : null,
+      incidentDigest.topSourceLatestIncident ? `Top source latest level: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()}` : null,
       incidentDigest.topSourceLatestIncident ? `Top source freshness: ${incidentDigest.topSourceFreshness.label}` : null,
       incidentDigest.topSourceLatestIncident ? `Top source message: ${incidentDigest.topSourceLatestIncident.message}` : null,
       `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
@@ -1709,9 +1715,14 @@ const Dashboard: React.FC = () => {
                   </Typography.Text>
                   {incidentDigest.topSourceLatestIncident ? (
                     <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                      <Tag color={incidentDigest.topSourceFreshness.color}>
-                        {`${t.dashboard.topSourceFreshnessLabel}: ${incidentDigest.topSourceFreshness.label}`}
-                      </Tag>
+                      <Space wrap>
+                        <Tag color={incidentDigest.topSourceFreshness.color}>
+                          {`${t.dashboard.topSourceFreshnessLabel}: ${incidentDigest.topSourceFreshness.label}`}
+                        </Tag>
+                        <Tag color={incidentDigest.topSourceLatestLevel.color}>
+                          {`${t.dashboard.topSourceLatestLevelLabel}: ${incidentDigest.topSourceLatestLevel.label}`}
+                        </Tag>
+                      </Space>
                       <Button
                         type="link"
                         size="small"
