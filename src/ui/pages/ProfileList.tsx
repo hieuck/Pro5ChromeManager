@@ -47,6 +47,7 @@ interface Profile {
   group?: string | null;
   owner?: string | null;
   tags: string[];
+  proxy?: ProxyOption | null;
   proxyId?: string;
   runtime?: string;
   runtimeKey?: string;
@@ -62,6 +63,11 @@ interface ProxyOption {
   type: string;
   host: string;
   port: number;
+  lastCheckAt?: string;
+  lastCheckStatus?: 'healthy' | 'failing';
+  lastCheckIp?: string;
+  lastCheckTimezone?: string | null;
+  lastCheckError?: string;
 }
 
 interface Instance {
@@ -111,6 +117,10 @@ const ProfileList: React.FC = () => {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchRef = useRef<InputRef>(null);
+
+  const getProfileProxyId = useCallback((profile: Profile): string | undefined => (
+    profile.proxyId ?? profile.proxy?.id
+  ), []);
 
   const getProfileStatus = useCallback((profileId: string): Profile['status'] => {
     return instances[profileId]?.status ?? 'stopped';
@@ -306,7 +316,7 @@ const ProfileList: React.FC = () => {
   const runningCount = profiles.filter((profile) => getProfileStatus(profile.id) === 'running').length;
   const groupedCount = profiles.filter((profile) => Boolean(profile.group)).length;
   const taggedCount = profiles.filter((profile) => profile.tags.length > 0).length;
-  const proxiedCount = profiles.filter((profile) => Boolean(profile.proxyId)).length;
+  const proxiedCount = profiles.filter((profile) => Boolean(getProfileProxyId(profile))).length;
   const showingResults = t.common.showingResults
     .replace('{filtered}', String(filtered.length))
     .replace('{total}', String(profiles.length));
@@ -424,15 +434,15 @@ const ProfileList: React.FC = () => {
     },
     {
       title: t.profile.proxy,
-      dataIndex: 'proxyId',
       key: 'proxy',
-      width: 210,
-      render: (proxyId?: string) => {
+      width: 260,
+      render: (_, record) => {
+        const proxyId = getProfileProxyId(record);
         if (!proxyId) {
           return <Typography.Text type="secondary">—</Typography.Text>;
         }
 
-        const proxy = proxyMap.get(proxyId);
+        const proxy = record.proxy ?? proxyMap.get(proxyId);
         if (!proxy) {
           return <Tag color="orange">{proxyId.slice(0, 8)}</Tag>;
         }
@@ -443,8 +453,22 @@ const ProfileList: React.FC = () => {
 
         return (
           <Space direction="vertical" size={0}>
-            <Tag color="blue">{proxy.type.toUpperCase()}</Tag>
+            <Space size={4} wrap>
+              <Tag color="blue">{proxy.type.toUpperCase()}</Tag>
+              {proxy.lastCheckStatus === 'healthy' ? <Tag color="green">Healthy</Tag> : null}
+              {proxy.lastCheckStatus === 'failing' ? <Tag color="red">Needs check</Tag> : null}
+            </Space>
             <Typography.Text>{label}</Typography.Text>
+            {proxy.lastCheckStatus === 'healthy' && proxy.lastCheckAt ? (
+              <Typography.Text type="secondary">
+                {proxy.lastCheckTimezone
+                  ? `${proxy.lastCheckIp ?? '—'} · ${proxy.lastCheckTimezone}`
+                  : proxy.lastCheckIp ?? '—'}
+              </Typography.Text>
+            ) : null}
+            {proxy.lastCheckStatus === 'failing' && proxy.lastCheckError ? (
+              <Typography.Text type="danger">{proxy.lastCheckError}</Typography.Text>
+            ) : null}
           </Space>
         );
       },
