@@ -63,6 +63,12 @@ function formatRelativeTime(
   return labels.daysAgo(diffDays);
 }
 
+function isWithinLastMinutes(value: string | null, minutes: number): boolean {
+  if (!value) return false;
+  const diffMs = Date.now() - new Date(value).getTime();
+  return diffMs >= 0 && diffMs <= minutes * 60_000;
+}
+
 const Logs: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -149,6 +155,11 @@ const Logs: React.FC = () => {
   const issueEntries = useMemo(
     () => filteredEntries.filter((entry) => entry.level === 'warn' || entry.level === 'error'),
     [filteredEntries],
+  );
+
+  const recentIssueCount = useMemo(
+    () => entries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60)).length,
+    [entries],
   );
 
   const handleCopyIssues = useCallback(async () => {
@@ -347,6 +358,11 @@ const Logs: React.FC = () => {
                     {t.logs.issueStreak.replace('{count}', String(issueStreak))}
                   </Tag>
                 ) : null}
+                {recentIssueCount ? (
+                  <Tag color="magenta">
+                    {t.logs.recentIssueWindow.replace('{count}', String(recentIssueCount))}
+                  </Tag>
+                ) : null}
                 <Typography.Text type="secondary">{formatTimestamp(latestIssue.timestamp)}</Typography.Text>
                 <Typography.Text type="secondary">
                   {formatRelativeTime(latestIssue.timestamp, {
@@ -380,7 +396,7 @@ const Logs: React.FC = () => {
             type={counts.error ? 'error' : 'warning'}
             showIcon
             message={`${t.logs.incidentSummary}: ${counts.error} ${t.logs.filterError.toLowerCase()} · ${counts.warn} ${t.logs.filterWarn.toLowerCase()}`}
-            description={`${t.logs.incidentHint}${issueStreak > 1 ? ` ${t.logs.incidentStreakHint.replace('{count}', String(issueStreak))}` : ''}`}
+            description={`${t.logs.incidentHint}${issueStreak > 1 ? ` ${t.logs.incidentStreakHint.replace('{count}', String(issueStreak))}` : ''}${recentIssueCount ? ` ${t.logs.recentIssueWindowHint.replace('{count}', String(recentIssueCount))}` : ''}`}
             action={(
               <Space wrap>
                 <Button size="small" onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>

@@ -248,6 +248,8 @@ const en: TranslationKeys = {
       incidentSummary: 'Incident summary',
     incidentHint: 'Focus on recent errors and warnings first before reading the full stream.',
     incidentStreakHint: 'There are {count} consecutive warning/error lines at the top of the stream.',
+    recentIssueWindow: '{count} incidents in 60m',
+    recentIssueWindowHint: 'There were {count} warning/error lines in the last 60 minutes.',
     latestIssue: 'Latest issue',
     issueStreak: 'Issue streak {count}',
     copyLatestIssue: 'Copy latest issue',
