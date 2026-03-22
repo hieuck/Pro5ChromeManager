@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, Input, List, Row, Select, Space, Statistic, Switch, Tag, Typography, message } from 'antd';
 import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -19,6 +19,12 @@ interface StoredLogsViewState {
   query: string;
   recentWindowOnly: boolean;
   sortOrder: 'newest' | 'oldest';
+}
+
+interface LogsRouteState {
+  presetQuery?: string;
+  presetFilter?: 'all' | 'issues' | 'info' | 'warn' | 'error';
+  presetRecentWindowOnly?: boolean;
 }
 
 function parseLogEntry(line: string): ParsedLogEntry {
@@ -84,6 +90,7 @@ function escapeRegExp(value: string): string {
 
 const Logs: React.FC = () => {
   const { t } = useTranslation();
+  const location = useLocation();
   const navigate = useNavigate();
 
   const initialViewState = useMemo<StoredLogsViewState>(() => {
@@ -173,6 +180,17 @@ const Logs: React.FC = () => {
 
     return () => window.clearInterval(intervalId);
   }, [autoRefresh, loadLogs]);
+
+  useEffect(() => {
+    const routeState = location.state as LogsRouteState | null;
+    if (!routeState?.presetQuery) return;
+
+    setQuery(routeState.presetQuery);
+    setFilter(routeState.presetFilter ?? 'issues');
+    setRecentWindowOnly(routeState.presetRecentWindowOnly ?? true);
+    setSortOrder('newest');
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

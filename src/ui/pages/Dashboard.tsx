@@ -456,6 +456,16 @@ const Dashboard: React.FC = () => {
     navigate('/profiles', { state: { openCreate: true } });
   }, [navigate]);
 
+  const handleOpenLogEntry = useCallback((entry: LogEntry) => {
+    navigate('/logs', {
+      state: {
+        presetQuery: entry.message,
+        presetFilter: entry.level === 'error' || entry.level === 'warn' ? 'issues' : 'all',
+        presetRecentWindowOnly: entry.level === 'error' || entry.level === 'warn',
+      },
+    });
+  }, [navigate]);
+
   const handleCreateBackup = useCallback(async () => {
     setCreatingBackup(true);
     const res = await apiClient.post<BackupEntry>('/api/backups');
@@ -1036,7 +1046,13 @@ const Dashboard: React.FC = () => {
             <List
               dataSource={logs}
               renderItem={(entry) => (
-                <List.Item>
+                <List.Item
+                  actions={[
+                    <Button key={`${entry.timestamp}-${entry.message}`} type="link" onClick={() => handleOpenLogEntry(entry)}>
+                      {t.dashboard.openInLogs}
+                    </Button>,
+                  ]}
+                >
                   <List.Item.Meta
                     title={(
                       <Space wrap>

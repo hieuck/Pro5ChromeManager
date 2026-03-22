@@ -87,6 +87,7 @@ const en: TranslationKeys = {
       incidentsTitle: 'Recent incidents',
       noIncidents: 'No recent incidents.',
       activityTitle: 'Recent activity',
+      openInLogs: 'Open in Logs',
       noActivity: 'No recent activity yet.',
       selfTestTitle: 'System self-test',
     runSelfTest: 'Run self-test',

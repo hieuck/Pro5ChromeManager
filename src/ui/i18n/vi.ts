@@ -85,6 +85,7 @@ const vi = {
       incidentsTitle: 'Incident gần đây',
       noIncidents: 'Chưa có incident nào gần đây.',
       activityTitle: 'Hoạt động gần đây',
+      openInLogs: 'Mở trong Logs',
       noActivity: 'Chưa có hoạt động gần đây.',
       selfTestTitle: 'Tự kiểm tra hệ thống',
     runSelfTest: 'Chạy self-test',
