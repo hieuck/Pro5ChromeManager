@@ -301,6 +301,48 @@ const Logs: React.FC = () => {
     void message.success(t.logs.focusLatestIssueApplied);
   }, [latestIssue, t.logs.focusLatestIssueApplied]);
 
+  const activeFilterTags = useMemo(() => {
+    const tags: Array<{ key: string; label: string; onClose: () => void }> = [];
+
+    if (filter === 'issues') {
+      tags.push({
+        key: 'issues',
+        label: t.logs.issuesOnly,
+        onClose: () => setFilter('all'),
+      });
+    } else if (filter !== 'all') {
+      const levelLabel = filter === 'info'
+        ? t.logs.filterInfo
+        : filter === 'warn'
+          ? t.logs.filterWarn
+          : t.logs.filterError;
+
+      tags.push({
+        key: 'level',
+        label: `${t.logs.levelFilterLabel}: ${levelLabel}`,
+        onClose: () => setFilter('all'),
+      });
+    }
+
+    if (recentWindowOnly) {
+      tags.push({
+        key: 'recent-window',
+        label: t.logs.recentWindowOnly,
+        onClose: () => setRecentWindowOnly(false),
+      });
+    }
+
+    if (query.trim()) {
+      tags.push({
+        key: 'query',
+        label: `${t.logs.searchFilterLabel}: ${query.trim()}`,
+        onClose: () => setQuery(''),
+      });
+    }
+
+    return tags;
+  }, [filter, query, recentWindowOnly, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly, t.logs.levelFilterLabel, t.logs.recentWindowOnly, t.logs.searchFilterLabel]);
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size={20} style={{ width: '100%' }}>
@@ -375,6 +417,23 @@ const Logs: React.FC = () => {
             <Typography.Text type="secondary">
               {`${t.logs.lastRefreshed}: ${formatTimestamp(lastRefreshedAt)}${autoRefresh ? ` · ${t.logs.autoRefreshOn}` : ''}`}
             </Typography.Text>
+            {activeFilterTags.length ? (
+              <Space wrap size={[8, 8]}>
+                <Typography.Text type="secondary">{t.logs.activeFilters}</Typography.Text>
+                {activeFilterTags.map((tag) => (
+                  <Tag
+                    key={tag.key}
+                    closable
+                    onClose={(event) => {
+                      event.preventDefault();
+                      tag.onClose();
+                    }}
+                  >
+                    {tag.label}
+                  </Tag>
+                ))}
+              </Space>
+            ) : null}
           </Space>
         </Card>
 
