@@ -203,6 +203,18 @@ const Dashboard: React.FC = () => {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [feedbackForm] = Form.useForm();
 
+  const getFeedbackCategoryLabel = useCallback((category: FeedbackEntry['category']): string => {
+    if (category === 'bug') return t.settings.feedbackCategoryBug;
+    if (category === 'question') return t.settings.feedbackCategoryQuestion;
+    return t.settings.feedbackCategoryFeedback;
+  }, [t.settings.feedbackCategoryBug, t.settings.feedbackCategoryFeedback, t.settings.feedbackCategoryQuestion]);
+
+  const getFeedbackSentimentLabel = useCallback((sentiment: FeedbackEntry['sentiment']): string => {
+    if (sentiment === 'positive') return t.settings.feedbackSentimentPositive;
+    if (sentiment === 'negative') return t.settings.feedbackSentimentNegative;
+    return t.settings.feedbackSentimentNeutral;
+  }, [t.settings.feedbackSentimentNegative, t.settings.feedbackSentimentNeutral, t.settings.feedbackSentimentPositive]);
+
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes, runtimesRes, logsRes] = await Promise.all([
@@ -2563,9 +2575,9 @@ const Dashboard: React.FC = () => {
                     <Form.Item name="category" label={t.dashboard.feedbackCategory} initialValue="feedback" rules={[{ required: true }]}>
                       <Select
                         options={[
-                          { label: 'Feedback', value: 'feedback' },
-                          { label: 'Bug', value: 'bug' },
-                          { label: 'Question', value: 'question' },
+                          { label: t.settings.feedbackCategoryFeedback, value: 'feedback' },
+                          { label: t.settings.feedbackCategoryBug, value: 'bug' },
+                          { label: t.settings.feedbackCategoryQuestion, value: 'question' },
                         ]}
                       />
                     </Form.Item>
@@ -2574,9 +2586,9 @@ const Dashboard: React.FC = () => {
                     <Form.Item name="sentiment" label={t.dashboard.feedbackSentiment} initialValue="neutral" rules={[{ required: true }]}>
                       <Select
                         options={[
-                          { label: 'Neutral', value: 'neutral' },
-                          { label: 'Positive', value: 'positive' },
-                          { label: 'Negative', value: 'negative' },
+                          { label: t.settings.feedbackSentimentNeutral, value: 'neutral' },
+                          { label: t.settings.feedbackSentimentPositive, value: 'positive' },
+                          { label: t.settings.feedbackSentimentNegative, value: 'negative' },
                         ]}
                       />
                     </Form.Item>
@@ -2586,7 +2598,7 @@ const Dashboard: React.FC = () => {
                   <Input.TextArea rows={4} placeholder={t.dashboard.feedbackPlaceholder} />
                 </Form.Item>
                 <Form.Item name="email" label={t.dashboard.feedbackEmail} rules={[{ type: 'email' }]}>
-                  <Input placeholder="you@example.com" />
+                  <Input placeholder={t.settings.feedbackEmailPlaceholder} />
                 </Form.Item>
                 <Button type="primary" loading={submittingFeedback} onClick={() => { void handleSubmitFeedback(); }}>
                   {t.dashboard.submitFeedback}
@@ -2602,9 +2614,9 @@ const Dashboard: React.FC = () => {
                       <List.Item.Meta
                         title={(
                           <Space wrap>
-                            <Tag>{entry.category.toUpperCase()}</Tag>
+                            <Tag>{getFeedbackCategoryLabel(entry.category)}</Tag>
                             <Tag color={entry.sentiment === 'negative' ? 'red' : entry.sentiment === 'positive' ? 'green' : 'default'}>
-                              {entry.sentiment.toUpperCase()}
+                              {getFeedbackSentimentLabel(entry.sentiment)}
                             </Tag>
                             <Typography.Text type="secondary">{formatTime(entry.createdAt)}</Typography.Text>
                           </Space>
