@@ -2,12 +2,19 @@ import express, { NextFunction, Request, Response } from 'express';
 import fs from 'fs/promises';
 import http from 'http';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
 import { configManager } from './managers/ConfigManager';
 import { logger } from './utils/logger';
 import { wsServer } from './utils/wsServer';
 import { dataPath } from './utils/dataPaths';
 
 const app = express();
+
+const logsRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // limit each IP to 60 log requests per windowMs
+});
+
 type OpsLogEntry = {
   timestamp: string | null;
   level: 'debug' | 'info' | 'warn' | 'error';
@@ -238,7 +245,7 @@ async function loadOpsLogEntries(limit: number): Promise<OpsLogEntry[]> {
 }
 
 // Logs endpoint — reads the latest daily-rotated app log file
-app.get('/api/logs', async (_req: Request, res: Response) => {
+app.get('/api/logs', logsRateLimiter, async (_req: Request, res: Response) => {
   try {
     const entries = await loadOpsLogEntries(200);
     res.json({ success: true, data: entries });
@@ -249,7 +256,7 @@ app.get('/api/logs', async (_req: Request, res: Response) => {
   }
 });
 
-app.get('/api/logs-legacy-disabled', async (_req: Request, res: Response) => {
+app.get('/api/logs-legacy-disabled', logsRateLimiter, async (_req: Request, res: Response) => {
   try {
     const fs = await import('fs/promises');
     const logDir = dataPath('logs');
