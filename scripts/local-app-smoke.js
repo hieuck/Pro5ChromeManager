@@ -7,14 +7,18 @@ const electronBinary = require('electron');
 const electronEntry = path.resolve(__dirname, '../dist/electron-main/main.js');
 const appUrl = 'http://127.0.0.1:3210/ui/';
 const readyUrl = 'http://127.0.0.1:3210/readyz';
-const timeoutMs = 30000;
+const timeoutMs = 45000;
+const requestTimeoutMs = 4000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function fetchOk(url, options) {
-  const res = await fetch(url, options);
+  const res = await fetch(url, {
+    ...options,
+    signal: AbortSignal.timeout(requestTimeoutMs),
+  });
   if (!res.ok) {
     throw new Error(`${url} returned ${res.status}`);
   }
@@ -59,6 +63,16 @@ async function clearConflictingAppProcesses() {
   await runTaskkill('electron.exe');
 }
 
+async function readSmokeLogTail(dataDir) {
+  try {
+    const logPath = path.join(dataDir, 'logs', 'electron-main.log');
+    const content = await fs.readFile(logPath, 'utf-8');
+    return content.split(/\r?\n/).filter(Boolean).slice(-8);
+  } catch {
+    return [];
+  }
+}
+
 async function main() {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pro5-local-smoke-'));
   await clearConflictingAppProcesses();
@@ -71,6 +85,11 @@ async function main() {
     },
     windowsHide: true,
   });
+  let childExit = null;
+
+  child.once('exit', (code, signal) => {
+    childExit = { code, signal };
+  });
 
   const deadline = Date.now() + timeoutMs;
   let lastError = 'Local app smoke did not start probing yet';
@@ -78,6 +97,14 @@ async function main() {
   try {
     while (Date.now() < deadline) {
       try {
+        if (childExit) {
+          const logTail = await readSmokeLogTail(dataDir);
+          throw new Error(
+            `Electron exited before smoke completed (code=${String(childExit.code)}, signal=${String(childExit.signal)}). ` +
+            `Recent main log: ${logTail.join(' | ') || 'none'}`,
+          );
+        }
+
         const readyRes = await fetchOk(readyUrl);
         const ready = await readyRes.json();
         if (ready.status !== 'ready') {
@@ -198,7 +225,11 @@ async function main() {
       }
     }
 
-    throw new Error(`Local app did not become ready within ${timeoutMs}ms. Last error: ${lastError}`);
+    const logTail = await readSmokeLogTail(dataDir);
+    throw new Error(
+      `Local app did not become ready within ${timeoutMs}ms. Last error: ${lastError}. ` +
+      `Recent main log: ${logTail.join(' | ') || 'none'}`,
+    );
   } finally {
     await killTree(child);
     await fs.rm(dataDir, { recursive: true, force: true });
