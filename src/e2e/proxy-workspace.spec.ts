@@ -43,4 +43,27 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByText(':9001')).toBeVisible();
     await expect(page.getByText(':9002')).toBeVisible();
   });
+
+  test('deletes a proxy from the proxy workspace', async ({ page }) => {
+    const uniqueHost = `198.51.100.${Math.floor(Math.random() * 100) + 50}`;
+
+    await page.goto('/ui/proxies');
+    await expect(page.getByRole('heading', { name: 'Trung tâm proxy' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Thêm proxy' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Thêm proxy' });
+    await dialog.getByLabel('Host').fill(uniqueHost);
+    await dialog.getByLabel('Port').fill('8111');
+    await dialog.getByRole('button', { name: 'Lưu' }).click();
+    await expect(dialog).toBeHidden();
+
+    const row = page.getByRole('row', { name: new RegExp(uniqueHost.replaceAll('.', '\\.')) });
+    await expect(row).toBeVisible();
+    await row.getByRole('button', { name: 'delete' }).click();
+
+    await expect(page.getByText('Xóa proxy này?')).toBeVisible();
+    await page.getByRole('button', { name: 'Có' }).click();
+
+    await expect(page.getByText(uniqueHost)).toHaveCount(0);
+  });
 });
