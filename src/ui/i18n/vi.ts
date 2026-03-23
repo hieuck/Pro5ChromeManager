@@ -329,6 +329,7 @@ const vi = {
     runtimes: 'Trình duyệt',
     backup: 'Sao lưu',
     logs: 'Nhật ký',
+    support: 'Hỗ trợ',
     profilesDir: 'Thư mục hồ sơ',
     apiHost: 'API Host',
     apiPort: 'API Port',

@@ -896,11 +896,11 @@ const Settings: React.FC = () => {
   const { t } = useTranslation();
 
   const tabItems = [
-    { key: 'general', label: 'Chung', children: <GeneralTab /> },
-    { key: 'runtimes', label: 'Runtimes', children: <RuntimesTab /> },
-    { key: 'backup', label: 'Backup', children: <BackupTab /> },
-    { key: 'logs', label: 'Logs', children: <LogsTab /> },
-    { key: 'support', label: 'Support', children: <SupportTab /> },
+    { key: 'general', label: t.settings.general, children: <GeneralTab /> },
+    { key: 'runtimes', label: t.settings.runtimes, children: <RuntimesTab /> },
+    { key: 'backup', label: t.settings.backup, children: <BackupTab /> },
+    { key: 'logs', label: t.settings.logs, children: <LogsTab /> },
+    { key: 'support', label: t.settings.support, children: <SupportTab /> },
   ];
 
   return (

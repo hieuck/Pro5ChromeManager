@@ -331,6 +331,7 @@ const en: TranslationKeys = {
     runtimes: 'Browsers',
     backup: 'Backup',
     logs: 'Logs',
+    support: 'Support',
     profilesDir: 'Profiles Directory',
     apiHost: 'API Host',
     apiPort: 'API Port',
