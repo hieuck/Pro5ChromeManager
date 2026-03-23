@@ -1,4 +1,10 @@
-const BASE_URL = 'http://127.0.0.1:3210';
+function getBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  return 'http://127.0.0.1:3210';
+}
 
 export interface ApiSuccess<T> {
   success: true;
@@ -19,7 +25,7 @@ async function request<T>(
   body?: unknown,
 ): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const res = await fetch(`${getBaseUrl()}${path}`, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: body !== undefined ? JSON.stringify(body) : undefined,

@@ -16,9 +16,17 @@ export interface WsEvent {
 
 type WsEventHandler = (event: WsEvent) => void;
 
-const WS_URL = `ws://${window.location.hostname}:3210/ws`;
 const INITIAL_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
+
+function getWebSocketUrl(): string {
+  if (typeof window !== 'undefined' && window.location) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/ws`;
+  }
+
+  return 'ws://127.0.0.1:3210/ws';
+}
 
 /**
  * Auto-reconnecting WebSocket hook with exponential backoff.
@@ -39,7 +47,7 @@ export function useWebSocket(onMessage: WsEventHandler): void {
   const connect = useCallback(() => {
     if (unmountedRef.current) return;
 
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(getWebSocketUrl());
     wsRef.current = ws;
 
     ws.onopen = () => {
