@@ -16,6 +16,32 @@ async function getBulkInput(page: Page) {
   return page.getByPlaceholder(/10\.0\.0\.1:8080/);
 }
 
+function proxyRow(page: Page, host: string, port?: number) {
+  const escapedHost = host.replaceAll('.', '\\.');
+  const pattern = port ? new RegExp(`${escapedHost}\\s*: ?${port}`) : new RegExp(`${escapedHost}\\b`);
+  return page.locator('tbody tr').filter({ hasText: pattern });
+}
+
+async function importProxyLines(page: Page, text: string): Promise<void> {
+  const bulkInput = await getBulkInput(page);
+  const importButton = page.getByRole('button', { name: 'Import proxy' });
+
+  await bulkInput.fill(text);
+  await importButton.click();
+  await expect(importButton).not.toHaveClass(/ant-btn-loading/);
+}
+
+async function goToLastProxyPage(page: Page): Promise<void> {
+  const pageItems = page.locator('.ant-pagination-item');
+  const count = await pageItems.count();
+  if (count > 1) {
+    const lastPage = pageItems.nth(count - 1);
+    const label = (await lastPage.textContent())?.trim() ?? String(count);
+    await lastPage.click();
+    await expect(page.locator('.ant-pagination-item-active')).toHaveText(label);
+  }
+}
+
 test.describe('Proxy workspace', () => {
   test('creates a proxy from the proxy workspace', async ({ page }) => {
     const uniqueHost = `198.51.100.${Math.floor(Math.random() * 200) + 20}`;
@@ -31,6 +57,7 @@ test.describe('Proxy workspace', () => {
 
     await dialog.getByRole('button', { name: /l.+u/i }).click();
     await expect(dialog).toBeHidden();
+    await goToLastProxyPage(page);
 
     await expect(page.getByText(uniqueHost)).toBeVisible();
     await expect(page.getByText('demo-user')).toBeVisible();
@@ -43,9 +70,8 @@ test.describe('Proxy workspace', () => {
 
     await gotoProxyWorkspace(page);
 
-    const bulkInput = await getBulkInput(page);
-    await bulkInput.fill(`${firstHost}:9001\n${secondHost}:9002:bulk-user:bulk-pass`);
-    await page.getByRole('button', { name: 'Import proxy' }).click();
+    await importProxyLines(page, `${firstHost}:9001\n${secondHost}:9002:bulk-user:bulk-pass`);
+    await goToLastProxyPage(page);
 
     await expect(page.getByText(firstHost)).toBeVisible();
     await expect(page.getByText(secondHost)).toBeVisible();
@@ -62,11 +88,10 @@ test.describe('Proxy workspace', () => {
     await page.locator('.ant-select').first().click();
     await page.locator('.ant-select-dropdown').getByText('SOCKS5').click();
 
-    const bulkInput = await getBulkInput(page);
-    await bulkInput.fill(`${uniqueHost}:1080`);
-    await page.getByRole('button', { name: 'Import proxy' }).click();
+    await importProxyLines(page, `${uniqueHost}:1080`);
+    await goToLastProxyPage(page);
 
-    const row = page.getByRole('row', { name: new RegExp(`${uniqueHost.replaceAll('.', '\\.')}.*:1080`) });
+    const row = proxyRow(page, uniqueHost, 1080);
     await expect(row).toBeVisible();
     await expect(row.getByText('SOCKS5')).toBeVisible();
     await expect(page.getByText(':1080')).toBeVisible();
@@ -78,12 +103,11 @@ test.describe('Proxy workspace', () => {
 
     await gotoProxyWorkspace(page);
 
-    const bulkInput = await getBulkInput(page);
-    await bulkInput.fill(`${firstHost}:9201\n${secondHost}:9202`);
-    await page.getByRole('button', { name: 'Import proxy' }).click();
+    await importProxyLines(page, `${firstHost}:9201\n${secondHost}:9202`);
+    await goToLastProxyPage(page);
 
-    const firstRow = page.getByRole('row', { name: new RegExp(`${firstHost.replaceAll('.', '\\.')}.*:9201`) });
-    const secondRow = page.getByRole('row', { name: new RegExp(`${secondHost.replaceAll('.', '\\.')}.*:9202`) });
+    const firstRow = proxyRow(page, firstHost, 9201);
+    const secondRow = proxyRow(page, secondHost, 9202);
 
     await expect(firstRow).toBeVisible();
     await expect(secondRow).toBeVisible();
@@ -101,12 +125,11 @@ test.describe('Proxy workspace', () => {
 
     await gotoProxyWorkspace(page);
 
-    const bulkInput = await getBulkInput(page);
-    await bulkInput.fill(`${firstHost}:9301\n${secondHost}:9302`);
-    await page.getByRole('button', { name: 'Import proxy' }).click();
+    await importProxyLines(page, `${firstHost}:9301\n${secondHost}:9302`);
+    await goToLastProxyPage(page);
 
-    const firstRow = page.getByRole('row', { name: new RegExp(`${firstHost.replaceAll('.', '\\.')}.*:9301`) });
-    const secondRow = page.getByRole('row', { name: new RegExp(`${secondHost.replaceAll('.', '\\.')}.*:9302`) });
+    const firstRow = proxyRow(page, firstHost, 9301);
+    const secondRow = proxyRow(page, secondHost, 9302);
     const bulkAction = page.getByRole('button', { name: /test.+ch.+n/i });
 
     await firstRow.getByRole('checkbox').check();
@@ -121,23 +144,46 @@ test.describe('Proxy workspace', () => {
     await expect(page.locator('.ant-card-body').getByText(/2 proxy/i)).toHaveCount(0);
   });
 
+  test('toggles bulk actions from the header select-all checkbox', async ({ page }) => {
+    const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 20}`;
+    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 240}`;
+
+    await gotoProxyWorkspace(page);
+
+    await importProxyLines(page, `${firstHost}:9401\n${secondHost}:9402`);
+    await goToLastProxyPage(page);
+
+    const firstRow = proxyRow(page, firstHost, 9401);
+    const secondRow = proxyRow(page, secondHost, 9402);
+    const selectAll = page.getByRole('checkbox', { name: 'Select all' });
+    const bulkAction = page.getByRole('button', { name: /test.+ch.+n/i });
+
+    await expect(firstRow).toBeVisible();
+    await expect(secondRow).toBeVisible();
+
+    await selectAll.check();
+    await expect(bulkAction).toBeVisible();
+
+    await selectAll.uncheck();
+    await expect(bulkAction).toHaveCount(0);
+  });
+
   test('skips duplicate proxies during bulk import', async ({ page }) => {
     const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 10}`;
     const proxyLine = `${uniqueHost}:9100:repeat-user:repeat-pass`;
 
     await gotoProxyWorkspace(page);
 
-    const bulkInput = await getBulkInput(page);
-    await bulkInput.fill(proxyLine);
-    await page.getByRole('button', { name: 'Import proxy' }).click();
+    await importProxyLines(page, proxyLine);
+    await goToLastProxyPage(page);
 
-    const row = page.getByRole('row', { name: new RegExp(`${uniqueHost.replaceAll('.', '\\.')}.*:9100`) });
+    const row = proxyRow(page, uniqueHost, 9100);
     await expect(row).toHaveCount(1);
 
-    await bulkInput.fill(proxyLine);
-    await page.getByRole('button', { name: 'Import proxy' }).click();
+    await importProxyLines(page, proxyLine);
+    await goToLastProxyPage(page);
 
-    await expect(page.getByRole('row', { name: new RegExp(`${uniqueHost.replaceAll('.', '\\.')}.*:9100`) })).toHaveCount(1);
+    await expect(proxyRow(page, uniqueHost, 9100)).toHaveCount(1);
     await expect(page.getByText('repeat-user')).toHaveCount(1);
     await expect(page.getByText(':9100')).toHaveCount(1);
   });
@@ -153,8 +199,9 @@ test.describe('Proxy workspace', () => {
     await dialog.getByLabel('Port').fill('8111');
     await dialog.getByRole('button', { name: /l.+u/i }).click();
     await expect(dialog).toBeHidden();
+    await goToLastProxyPage(page);
 
-    const row = page.getByRole('row', { name: new RegExp(uniqueHost.replaceAll('.', '\\.')) });
+    const row = proxyRow(page, uniqueHost, 8111);
     await expect(row).toBeVisible();
     await row.getByRole('button', { name: 'delete' }).click();
 
