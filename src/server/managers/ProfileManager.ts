@@ -77,6 +77,17 @@ export function migrateProfile(raw: Record<string, unknown>, targetVersion: numb
     profile['schemaVersion'] = 1;
   }
 
+  // Data repair: ensure name is always a non-empty string
+  if (!profile['name'] || typeof profile['name'] !== 'string') {
+    const id = typeof profile['id'] === 'string' ? profile['id'] : 'unknown';
+    profile['name'] = `Profile ${id.slice(0, 8)}`;
+  }
+
+  // Data repair: ensure tags is always an array (spread may have overwritten default)
+  if (!Array.isArray(profile['tags'])) {
+    profile['tags'] = [];
+  }
+
   // Data repair: normalize legacy proxy format { server, username, password, bypass } → null
   // (current ProxyConfig requires { id, type, host, port })
   const proxy = profile['proxy'];

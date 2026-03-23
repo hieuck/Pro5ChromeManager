@@ -10,8 +10,6 @@ Phần mềm quản lý trình duyệt đa profile cho Windows — mỗi profile
 - Automation qua CDP (Puppeteer, Playwright)
 - Real-time status qua WebSocket
 - Backup tự động mỗi 24h, giữ 7 bản
-- Free tier: 10 profiles — không cần đăng ký
-- Paid: $29 lifetime — không giới hạn profiles
 
 ## Yêu cầu
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Badge, Button, Typography, notification } from 'antd';
+import { Layout, Menu, Button, Typography, notification } from 'antd';
 import {
   ApiOutlined,
   DashboardOutlined,
@@ -10,7 +10,6 @@ import {
 } from '@ant-design/icons';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from './hooks/useTranslation';
-import { apiClient } from './api/client';
 import ProfileList from './pages/ProfileList';
 import Proxies from './pages/Proxies';
 import Settings from './pages/Settings';
@@ -18,12 +17,6 @@ import Logs from './pages/Logs';
 import Dashboard from './pages/Dashboard';
 
 const { Sider, Header, Content } = Layout;
-
-interface LicenseStatus {
-  tier: 'free' | 'pro' | 'grace' | 'expired';
-  profilesUsed?: number;
-  profilesLimit?: number;
-}
 
 declare global {
   interface Window {
@@ -39,7 +32,6 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [license, setLicense] = useState<LicenseStatus>({ tier: 'free', profilesUsed: 0, profilesLimit: 10 });
 
   const selectedKey = location.pathname.startsWith('/settings')
     ? 'settings'
@@ -50,14 +42,6 @@ const App: React.FC = () => {
     : location.pathname.startsWith('/dashboard')
       ? 'dashboard'
       : 'profiles';
-
-  // ─── Load license status ──────────────────────────────────────────────────
-
-  useEffect(() => {
-    void apiClient.get<LicenseStatus>('/api/license/status').then((res) => {
-      if (res.success) setLicense(res.data);
-    });
-  }, []);
 
   // ─── Auto-update notification (Electron only) ─────────────────────────────
 
@@ -82,18 +66,6 @@ const App: React.FC = () => {
     window.addEventListener('pro5:update-ready', onUpdateReady);
     return () => window.removeEventListener('pro5:update-ready', onUpdateReady);
   }, []);
-
-  // ─── License badge ────────────────────────────────────────────────────────
-
-  const badgeColor = license.tier === 'pro' ? '#52c41a'
-    : license.tier === 'grace' ? '#faad14'
-    : license.tier === 'expired' ? '#ff4d4f'
-    : '#1677ff';
-
-  const badgeLabel = license.tier === 'pro' ? 'Pro'
-    : license.tier === 'grace' ? 'Grace'
-    : license.tier === 'expired' ? 'Hết hạn'
-    : 'Free';
 
   function toggleLanguage(): void {
     const next = lang === 'vi' ? 'en' : 'vi';
@@ -154,18 +126,6 @@ const App: React.FC = () => {
             borderBottom: '1px solid #f0f0f0',
           }}
         >
-          {/* Profile usage */}
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {license.profilesUsed ?? 0}/{license.profilesLimit ?? 10} profiles
-          </Typography.Text>
-
-          {/* License badge */}
-          <Badge
-            count={badgeLabel}
-            style={{ backgroundColor: badgeColor, fontSize: 11, cursor: 'pointer' }}
-            onClick={() => navigate('/settings')}
-          />
-
           {/* Language toggle */}
           <Button type="text" icon={<GlobalOutlined />} onClick={toggleLanguage} size="small">
             <Typography.Text style={{ fontSize: 12 }}>

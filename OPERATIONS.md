@@ -21,7 +21,6 @@ npm run package:electron:dev
 
 Verify the following manually:
 
-- `PRO5_OFFLINE_SECRET` is configured for production builds.
 - `CSC_LINK` and `CSC_KEY_PASSWORD` are configured if you want signed Windows installers.
 - GitHub Pages reflects the latest `landing/` content on `main`.
 - The app can export diagnostics from `Settings -> Export Diagnostics`.
@@ -95,5 +94,4 @@ Issue intake is controlled through:
 ## Known Operational Warnings
 
 - If code signing is not configured, Windows SmartScreen warnings are expected.
-- If `PRO5_OFFLINE_SECRET` is missing in production, offline licenses are intentionally disabled.
 - The UI bundle is currently large because of `antd`; this affects cold-start performance more than correctness.

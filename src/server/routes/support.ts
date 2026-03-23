@@ -42,7 +42,6 @@ interface SupportStatusPayload {
   dataDir: string;
   logFileCount: number;
   diagnosticsReady: boolean;
-  offlineSecretConfigured: boolean;
   codeSigningConfigured: boolean;
   supportPagesReady: boolean;
   onboardingCompleted: boolean;
@@ -208,14 +207,12 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const logFiles = await listLogFiles();
   const recentIncidents = await loadIncidentEntries(20);
   const diagnosticsReady = await fileExists(dataPath('config.json'));
-  const offlineSecretConfigured = Boolean(process.env['PRO5_OFFLINE_SECRET']);
   const codeSigningConfigured = Boolean(process.env['CSC_LINK']);
   const supportPagesReady = await getSupportPagesReady();
   const releaseRuntime = isProductionLikeRuntime();
 
   const warnings = [
     !diagnosticsReady ? 'Base configuration file is missing.' : null,
-    releaseRuntime && !offlineSecretConfigured ? 'PRO5_OFFLINE_SECRET is not configured for production licensing.' : null,
     releaseRuntime && !codeSigningConfigured ? 'CSC_LINK is not configured; Windows builds may show SmartScreen warnings.' : null,
     releaseRuntime && !supportPagesReady ? 'Public support/legal pages are incomplete.' : null,
   ].filter((item): item is string => Boolean(item));
@@ -229,7 +226,6 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     dataDir: dataPath(),
     logFileCount: logFiles.length,
     diagnosticsReady,
-    offlineSecretConfigured,
     codeSigningConfigured,
     supportPagesReady,
     onboardingCompleted: config.onboardingCompleted,
@@ -243,7 +239,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     recentIncidentCount: recentIncidents.length,
     recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
     lastIncidentAt: recentIncidents[0]?.timestamp ?? null,
-    releaseReady: diagnosticsReady && offlineSecretConfigured && supportPagesReady,
+    releaseReady: diagnosticsReady && supportPagesReady,
     warnings,
   };
 }
@@ -251,9 +247,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
 async function buildSelfTest(): Promise<SupportSelfTestPayload> {
   const { configManager } = await import('../managers/ConfigManager');
   const { runtimeManager } = await import('../managers/RuntimeManager');
-  const { profileManager } = await import('../managers/ProfileManager');
   const { proxyManager } = await import('../managers/ProxyManager');
-  const { licenseManager } = await import('../managers/LicenseManager');
 
   const checks: SelfTestCheck[] = [];
   const config = configManager.get();
@@ -291,14 +285,6 @@ async function buildSelfTest(): Promise<SupportSelfTestPayload> {
     label: 'Public support/legal pages',
     status: supportPagesReady ? 'pass' : 'warn',
     detail: supportPagesReady ? 'Support, privacy, and terms pages are present.' : 'One or more support/legal pages are missing.',
-  });
-
-  const license = licenseManager.getStatus(profileManager.listProfiles().length);
-  checks.push({
-    key: 'license',
-    label: 'License state',
-    status: license.tier === 'expired' ? 'fail' : 'pass',
-    detail: `Current tier: ${license.tier}`,
   });
 
   checks.push({
@@ -421,22 +407,9 @@ router.post('/support/feedback', async (req: Request, res: Response) => {
   }
 });
 
-function redactLicenseKey(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  return value.length > 8 ? `${value.slice(0, 4)}...${value.slice(-4)}` : '****';
-}
-
 function sanitizeJsonText(raw: string, filename: string): string {
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (filename === 'license.dat.summary.json' && parsed && typeof parsed === 'object') {
-      const record = parsed as Record<string, unknown>;
-      if ('licenseKey' in record) {
-        record['licenseKey'] = redactLicenseKey(record['licenseKey']);
-      }
-      return JSON.stringify(record, null, 2);
-    }
-
     if (filename === 'proxies.json' && Array.isArray(parsed)) {
       const redacted = parsed.map((item) => {
         if (!item || typeof item !== 'object') return item;
@@ -503,24 +476,6 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
         appendIfExists(archive, dataPath('onboarding-state.json'), 'onboarding-state.json', sanitizeJsonText),
         appendIfExists(archive, dataPath('support-feedback.json'), 'support-feedback.json', sanitizeJsonText),
       ]).then(async () => {
-        try {
-          const encryptedLicense = await fs.readFile(dataPath('license.dat'), 'utf-8');
-          archive.append(
-            JSON.stringify(
-              {
-                present: true,
-                encrypted: true,
-                licenseKey: redactLicenseKey(encryptedLicense.trim()),
-              },
-              null,
-              2,
-            ),
-            { name: 'license.dat.summary.json' },
-          );
-        } catch {
-          archive.append(JSON.stringify({ present: false }, null, 2), { name: 'license.dat.summary.json' });
-        }
-
         try {
           const logFiles = await fs.readdir(dataPath('logs'));
           for (const file of logFiles.filter((entry) => entry.endsWith('.log'))) {

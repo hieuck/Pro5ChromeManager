@@ -5,7 +5,6 @@ import fs from 'fs/promises';
 import { z } from 'zod';
 import { profileManager } from '../managers/ProfileManager';
 import { fingerprintEngine } from '../managers/FingerprintEngine';
-import { licenseManager } from '../managers/LicenseManager';
 import { proxyManager } from '../managers/ProxyManager';
 import { usageMetricsManager } from '../managers/UsageMetricsManager';
 import { logger } from '../utils/logger';
@@ -91,17 +90,6 @@ router.post('/profiles', async (req: Request, res: Response) => {
   try {
     const body = CreateProfileSchema.parse(req.body);
 
-    // Enforce free tier limit
-    const profilesUsed = profileManager.listProfiles().length;
-    if (!licenseManager.canCreateProfile(profilesUsed)) {
-      res.status(403).json({
-        success: false,
-        error: 'Đã đạt giới hạn 10 profiles của gói Free. Nâng cấp lên Pro để tạo không giới hạn.',
-        code: 'FREE_TIER_LIMIT',
-      });
-      return;
-    }
-
     const profile = await profileManager.createProfile(body.name, {
       notes: body.notes,
       tags: body.tags,
@@ -136,12 +124,6 @@ router.post('/profiles/import', async (req: Request, res: Response) => {
   try {
     const { srcDir } = z.object({ srcDir: z.string().min(1) }).parse(req.body);
 
-    const profilesUsed = profileManager.listProfiles().length;
-    if (!licenseManager.canCreateProfile(profilesUsed)) {
-      res.status(403).json({ success: false, error: 'Đã đạt giới hạn Free tier.', code: 'FREE_TIER_LIMIT' });
-      return;
-    }
-
     const profile = await profileManager.importProfile(srcDir);
     await usageMetricsManager.recordProfileImported();
     res.status(201).json({ success: true, data: profile });
@@ -159,12 +141,6 @@ router.post('/profiles/import-bulk', async (req: Request, res: Response) => {
     const results: Array<{ srcDir: string; success: boolean; profile?: unknown; error?: string }> = [];
 
     for (const srcDir of srcDirs) {
-      // Check limit before each import
-      const profilesUsed = profileManager.listProfiles().length;
-      if (!licenseManager.canCreateProfile(profilesUsed)) {
-        results.push({ srcDir, success: false, error: 'Đã đạt giới hạn Free tier.' });
-        continue;
-      }
       try {
         const profile = await profileManager.importProfile(srcDir);
         await usageMetricsManager.recordProfileImported();
@@ -228,16 +204,6 @@ router.post('/profiles/:id/clone', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const body = CloneProfileSchema.parse(req.body ?? {});
-    const profilesUsed = profileManager.listProfiles().length;
-
-    if (!licenseManager.canCreateProfile(profilesUsed)) {
-      res.status(403).json({
-        success: false,
-        error: 'Đã đạt giới hạn 10 profiles của gói Free. Nâng cấp lên Pro để tạo không giới hạn.',
-        code: 'FREE_TIER_LIMIT',
-      });
-      return;
-    }
 
     const profile = await profileManager.cloneProfile(id, {
       name: body.name,

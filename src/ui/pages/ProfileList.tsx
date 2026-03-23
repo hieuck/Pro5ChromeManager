@@ -441,14 +441,14 @@ const ProfileList: React.FC = () => {
   ));
 
   const tags = Array.from(new Set(
-    profiles.flatMap((profile) => profile.tags),
+    profiles.flatMap((profile) => profile.tags ?? []),
   ));
 
   const filtered = profiles.filter((profile) => {
     const normalizedSearch = search.trim().toLowerCase();
     const status = getProfileStatus(profile.id);
     const proxyHealth = profile.proxy?.lastCheckStatus ?? 'none';
-    const joinedTags = profile.tags.join(' ').toLowerCase();
+    const joinedTags = (profile.tags ?? []).join(' ').toLowerCase();
     const matchSearch = !normalizedSearch
       || profile.name.toLowerCase().includes(normalizedSearch)
       || (profile.notes ?? '').toLowerCase().includes(normalizedSearch)
@@ -458,7 +458,7 @@ const ProfileList: React.FC = () => {
 
     const matchGroup = !filterGroup || profile.group === filterGroup;
     const matchStatus = !filterStatus || status === filterStatus;
-    const matchTag = !filterTag || profile.tags.includes(filterTag);
+    const matchTag = !filterTag || (profile.tags ?? []).includes(filterTag);
     const matchOwner = !filterOwner || profile.owner === filterOwner;
     const matchProxyHealth = !filterProxyHealth || proxyHealth === filterProxyHealth;
     return matchSearch && matchGroup && matchStatus && matchTag && matchOwner && matchProxyHealth;
@@ -466,7 +466,7 @@ const ProfileList: React.FC = () => {
 
   const runningCount = profiles.filter((profile) => getProfileStatus(profile.id) === 'running').length;
   const groupedCount = profiles.filter((profile) => Boolean(profile.group)).length;
-  const taggedCount = profiles.filter((profile) => profile.tags.length > 0).length;
+  const taggedCount = profiles.filter((profile) => (profile.tags ?? []).length > 0).length;
   const proxiedCount = profiles.filter((profile) => Boolean(getProfileProxyId(profile))).length;
   const healthyProxyCount = profiles.filter((profile) => profile.proxy?.lastCheckStatus === 'healthy').length;
   const failingProxyCount = profiles.filter((profile) => profile.proxy?.lastCheckStatus === 'failing').length;
@@ -630,9 +630,9 @@ const ProfileList: React.FC = () => {
       title: t.common.tags,
       dataIndex: 'tags',
       key: 'tags',
-      render: (profileTags: string[]) => (
-        profileTags.length > 0
-          ? profileTags.map((tag) => <Tag key={tag}>{tag}</Tag>)
+      render: (profileTags: string[] | undefined) => (
+        (profileTags ?? []).length > 0
+          ? (profileTags ?? []).map((tag) => <Tag key={tag}>{tag}</Tag>)
           : <Typography.Text type="secondary">—</Typography.Text>
       ),
     },

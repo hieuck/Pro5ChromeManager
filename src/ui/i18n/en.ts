@@ -485,14 +485,6 @@ const en: TranslationKeys = {
     saveSettings: 'Save Settings',
     settingsSaved: 'Settings saved',
   },
-  license: {
-    free: 'Free',
-    pro: 'Pro',
-    expired: 'Expired',
-    profilesUsed: '{used}/{limit} profiles',
-    activate: 'Activate',
-    deactivate: 'Deactivate',
-  },
   logs: {
     title: 'System Logs',
     noLogs: 'No logs yet',

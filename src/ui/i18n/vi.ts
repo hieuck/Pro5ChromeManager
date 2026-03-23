@@ -483,14 +483,6 @@ const vi = {
     saveSettings: 'Lưu cài đặt',
     settingsSaved: 'Đã lưu cài đặt',
   },
-  license: {
-    free: 'Miễn phí',
-    pro: 'Pro',
-    expired: 'Hết hạn',
-    profilesUsed: '{used}/{limit} hồ sơ',
-    activate: 'Kích hoạt',
-    deactivate: 'Hủy kích hoạt',
-  },
   logs: {
     title: 'Nhật ký hệ thống',
     noLogs: 'Chưa có nhật ký',

@@ -69,7 +69,6 @@ async function main() {
       ...process.env,
       DATA_DIR: smokeDir,
       NODE_ENV: 'development',
-      PRO5_OFFLINE_SECRET: process.env.PRO5_OFFLINE_SECRET || 'smoke-test-offline-secret',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

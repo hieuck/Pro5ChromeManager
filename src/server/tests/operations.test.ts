@@ -15,7 +15,6 @@ describe('Operations endpoints', () => {
     process.env['DATA_DIR'] = tmpDir;
     process.env['NODE_ENV'] = 'test';
     process.env['PRO5_SERVER_AUTOSTART'] = 'false';
-    process.env['PRO5_OFFLINE_SECRET'] = 'test-offline-secret';
 
     const { configManager } = await import('../managers/ConfigManager');
     await configManager.load();
@@ -42,9 +41,6 @@ describe('Operations endpoints', () => {
     const { proxyManager } = await import('../managers/ProxyManager');
     await proxyManager.initialize();
 
-    const { licenseManager } = await import('../managers/LicenseManager');
-    await licenseManager.initialize();
-
     const { app } = await import('../index');
     server = http.createServer(app);
 
@@ -67,7 +63,6 @@ describe('Operations endpoints', () => {
     }
     await fs.rm(tmpDir, { recursive: true, force: true });
     delete process.env['DATA_DIR'];
-    delete process.env['PRO5_OFFLINE_SECRET'];
     delete process.env['PRO5_SERVER_AUTOSTART'];
   });
 
@@ -191,11 +186,9 @@ describe('Operations endpoints', () => {
 
   it('keeps release-only support warnings out of test runtime status', async () => {
     const previousNodeEnv = process.env['NODE_ENV'];
-    const previousOfflineSecret = process.env['PRO5_OFFLINE_SECRET'];
     const previousCodeSigning = process.env['CSC_LINK'];
 
     process.env['NODE_ENV'] = 'test';
-    delete process.env['PRO5_OFFLINE_SECRET'];
     delete process.env['CSC_LINK'];
 
     try {
@@ -209,16 +202,10 @@ describe('Operations endpoints', () => {
       };
 
       expect(statusJson.success).toBe(true);
-      expect(statusJson.data.warnings).not.toContain('PRO5_OFFLINE_SECRET is not configured for production licensing.');
       expect(statusJson.data.warnings).not.toContain('CSC_LINK is not configured; Windows builds may show SmartScreen warnings.');
       expect(statusJson.data.warnings).not.toContain('Public support/legal pages are incomplete.');
     } finally {
       process.env['NODE_ENV'] = previousNodeEnv;
-      if (previousOfflineSecret === undefined) {
-        delete process.env['PRO5_OFFLINE_SECRET'];
-      } else {
-        process.env['PRO5_OFFLINE_SECRET'] = previousOfflineSecret;
-      }
       if (previousCodeSigning === undefined) {
         delete process.env['CSC_LINK'];
       } else {
@@ -229,11 +216,9 @@ describe('Operations endpoints', () => {
 
   it('keeps production release warnings in support status when release config is missing', async () => {
     const previousNodeEnv = process.env['NODE_ENV'];
-    const previousOfflineSecret = process.env['PRO5_OFFLINE_SECRET'];
     const previousCodeSigning = process.env['CSC_LINK'];
 
     process.env['NODE_ENV'] = 'production';
-    delete process.env['PRO5_OFFLINE_SECRET'];
     delete process.env['CSC_LINK'];
 
     try {
@@ -248,16 +233,9 @@ describe('Operations endpoints', () => {
       };
 
       expect(statusJson.success).toBe(true);
-      expect(statusJson.data.releaseReady).toBe(false);
-      expect(statusJson.data.warnings).toContain('PRO5_OFFLINE_SECRET is not configured for production licensing.');
       expect(statusJson.data.warnings).toContain('CSC_LINK is not configured; Windows builds may show SmartScreen warnings.');
     } finally {
       process.env['NODE_ENV'] = previousNodeEnv;
-      if (previousOfflineSecret === undefined) {
-        delete process.env['PRO5_OFFLINE_SECRET'];
-      } else {
-        process.env['PRO5_OFFLINE_SECRET'] = previousOfflineSecret;
-      }
       if (previousCodeSigning === undefined) {
         delete process.env['CSC_LINK'];
       } else {

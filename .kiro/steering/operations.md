@@ -78,11 +78,6 @@
 3. File nào invalid JSON → restore từ backup gần nhất (`data/backups/`)
 4. Nếu không có backup → recreate với defaults (mất data proxy/config, profiles vẫn còn trong `data/profiles/`)
 
-**License validation loop fail**
-1. Kiểm tra `data/license.dat` có tồn tại và decrypt được không
-2. Nếu LemonSqueezy API unreachable → grace period 7 ngày tự động kick in
-3. Nếu `license.dat` corrupt → xóa file, user cần activate lại
-
 **Memory leak / high CPU**
 1. Log `process.memoryUsage()` mỗi 5 phút vào metrics log
 2. Nếu RSS > 500MB: restart server (graceful — đóng tất cả instances trước)
@@ -124,33 +119,7 @@
 ## 5. License & Revenue Operations
 
 ### Activation Flow
-- User nhập license key → POST `/api/license/activate`
-- Gọi LemonSqueezy API với `{ license_key, instance_name: machineId }`
-- Nếu valid: lưu `LicenseState` AES-encrypted vào `data/license.dat`
-- Nếu fail: trả về error cụ thể (invalid key / already activated / network error)
-
-### Re-validation (background, mỗi 30 ngày)
-- Silent call đến LemonSqueezy API
-- Nếu success: reset grace period timer
-- Nếu network fail: bắt đầu đếm grace period 7 ngày
-- Nếu key bị revoke: set status `expired`, block createProfile ngay
-
-### Machine ID thay đổi (reinstall / hardware change)
-- Grace period 7 ngày tự động
-- Trong grace period: hiển thị warning badge nhưng vẫn cho dùng
-- Sau 7 ngày: block, yêu cầu deactivate trên máy cũ rồi activate lại
-
-### Abuse Detection
-- Nếu LemonSqueezy trả về `already_activated` với machineId khác: log warning
-- Không tự revoke — để LemonSqueezy dashboard xử lý
-- Ghi vào `data/logs/license-audit.log`: mọi activate/deactivate với timestamp + machineId
-
-### Free Tier Enforcement
-- Limit: 10 profiles
-- Check trong `ProfileManager.createProfile()` trước khi tạo
-- Hiển thị upgrade modal với link: `https://pro5chrome.lemonsqueezy.com`
-
----
+### Re-validation
 
 ## 6. User Support Pipeline
 
@@ -221,7 +190,7 @@ Ghi vào `memory.md` → "Log các bug đáng nhớ" để không fix lại bug 
 
 ### Secret Management
 - KHÔNG commit secrets vào repo
-- Secrets trong code: `LEMONSQUEEZY_STORE_ID`, `GH_TOKEN` → chỉ qua env vars / GitHub Secrets
+- Secrets trong code: `GH_TOKEN` → chỉ qua env vars / GitHub Secrets
 - Machine ID key cho AES: derive từ hardware, không hardcode
 - Rotate: nếu phát hiện secret bị leak → invalidate ngay, generate mới
 
@@ -248,16 +217,15 @@ Ghi vào `memory.md` → "Log các bug đáng nhớ" để không fix lại bug 
 - Lưu vào `data/analytics.json` (local only)
 
 ### Conversion Tracking
-- Free → Paid: khi user activate license key, ghi timestamp vào `license.dat`
-- Churn signal: license expire + không renew sau 30 ngày
+- (không áp dụng — app miễn phí hoàn toàn)
 
 ### Feature Adoption
 - Nếu feature X chưa được dùng sau 30 ngày: xem xét simplify hoặc remove
 - Track qua analytics.json: `{ featureName, lastUsed, useCount }`
 
 ### Privacy Rules
-- KHÔNG gửi bất kỳ data nào ra ngoài trừ: LemonSqueezy license validation, fingerprint DB version check
-- Cả hai đều có thể disable qua config
+- KHÔNG gửi bất kỳ data nào ra ngoài trừ: fingerprint DB version check
+- Có thể disable qua config
 - Không có telemetry, không có crash reporting gửi về server của mình
 
 ---

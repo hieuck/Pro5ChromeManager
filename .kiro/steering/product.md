@@ -17,9 +17,7 @@ Cho phép người dùng tạo và vận hành nhiều profile trình duyệt Ch
 
 ## Pricing Model
 
-- Free tier: 10 profiles miễn phí, không cần đăng ký
-- Paid: license key mở khóa không giới hạn profiles
-- Grace period 7 ngày nếu machine ID thay đổi (offline validation)
+- Miễn phí hoàn toàn, không giới hạn profiles, không cần đăng ký
 
 ## Kiến trúc tổng thể
 

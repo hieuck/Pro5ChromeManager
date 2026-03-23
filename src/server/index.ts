@@ -57,20 +57,14 @@ app.get('/readyz', async (_req: Request, res: Response) => {
     const { runtimeManager } = await import('./managers/RuntimeManager');
     const { profileManager } = await import('./managers/ProfileManager');
     const { proxyManager } = await import('./managers/ProxyManager');
-    const { licenseManager } = await import('./managers/LicenseManager');
-
     const runtimes = runtimeManager.listRuntimes();
     const profiles = profileManager.listProfiles();
     const proxies = proxyManager.listProxies();
-    const license = licenseManager.getStatus(profiles.length);
     const availableRuntimeCount = runtimes.filter((runtime) => runtime.available).length;
     const config = configManager.get();
     const warnings = [
       bootState.lastError ? `Last startup error: ${bootState.lastError}` : null,
       availableRuntimeCount === 0 ? 'No available browser runtime detected.' : null,
-      !process.env['PRO5_OFFLINE_SECRET'] && process.env['NODE_ENV'] === 'production'
-        ? 'PRO5_OFFLINE_SECRET is missing in production.'
-        : null,
     ].filter((item): item is string => Boolean(item));
 
     const payload = {
@@ -84,7 +78,6 @@ app.get('/readyz', async (_req: Request, res: Response) => {
       proxyCount: proxies.length,
       runtimeCount: runtimes.length,
       availableRuntimeCount,
-      licenseTier: license.tier,
       warnings,
     };
 
@@ -119,10 +112,6 @@ app.use('/api', runtimeRoutes);
 // Instance routes
 import instanceRoutes from './routes/instances';
 app.use('/api', instanceRoutes);
-
-// License routes
-import licenseRoutes from './routes/license';
-app.use('/api/license', licenseRoutes);
 
 // Backup routes
 import backupRoutes from './routes/backups';
@@ -323,9 +312,6 @@ async function start(): Promise<void> {
   const { proxyManager } = await import('./managers/ProxyManager');
   await proxyManager.initialize();
 
-  const { licenseManager } = await import('./managers/LicenseManager');
-  await licenseManager.initialize();
-
   const { usageMetricsManager } = await import('./managers/UsageMetricsManager');
   await usageMetricsManager.initialize();
 
@@ -337,11 +323,6 @@ async function start(): Promise<void> {
 
   const { backupManager } = await import('./managers/BackupManager');
   backupManager.startAutoBackup();
-
-  // Warn if offline secret is not set in production
-  if (!process.env['PRO5_OFFLINE_SECRET'] && process.env['NODE_ENV'] === 'production') {
-    logger.warn('PRO5_OFFLINE_SECRET env var not set — offline keys use default secret (insecure)');
-  }
 
   const { host, port } = configManager.get().api;
   const httpServer = http.createServer(app);

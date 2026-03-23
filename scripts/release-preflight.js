@@ -47,11 +47,6 @@ const checks = [
     message: 'src/server/routes/support.ts is missing.',
   },
   {
-    level: 'error',
-    ok: !strict || Boolean(env('PRO5_OFFLINE_SECRET')),
-    message: 'PRO5_OFFLINE_SECRET is required for release builds.',
-  },
-  {
     level: 'warning',
     ok: Boolean(env('CSC_LINK')),
     message: 'CSC_LINK is not configured; Windows installers will be unsigned.',

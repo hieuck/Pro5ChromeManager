@@ -90,7 +90,6 @@ Agent được phép và **có trách nhiệm** tự sửa đổi:
 
 ### Chưa có kinh nghiệm ❌
 - Code signing Windows installer
-- LemonSqueezy webhook handling
 - SQLite migration (nếu cần chuyển từ JSON)
 
 ---

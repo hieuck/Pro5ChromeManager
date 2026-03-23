@@ -18,7 +18,7 @@ ReactDOM.createRoot(root).render(
         },
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter basename="/ui">
         <App />
       </BrowserRouter>
     </ConfigProvider>

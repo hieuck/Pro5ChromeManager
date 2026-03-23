@@ -79,9 +79,9 @@ Attempts:
 |---|---|
 | Tên | Pro5 Chrome Manager |
 | Repo | https://github.com/hieuck/Pro5ChromeManager |
-| Free tier | 10 profiles, không cần đăng ký |
-| Paid tier | $29 lifetime (LemonSqueezy, store slug: `pro5chrome`) |
-| License API | `https://api.lemonsqueezy.com/v1/licenses/validate` |
+| Free tier | không áp dụng — app miễn phí hoàn toàn |
+| Paid tier | không áp dụng |
+| License API | không áp dụng |
 | Target | Marketer, affiliate, social media manager — VN + SEA |
 | UI language | Tiếng Việt mặc định, toggle sang English |
 
