@@ -1,9 +1,22 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { dataPath } from './dataPaths';
 
-const LOG_DIR = dataPath('logs');
+export function resolveLogDir(): string {
+  if (process.env['NODE_ENV'] === 'test' && !process.env['DATA_DIR']) {
+    return path.join(os.tmpdir(), 'pro5-test-logs', `pid-${process.pid}`);
+  }
+
+  return dataPath('logs');
+}
+
+const LOG_DIR = resolveLogDir();
 const isDev = process.env.NODE_ENV !== 'production';
+
+fs.mkdirSync(LOG_DIR, { recursive: true });
 
 const fileTransport = new DailyRotateFile({
   dirname: LOG_DIR,
