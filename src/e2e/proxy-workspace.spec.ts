@@ -153,17 +153,35 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByText(':1081')).toBeVisible();
   });
 
-  test('shows bulk actions after selecting multiple proxies', async ({ page }) => {
-    const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 60}`;
-    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 120}`;
+  test('ignores blank and comment lines during bulk import', async ({ page }) => {
+    const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 30}`;
+    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 230}`;
 
     await gotoProxyWorkspace(page);
 
-    await importProxyLines(page, `${firstHost}:9201\n${secondHost}:9202`);
+    await importProxyLines(
+      page,
+      `# imported from note\n\n${firstHost}:9701\n// keep this line ignored\n${secondHost}:9702:comment-user:comment-pass`,
+    );
     await goToLastProxyPage(page);
 
-    const firstRow = proxyRow(page, firstHost, 9201);
-    const secondRow = proxyRow(page, secondHost, 9202);
+    const firstRow = proxyRow(page, firstHost, 9701);
+    const secondRow = proxyRow(page, secondHost, 9702);
+
+    await expect(firstRow).toBeVisible();
+    await expect(secondRow).toBeVisible();
+    await expect(secondRow.getByText('comment-user')).toBeVisible();
+
+    const proxies = await listProxyHosts(page);
+    expect(proxies.filter((proxy) => proxy.host === firstHost && proxy.port === 9701)).toHaveLength(1);
+    expect(proxies.filter((proxy) => proxy.host === secondHost && proxy.port === 9702)).toHaveLength(1);
+  });
+
+  test('shows bulk actions after selecting multiple proxies', async ({ page }) => {
+    await gotoProxyWorkspace(page);
+    const visibleRows = page.locator('tbody tr');
+    const firstRow = visibleRows.nth(0);
+    const secondRow = visibleRows.nth(1);
 
     await expect(firstRow).toBeVisible();
     await expect(secondRow).toBeVisible();
@@ -176,16 +194,10 @@ test.describe('Proxy workspace', () => {
   });
 
   test('hides bulk actions after clearing the selection', async ({ page }) => {
-    const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 160}`;
-    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 220}`;
-
     await gotoProxyWorkspace(page);
-
-    await importProxyLines(page, `${firstHost}:9301\n${secondHost}:9302`);
-    await goToLastProxyPage(page);
-
-    const firstRow = proxyRow(page, firstHost, 9301);
-    const secondRow = proxyRow(page, secondHost, 9302);
+    const visibleRows = page.locator('tbody tr');
+    const firstRow = visibleRows.nth(0);
+    const secondRow = visibleRows.nth(1);
     const bulkAction = page.getByRole('button', { name: /test.+ch.+n/i });
 
     await firstRow.getByRole('checkbox').check();
