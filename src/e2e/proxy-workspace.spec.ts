@@ -95,6 +95,32 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByRole('button', { name: /test.+ch.+n/i })).toBeVisible();
   });
 
+  test('hides bulk actions after clearing the selection', async ({ page }) => {
+    const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 160}`;
+    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 220}`;
+
+    await gotoProxyWorkspace(page);
+
+    const bulkInput = await getBulkInput(page);
+    await bulkInput.fill(`${firstHost}:9301\n${secondHost}:9302`);
+    await page.getByRole('button', { name: 'Import proxy' }).click();
+
+    const firstRow = page.getByRole('row', { name: new RegExp(`${firstHost.replaceAll('.', '\\.')}.*:9301`) });
+    const secondRow = page.getByRole('row', { name: new RegExp(`${secondHost.replaceAll('.', '\\.')}.*:9302`) });
+    const bulkAction = page.getByRole('button', { name: /test.+ch.+n/i });
+
+    await firstRow.getByRole('checkbox').check();
+    await secondRow.getByRole('checkbox').check();
+
+    await expect(bulkAction).toBeVisible();
+
+    await firstRow.getByRole('checkbox').uncheck();
+    await secondRow.getByRole('checkbox').uncheck();
+
+    await expect(bulkAction).toHaveCount(0);
+    await expect(page.locator('.ant-card-body').getByText(/2 proxy/i)).toHaveCount(0);
+  });
+
   test('skips duplicate proxies during bulk import', async ({ page }) => {
     const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 10}`;
     const proxyLine = `${uniqueHost}:9100:repeat-user:repeat-pass`;
