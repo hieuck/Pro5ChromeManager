@@ -74,7 +74,6 @@ function httpGetViaProxy(targetUrl: string, proxy: ProxyConfig, timeoutMs: numbe
         const tlsOptions = {
           socket,
           servername: parsed.hostname,
-          rejectUnauthorized: false,
         };
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const tls = require('tls') as typeof import('tls');
