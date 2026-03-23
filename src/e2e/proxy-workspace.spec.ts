@@ -72,6 +72,29 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByText(':1080')).toBeVisible();
   });
 
+  test('shows bulk actions after selecting multiple proxies', async ({ page }) => {
+    const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 60}`;
+    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 120}`;
+
+    await gotoProxyWorkspace(page);
+
+    const bulkInput = await getBulkInput(page);
+    await bulkInput.fill(`${firstHost}:9201\n${secondHost}:9202`);
+    await page.getByRole('button', { name: 'Import proxy' }).click();
+
+    const firstRow = page.getByRole('row', { name: new RegExp(`${firstHost.replaceAll('.', '\\.')}.*:9201`) });
+    const secondRow = page.getByRole('row', { name: new RegExp(`${secondHost.replaceAll('.', '\\.')}.*:9202`) });
+
+    await expect(firstRow).toBeVisible();
+    await expect(secondRow).toBeVisible();
+
+    await firstRow.getByRole('checkbox').check();
+    await secondRow.getByRole('checkbox').check();
+
+    await expect(page.locator('.ant-card-body').getByText(/2 proxy/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /test.+ch.+n/i })).toBeVisible();
+  });
+
   test('skips duplicate proxies during bulk import', async ({ page }) => {
     const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 10}`;
     const proxyLine = `${uniqueHost}:9100:repeat-user:repeat-pass`;
@@ -82,13 +105,13 @@ test.describe('Proxy workspace', () => {
     await bulkInput.fill(proxyLine);
     await page.getByRole('button', { name: 'Import proxy' }).click();
 
-    const row = page.getByRole('row', { name: new RegExp(uniqueHost.replaceAll('.', '\\.')) });
+    const row = page.getByRole('row', { name: new RegExp(`${uniqueHost.replaceAll('.', '\\.')}.*:9100`) });
     await expect(row).toHaveCount(1);
 
     await bulkInput.fill(proxyLine);
     await page.getByRole('button', { name: 'Import proxy' }).click();
 
-    await expect(page.getByRole('row', { name: new RegExp(uniqueHost.replaceAll('.', '\\.')) })).toHaveCount(1);
+    await expect(page.getByRole('row', { name: new RegExp(`${uniqueHost.replaceAll('.', '\\.')}.*:9100`) })).toHaveCount(1);
     await expect(page.getByText('repeat-user')).toHaveCount(1);
     await expect(page.getByText(':9100')).toHaveCount(1);
   });
