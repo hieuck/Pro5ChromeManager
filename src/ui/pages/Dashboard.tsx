@@ -737,19 +737,19 @@ const Dashboard: React.FC = () => {
 
     setCopyingSummary(true);
     const summaryLines = [
-      'Pro5 support summary',
-      `App version: ${support.appVersion}`,
-      `Node: ${support.nodeVersion}`,
-      `Platform: ${support.platform}/${support.arch}`,
-      `Uptime: ${Math.round(support.uptimeSeconds)}s`,
-      `Profiles: ${support.profileCount}`,
-      `Proxies: ${support.proxyCount}`,
-      `Recent incidents: ${support.recentIncidentCount} (${support.recentErrorCount} errors)`,
-      `Diagnostics ready: ${support.diagnosticsReady ? 'yes' : 'no'}`,
-      `Data dir: ${support.dataDir}`,
-      `Onboarding: ${support.onboardingState.status}`,
-      `Last launch: ${support.usageMetrics.lastProfileLaunchAt ?? 'never'}`,
-      support.warnings.length ? `Warnings: ${support.warnings.join(' | ')}` : 'Warnings: none',
+      t.settings.supportSummaryTitle,
+      `${t.settings.appVersionLabel}: ${support.appVersion}`,
+      `${t.settings.nodeVersionLabel}: ${support.nodeVersion}`,
+      `${t.settings.platformLabel}: ${support.platform}/${support.arch}`,
+      `${t.settings.uptimeLabel}: ${Math.round(support.uptimeSeconds)}s`,
+      `${t.settings.profilesLabel}: ${support.profileCount}`,
+      `${t.settings.proxiesLabel}: ${support.proxyCount}`,
+      `${t.settings.recentIncidentsLabel}: ${support.recentIncidentCount} (${support.recentErrorCount} ${t.settings.errorsLabel})`,
+      `${t.settings.diagnosticsLabel}: ${support.diagnosticsReady ? t.common.yes : t.common.no}`,
+      `${t.settings.dataDirLabel}: ${support.dataDir}`,
+      `${t.settings.onboardingLabel}: ${support.onboardingState.status}`,
+      `${t.settings.lastLaunchLabel}: ${support.usageMetrics.lastProfileLaunchAt ?? t.settings.noneValue}`,
+      support.warnings.length ? `${t.settings.warningsLabel}: ${support.warnings.join(' | ')}` : `${t.settings.warningsLabel}: ${t.settings.noneValue}`,
     ];
 
     try {
