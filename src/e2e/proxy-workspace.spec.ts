@@ -105,6 +105,27 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByText(':8080')).toBeVisible();
   });
 
+  test('creates a proxy with a non-default type from the create dialog', async ({ page }) => {
+    const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 200}`;
+
+    await gotoProxyWorkspace(page);
+    await openCreateProxyDialog(page);
+
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('.ant-select').first().click();
+    await page.locator('.ant-select-dropdown').getByText('SOCKS5').click();
+    await dialog.getByLabel('Host').fill(uniqueHost);
+    await dialog.getByLabel('Port').fill('1085');
+    await dialog.getByRole('button', { name: /l.+u/i }).click();
+
+    await expect(dialog).toBeHidden();
+    await goToLastProxyPage(page);
+
+    const row = proxyRow(page, uniqueHost, 1085);
+    await expect(row).toBeVisible();
+    await expect(row.getByText('SOCKS5')).toBeVisible();
+  });
+
   test('imports proxies in bulk from the proxy workspace', async ({ page }) => {
     const firstHost = `198.51.100.${Math.floor(Math.random() * 100) + 100}`;
     const secondHost = `198.51.100.${Math.floor(Math.random() * 100) + 200}`;
