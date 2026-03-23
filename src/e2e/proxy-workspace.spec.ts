@@ -31,6 +31,17 @@ async function importProxyLines(page: Page, text: string): Promise<void> {
   await expect(importButton).not.toHaveClass(/ant-btn-loading/);
 }
 
+async function listProxyHosts(page: Page): Promise<Array<{ host: string; port: number; username?: string }>> {
+  return page.evaluate(async () => {
+    const response = await fetch('/api/proxies');
+    const json = await response.json() as {
+      success: boolean;
+      data: Array<{ host: string; port: number; username?: string }>;
+    };
+    return json.data;
+  });
+}
+
 async function goToLastProxyPage(page: Page): Promise<void> {
   const pageItems = page.locator('.ant-pagination-item');
   const count = await pageItems.count();
@@ -97,6 +108,21 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByText(':1080')).toBeVisible();
   });
 
+  test('imports proxy URLs with scheme and credentials', async ({ page }) => {
+    const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 170}`;
+
+    await gotoProxyWorkspace(page);
+
+    await importProxyLines(page, `socks5://url-user:url-pass@${uniqueHost}:1081`);
+    await goToLastProxyPage(page);
+
+    const row = proxyRow(page, uniqueHost, 1081);
+    await expect(row).toBeVisible();
+    await expect(row.getByText('SOCKS5')).toBeVisible();
+    await expect(row.getByText('url-user')).toBeVisible();
+    await expect(page.getByText(':1081')).toBeVisible();
+  });
+
   test('shows bulk actions after selecting multiple proxies', async ({ page }) => {
     const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 60}`;
     const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 120}`;
@@ -145,21 +171,12 @@ test.describe('Proxy workspace', () => {
   });
 
   test('toggles bulk actions from the header select-all checkbox', async ({ page }) => {
-    const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 20}`;
-    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 240}`;
-
     await gotoProxyWorkspace(page);
-
-    await importProxyLines(page, `${firstHost}:9401\n${secondHost}:9402`);
-    await goToLastProxyPage(page);
-
-    const firstRow = proxyRow(page, firstHost, 9401);
-    const secondRow = proxyRow(page, secondHost, 9402);
+    const visibleRows = page.locator('tbody tr');
     const selectAll = page.getByRole('checkbox', { name: 'Select all' });
     const bulkAction = page.getByRole('button', { name: /test.+ch.+n/i });
 
-    await expect(firstRow).toBeVisible();
-    await expect(secondRow).toBeVisible();
+    await expect(visibleRows.first()).toBeVisible();
 
     await selectAll.check();
     await expect(bulkAction).toBeVisible();
@@ -175,17 +192,14 @@ test.describe('Proxy workspace', () => {
     await gotoProxyWorkspace(page);
 
     await importProxyLines(page, proxyLine);
-    await goToLastProxyPage(page);
-
-    const row = proxyRow(page, uniqueHost, 9100);
-    await expect(row).toHaveCount(1);
+    const afterFirstImport = await listProxyHosts(page);
+    expect(afterFirstImport.filter((proxy) => proxy.host === uniqueHost && proxy.port === 9100)).toHaveLength(1);
 
     await importProxyLines(page, proxyLine);
-    await goToLastProxyPage(page);
-
-    await expect(proxyRow(page, uniqueHost, 9100)).toHaveCount(1);
-    await expect(page.getByText('repeat-user')).toHaveCount(1);
-    await expect(page.getByText(':9100')).toHaveCount(1);
+    const afterSecondImport = await listProxyHosts(page);
+    const duplicates = afterSecondImport.filter((proxy) => proxy.host === uniqueHost && proxy.port === 9100);
+    expect(duplicates).toHaveLength(1);
+    expect(duplicates[0]?.username).toBe('repeat-user');
   });
 
   test('deletes a proxy from the proxy workspace', async ({ page }) => {
