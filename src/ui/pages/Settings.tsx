@@ -787,39 +787,39 @@ const SupportTab: React.FC = () => {
             <Form form={feedbackForm} layout="vertical">
               <Row gutter={12}>
                 <Col span={8}>
-                  <Form.Item name="category" label="Category" initialValue="feedback" rules={[{ required: true }]}>
+                  <Form.Item name="category" label={t.settings.feedbackCategoryLabel} initialValue="feedback" rules={[{ required: true }]}>
                     <Select
                       options={[
-                        { label: 'Feedback', value: 'feedback' },
-                        { label: 'Bug', value: 'bug' },
-                        { label: 'Question', value: 'question' },
+                        { label: t.settings.feedbackCategoryFeedback, value: 'feedback' },
+                        { label: t.settings.feedbackCategoryBug, value: 'bug' },
+                        { label: t.settings.feedbackCategoryQuestion, value: 'question' },
                       ]}
                     />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="sentiment" label="Sentiment" initialValue="neutral" rules={[{ required: true }]}>
+                  <Form.Item name="sentiment" label={t.settings.feedbackSentimentLabel} initialValue="neutral" rules={[{ required: true }]}>
                     <Select
                       options={[
-                        { label: 'Neutral', value: 'neutral' },
-                        { label: 'Positive', value: 'positive' },
-                        { label: 'Negative', value: 'negative' },
+                        { label: t.settings.feedbackSentimentNeutral, value: 'neutral' },
+                        { label: t.settings.feedbackSentimentPositive, value: 'positive' },
+                        { label: t.settings.feedbackSentimentNegative, value: 'negative' },
                       ]}
                     />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="email" label="Contact email">
-                    <Input placeholder="optional@example.com" />
+                  <Form.Item name="email" label={t.settings.feedbackEmailLabel}>
+                    <Input placeholder={t.settings.feedbackEmailPlaceholder} />
                   </Form.Item>
                 </Col>
               </Row>
               <Form.Item
                 name="message"
-                label="Message"
-                rules={[{ required: true, min: 10, message: 'Write at least 10 characters' }]}
+                label={t.settings.feedbackMessageLabel}
+                rules={[{ required: true, min: 10, message: t.settings.feedbackMessageMin }]}
               >
-                <Input.TextArea rows={4} placeholder="What is working, broken, or confusing?" />
+                <Input.TextArea rows={4} placeholder={t.settings.feedbackMessagePlaceholder} />
               </Form.Item>
               <Space style={{ marginBottom: 12 }}>
                 <Button type="primary" loading={submittingFeedback} onClick={() => void handleSubmitFeedback()}>
@@ -845,7 +845,7 @@ const SupportTab: React.FC = () => {
                       <Typography.Text>{entry.message}</Typography.Text>
                     </div>
                     <Typography.Text type="secondary">
-                      {entry.email ? `Contact: ${entry.email}` : 'No contact email'}{entry.appVersion ? ` | App ${entry.appVersion}` : ''}
+                      {entry.email ? `${t.settings.feedbackContactPrefix}: ${entry.email}` : t.settings.feedbackNoContactEmail}{entry.appVersion ? ` | ${t.settings.feedbackAppPrefix} ${entry.appVersion}` : ''}
                     </Typography.Text>
                   </div>
                 ))}
