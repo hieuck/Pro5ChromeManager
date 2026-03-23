@@ -9,6 +9,7 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "build": "npm run build:server && npm run build:ui && npm run build:electron",
     "ops:verify:dev-package": "node scripts/verify-dev-package.js",
+    "ops:smoke:dev-package": "node scripts/dev-package-smoke.js",
     "ops:artifacts": "node scripts/release-artifacts.js",
     "ops:artifacts:verify": "node scripts/release-artifacts.js --verify",
     "ops:preflight": "node scripts/release-preflight.js",
@@ -20,7 +21,7 @@
     "dev:ui": "vite",
     "dev:electron": "npm run build && node scripts/run-electron-local.js",
     "ops:smoke:local": "npm run build && node scripts/local-app-smoke.js",
-    "package:electron:dev": "npm run generate:icons && npm run build && electron-builder --dir --win --config electron-builder.yml --config.win.signAndEditExecutable=false && npm run ops:verify:dev-package",
+    "package:electron:dev": "npm run generate:icons && npm run build && electron-builder --dir --win --config electron-builder.yml --config.win.signAndEditExecutable=false && npm run ops:verify:dev-package && npm run ops:smoke:dev-package",
     "generate:icons": "node scripts/generate-icons.js",
     "package:electron": "npm run generate:icons && npm run build && electron-builder --config electron-builder.yml && npm run ops:artifacts && npm run ops:artifacts:verify",
     "test": "node -r ./scripts/vite-safe-realpath-shim.cjs ./node_modules/vitest/vitest.mjs run --configLoader runner"
