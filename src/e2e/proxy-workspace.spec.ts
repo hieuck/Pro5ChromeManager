@@ -70,6 +70,31 @@ test.describe('Proxy workspace', () => {
     await expect.poll(async () => (await listProxyHosts(page)).length).toBe(beforeCount);
   });
 
+  test('keeps a proxy when delete confirmation is cancelled', async ({ page }) => {
+    const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 110}`;
+
+    await gotoProxyWorkspace(page);
+    await openCreateProxyDialog(page);
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Host').fill(uniqueHost);
+    await dialog.getByLabel('Port').fill('9556');
+    await dialog.getByRole('button', { name: /l.+u/i }).click();
+    await expect(dialog).toBeHidden();
+    await goToLastProxyPage(page);
+
+    const row = proxyRow(page, uniqueHost, 9556);
+    await expect(row).toBeVisible();
+    await row.getByRole('button', { name: 'delete' }).click();
+
+    const confirm = page.locator('.ant-popconfirm');
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('button', { name: /kh.+ng|no/i }).click();
+
+    await expect(row).toBeVisible();
+    await expect(row.getByRole('button', { name: 'delete' })).toBeVisible();
+  });
+
   test('keeps the create proxy dialog open when required fields are missing', async ({ page }) => {
     await gotoProxyWorkspace(page);
     const beforeCount = (await listProxyHosts(page)).length;
