@@ -9,7 +9,7 @@
 ### Khi nào release?
 | Loại | Trigger | Version bump |
 |------|---------|-------------|
-| Hotfix | Bug ảnh hưởng core feature (launch/stop/license) | patch: `v1.0.1` |
+| Hotfix | Bug ảnh hưởng core feature (launch/stop/proxy) | patch: `v1.0.1` |
 | Minor | Feature mới hoàn chỉnh, không breaking | minor: `v1.1.0` |
 | Major | Breaking change API hoặc data schema | major: `v2.0.0` |
 
@@ -43,7 +43,6 @@
 - Instance launch time (ms)
 - Instance launch success/fail rate
 - CDP connection timeout count
-- License validation latency (ms)
 - Proxy test success/fail rate
 
 ### Alerting (local — không có cloud)
@@ -116,12 +115,7 @@
 
 ---
 
-## 5. License & Revenue Operations
-
-### Activation Flow
-### Re-validation
-
-## 6. User Support Pipeline
+## 5. User Support Pipeline
 
 ### Bug Report Flow
 1. User report bug → GitHub Issues (label: `bug`)
@@ -132,7 +126,7 @@
 ### Issue Priority
 | Label | Ý nghĩa | SLA |
 |-------|---------|-----|
-| `critical` | Data loss, crash on start, license block sai | Fix trong session hiện tại |
+| `critical` | Data loss, crash on start | Fix trong session hiện tại |
 | `bug` | Feature không hoạt động đúng | Task tiếp theo |
 | `enhancement` | Feature request | Backlog, evaluate sau |
 
@@ -201,7 +195,6 @@ Ghi vào `memory.md` → "Log các bug đáng nhớ" để không fix lại bug 
 
 ### Audit Log
 - Mọi thao tác nhạy cảm ghi vào `data/logs/audit.log`:
-  - License activate/deactivate
   - Profile import/export
   - Config thay đổi
   - Server start/stop
@@ -271,5 +264,4 @@ Ghi vào `memory.md` → "Log các bug đáng nhớ" để không fix lại bug 
 
 ### Hàng tháng
 - [ ] Review analytics.json — feature nào được dùng nhiều nhất
-- [ ] Check license validation success rate
 - [ ] Cleanup old backups nếu > 7 bản

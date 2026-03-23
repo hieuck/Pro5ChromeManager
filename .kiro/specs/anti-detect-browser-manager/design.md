@@ -188,42 +188,7 @@ interface Instance {
 
 **Session check**: Mở headless instance, navigate đến URL, chạy JS để detect login state, đóng instance.
 
-### 6. LicenseManager
-
-Quản lý free tier và license key validation theo mô hình **Hybrid**: activate 1 lần qua server, cache offline 30 ngày.
-
-```typescript
-interface LicenseState {
-  tier: 'free' | 'pro';
-  key: string | null;
-  activatedAt: string | null;     // ISO 8601 — thời điểm activate thành công
-  expiresAt: string | null;       // ISO 8601 — null = lifetime license
-  machineId: string;              // machine ID tại thời điểm activate
-  lastVerifiedAt: string | null;  // ISO 8601 — lần cuối verify với server
-  gracePeriodStart: string | null; // set khi server không reach được hoặc machine thay đổi
-}
-```
-
-**Activation flow**:
-1. User nhập license key (format: `XXXX-XXXX-XXXX-XXXX`)
-2. App gọi `POST /api/license/activate` → server gọi activation server với `{ key, machineId }`
-3. Activation server trả về `{ valid: true, tier, expiresAt }` hoặc `{ valid: false, reason }`
-4. Nếu valid: lưu `LicenseState` AES-encrypted vào `data/license.dat`
-5. Nếu server không reach: trả về lỗi "Cần kết nối internet để kích hoạt lần đầu"
-
-**Offline cache**: Sau khi activate, app không cần gọi server mỗi lần. Mỗi 30 ngày, app re-verify với server 1 lần (background, silent). Nếu re-verify thất bại (offline), cho phép dùng tiếp trong **grace period 7 ngày** kể từ `lastVerifiedAt + 30 ngày`.
-
-**Machine binding**: Activation server bind key với machineId. Nếu `license.dat` tồn tại nhưng `machineId` không khớp (user clone máy hoặc thay phần cứng), grace period 7 ngày để user liên hệ support.
-
-**Activation server**: Dùng **LemonSqueezy License API** — không tự build, không maintain. LemonSqueezy cung cấp sẵn: tạo key, validate key, bind machineId, revoke key, dashboard quản lý. Free đến khi có doanh thu (5% fee). URL: `https://api.lemonsqueezy.com/v1/licenses/validate`. App gọi API này khi activate và re-verify. `LEMONSQUEEZY_STORE_ID` cấu hình qua env var.
-
-**Storage**: `data/license.dat` — AES-256-GCM encrypted, key derived từ machine ID.
-
-**Free tier limit**: 10 profiles. `createProfile()` trong ProfileManager gọi `LicenseManager.canCreateProfile()` trước khi tạo.
-
-**Free tier limit**: 10 profiles. `createProfile()` trong ProfileManager gọi `LicenseManager.canCreateProfile()` trước khi tạo.
-
-### 7. RuntimeManager
+### 6. RuntimeManager
 
 ```typescript
 interface Runtime {
@@ -278,10 +243,6 @@ POST   /api/runtimes
 PUT    /api/runtimes/:key
 DELETE /api/runtimes/:key
 
-GET    /api/license/status
-POST   /api/license/activate
-POST   /api/license/deactivate
-
 GET    /api/backups
 POST   /api/backups/restore/:timestamp
 GET    /api/backups/export
@@ -295,7 +256,7 @@ Single-page application phục vụ tại `http://localhost:3210/ui`. Dùng **An
 
 **Routes**: `/profiles` (default), `/settings`, `/logs`
 
-**App Layout**: Ant Design `Layout` với Sider navigation, Header hiển thị license badge + language toggle, Content area render route hiện tại.
+**App Layout**: Ant Design `Layout` với Sider navigation, Header hiển thị language toggle, Content area render route hiện tại.
 
 **Trang chính (Profile List)**:
 - Bảng/lưới hiển thị profiles với columns: checkbox, tên, status badge, proxy, runtime, tags, ngày tạo, actions
@@ -485,7 +446,6 @@ parseConfig(serializeConfig(config)) ≡ config
 │   │   │   ├── proxies.ts
 │   │   │   ├── runtimes.ts
 │   │   │   ├── config.ts
-│   │   │   ├── license.ts
 │   │   │   ├── backups.ts
 │   │   │   └── logs.ts
 │   │   ├── managers/
@@ -494,8 +454,7 @@ parseConfig(serializeConfig(config)) ≡ config
 │   │   │   ├── InstanceManager.ts
 │   │   │   ├── FingerprintEngine.ts
 │   │   │   ├── ProxyManager.ts
-│   │   │   ├── RuntimeManager.ts
-│   │   │   └── LicenseManager.ts
+│   │   │   └── RuntimeManager.ts
 │   │   └── utils/
 │   │       ├── crypto.ts         # AES encryption helpers
 │   │       ├── portScanner.ts    # Find free port (40000–49999)
@@ -530,7 +489,6 @@ parseConfig(serializeConfig(config)) ≡ config
 │   ├── instances.json
 │   ├── proxies.json
 │   ├── fingerprint-db.json
-│   ├── license.dat               # AES-encrypted license state
 │   ├── activity.log              # JSON lines: session start/stop events
 │   ├── logs/
 │   │   └── app.log               # Winston rotating log

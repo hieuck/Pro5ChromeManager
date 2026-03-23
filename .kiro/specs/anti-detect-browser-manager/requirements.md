@@ -216,24 +216,6 @@ Phần mềm quản lý trình duyệt đa profile (Anti-Detect Browser Manager)
 
 ---
 
-### Requirement 11: Free Tier & Licensing
-
-**User Story:** As a người dùng mới, I want dùng thử phần mềm miễn phí, so that tôi có thể đánh giá trước khi mua.
-
-#### Acceptance Criteria
-
-1. THE License_Manager SHALL cho phép sử dụng tối đa 10 profiles miễn phí (free tier) mà không cần license key.
-2. WHEN người dùng cố tạo Profile thứ 11 ở free tier, THE License_Manager SHALL hiển thị thông báo yêu cầu nâng cấp.
-3. THE License_Manager SHALL hỗ trợ kích hoạt license key để mở khóa số lượng profile không giới hạn (hoặc theo gói).
-4. WHEN người dùng nhập license key, THE License_Manager SHALL gọi activation server (`ACTIVATION_SERVER_URL`) với `{ key, machineId }` để xác thực; khi thành công lưu trạng thái kích hoạt AES-encrypted vào `data/license.dat`. Activation server URL cấu hình qua env var, không hardcode.
-5. AFTER kích hoạt thành công, THE License_Manager SHALL hoạt động offline hoàn toàn trong 30 ngày; sau đó re-verify với server 1 lần trong nền (silent).
-6. THE License_Manager SHALL hỗ trợ deactivate license bằng cách xóa `data/license.dat` local.
-7. IF server không reach được khi re-verify (sau 30 ngày), THE License_Manager SHALL cho phép dùng tiếp trong grace period 7 ngày.
-8. IF `license.dat` tồn tại nhưng `machineId` không khớp (user thay phần cứng), THE License_Manager SHALL cho phép dùng tiếp trong grace period 7 ngày để user liên hệ support.
-7. THE Web_UI SHALL hiển thị trạng thái license (free/active/expired) và số profiles đang dùng / giới hạn.
-
----
-
 ### Requirement 12: Team Collaboration
 
 **User Story:** As a team leader, I want chia sẻ profiles với thành viên trong nhóm, so that nhiều người có thể làm việc cùng nhau mà không cần copy thủ công.

@@ -131,15 +131,6 @@
   - [x] 17.3 Implement arrow key navigation: highlight profile khi dùng phím mũi tên lên/xuống
   - [x] 17.4 Implement ShortcutsHelp Modal: hiển thị khi nhấn ? hoặc Ctrl+/
 
-- [x] 18. Free Tier & Licensing
-  - [x] 18.1 Implement LicenseManager: kiểm tra số profile hiện tại vs giới hạn free tier (10 profiles)
-  - [x] 18.2 Implement hybrid license validation: gọi **LemonSqueezy License API** (`https://api.lemonsqueezy.com/v1/licenses/validate`) khi activate lần đầu với `{ license_key, instance_name: machineId }`; lưu LicenseState AES-encrypted vào data/license.dat; re-verify với LemonSqueezy mỗi 30 ngày trong nền (silent). `LEMONSQUEEZY_STORE_ID` cấu hình qua env var.
-  - [x] 18.3 Implement grace period 7 ngày: (a) khi server không reach được sau 30 ngày, (b) khi machineId không khớp
-  - [x] 18.4 Implement deactivate: xóa license.dat local
-  - [x] 18.5 Implement API routes: POST /api/license/activate, POST /api/license/deactivate, GET /api/license/status
-  - [x] 18.6 Thêm license status badge vào App Header: Free/Pro/Expired + số profiles dùng/giới hạn
-  - [x] 18.7 Block createProfile() và hiển thị upgrade Modal khi vượt giới hạn free tier
-
 - [x] 19. Backup & Restore
   - [x] 19.1 Implement auto-backup: setInterval 24h, zip tất cả profile.json vào data/backups/{timestamp}.zip
   - [x] 19.2 Implement backup rotation: giữ tối đa 7 bản, xóa bản cũ hơn
