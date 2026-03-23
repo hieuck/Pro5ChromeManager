@@ -487,7 +487,7 @@
       if (!href || href.startsWith('#')) return;
       try {
         const url = new URL(href, window.location.origin);
-        if (!/lemonsqueezy\.com|github\.com/.test(url.hostname)) return;
+        if (!/github\.com/.test(url.hostname)) return;
         const stored = getStoredAttribution();
         Object.entries(stored).forEach(function (entry) {
           const key = entry[0];
