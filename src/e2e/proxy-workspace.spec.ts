@@ -24,4 +24,23 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByText('demo-user')).toBeVisible();
     await expect(page.getByText(':8080')).toBeVisible();
   });
+
+  test('imports proxies in bulk from the proxy workspace', async ({ page }) => {
+    const firstHost = `198.51.100.${Math.floor(Math.random() * 100) + 100}`;
+    const secondHost = `198.51.100.${Math.floor(Math.random() * 100) + 200}`;
+
+    await page.goto('/ui/proxies');
+    await expect(page.getByRole('heading', { name: 'Trung tâm proxy' })).toBeVisible();
+
+    await page.getByPlaceholder('Mỗi dòng một proxy, ví dụ:\n10.0.0.1:8080\n10.0.0.2:9000:user:pass\nsocks5://alice:secret@10.0.0.3:1080').fill(
+      `${firstHost}:9001\n${secondHost}:9002:bulk-user:bulk-pass`,
+    );
+    await page.getByRole('button', { name: 'Import proxy' }).click();
+
+    await expect(page.getByText(firstHost)).toBeVisible();
+    await expect(page.getByText(secondHost)).toBeVisible();
+    await expect(page.getByText('bulk-user')).toBeVisible();
+    await expect(page.getByText(':9001')).toBeVisible();
+    await expect(page.getByText(':9002')).toBeVisible();
+  });
 });
