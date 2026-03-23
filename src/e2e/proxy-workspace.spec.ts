@@ -54,6 +54,22 @@ async function goToLastProxyPage(page: Page): Promise<void> {
 }
 
 test.describe('Proxy workspace', () => {
+  test('closes the create proxy dialog without persisting changes on cancel', async ({ page }) => {
+    const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 150}`;
+
+    await gotoProxyWorkspace(page);
+    const beforeCount = (await listProxyHosts(page)).length;
+    await openCreateProxyDialog(page);
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Host').fill(uniqueHost);
+    await dialog.getByLabel('Port').fill('9555');
+    await dialog.getByRole('button', { name: /h.+y/i }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect.poll(async () => (await listProxyHosts(page)).length).toBe(beforeCount);
+  });
+
   test('keeps the create proxy dialog open when required fields are missing', async ({ page }) => {
     await gotoProxyWorkspace(page);
     const beforeCount = (await listProxyHosts(page)).length;
