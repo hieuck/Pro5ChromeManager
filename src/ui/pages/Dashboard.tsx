@@ -229,6 +229,36 @@ const Dashboard: React.FC = () => {
     t.settings.onboardingStateSkipped,
   ]);
 
+  const getIncidentLevelLabel = useCallback((level: 'warn' | 'error') => (
+    level === 'error' ? t.settings.incidentLevelError : t.settings.incidentLevelWarn
+  ), [t.settings.incidentLevelError, t.settings.incidentLevelWarn]);
+
+  const getLogLevelLabel = useCallback((level: 'debug' | 'info' | 'warn' | 'error') => {
+    switch (level) {
+      case 'debug':
+        return t.logs.filterDebug;
+      case 'info':
+        return t.logs.filterInfo;
+      case 'warn':
+        return t.logs.filterWarn;
+      case 'error':
+      default:
+        return t.logs.filterError;
+    }
+  }, [t.logs.filterDebug, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn]);
+
+  const getSelfTestStatusLabel = useCallback((status: 'pass' | 'warn' | 'fail') => {
+    switch (status) {
+      case 'pass':
+        return t.settings.statusPass;
+      case 'warn':
+        return t.settings.statusWarn;
+      case 'fail':
+      default:
+        return t.settings.statusFail;
+    }
+  }, [t.settings.statusFail, t.settings.statusPass, t.settings.statusWarn]);
+
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes, runtimesRes, logsRes] = await Promise.all([
@@ -2123,7 +2153,7 @@ const Dashboard: React.FC = () => {
                     <List.Item.Meta
                       title={(
                         <Space wrap>
-                          <Tag color={incident.level === 'error' ? 'red' : 'gold'}>{incident.level.toUpperCase()}</Tag>
+                          <Tag color={incident.level === 'error' ? 'red' : 'gold'}>{getIncidentLevelLabel(incident.level)}</Tag>
                           <Typography.Text strong>{incident.source}</Typography.Text>
                         </Space>
                       )}
@@ -2358,7 +2388,7 @@ const Dashboard: React.FC = () => {
                       title={(
                         <Space wrap>
                         <Tag color={entry.level === 'error' ? 'red' : entry.level === 'warn' ? 'gold' : 'blue'}>
-                          {entry.level.toUpperCase()}
+                          {getLogLevelLabel(entry.level)}
                         </Tag>
                         {entry.source ? <Tag color="cyan">{entry.source}</Tag> : null}
                         {entry.timestamp ? (
@@ -2390,7 +2420,7 @@ const Dashboard: React.FC = () => {
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Space wrap>
                 <Tag color={selfTest.status === 'pass' ? 'green' : selfTest.status === 'warn' ? 'gold' : 'red'}>
-                  {selfTest.status.toUpperCase()}
+                  {getSelfTestStatusLabel(selfTest.status)}
                 </Tag>
                 <Typography.Text type="secondary">
                   {`${t.dashboard.lastSelfTest}: ${formatTime(selfTest.checkedAt)}`}
@@ -2405,7 +2435,7 @@ const Dashboard: React.FC = () => {
                       title={(
                         <Space wrap>
                           <Tag color={check.status === 'pass' ? 'green' : check.status === 'warn' ? 'gold' : 'red'}>
-                            {check.status.toUpperCase()}
+                            {getSelfTestStatusLabel(check.status)}
                           </Tag>
                           <Typography.Text strong>{check.label}</Typography.Text>
                         </Space>
