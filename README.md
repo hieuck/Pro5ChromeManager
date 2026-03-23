@@ -78,7 +78,7 @@ npx tsc --noEmit    # type check
 - GitHub Issues: dùng template `Support Request` để gửi lỗi có đủ ngữ cảnh.
 - Trước khi phát hành bản public: chạy `npm run release:preflight` để chặn build thiếu secret hoặc thiếu support surface.
 - Smoke check local sau build: chạy `npm run ops:smoke` để xác nhận server build boot được và trả `health`/`readyz`.
-- Trong `Settings -> Support`, có thể chạy `Run self-test` để kiểm tra nhanh runtime, diagnostics, profiles dir, support pages và license state.
+- Trong `Settings -> Support`, có thể chạy `Run self-test` để kiểm tra nhanh runtime, diagnostics, profiles dir và support pages.
 
 ## Automation qua CDP
 
@@ -128,8 +128,6 @@ Server bind `127.0.0.1:3210`. Một số endpoints chính:
 | POST | `/api/profiles/:id/session-check` | Kiểm tra trạng thái đăng nhập |
 | GET | `/api/proxies` | Danh sách proxy |
 | POST | `/api/proxies/:id/test` | Test proxy (trả về IP) |
-| GET | `/api/license/status` | Trạng thái license |
-| POST | `/api/license/activate` | Kích hoạt license key |
 
 WebSocket: `ws://localhost:3210/ws` — nhận events `instance:started`, `instance:stopped`, `instance:status-changed`.
 

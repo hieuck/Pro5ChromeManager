@@ -73,8 +73,8 @@ When a user reports a problem:
 ## Health / Readiness
 
 - `GET /health`: liveness check for the API process.
-- `GET /readyz`: readiness check for bootstrap state, runtime availability, license tier, and core manager counts.
-- `POST /api/support/self-test`: support-facing environment self-test for runtime, profiles dir, diagnostics, support pages, and license state.
+- `GET /readyz`: readiness check for bootstrap state, runtime availability, and core manager counts.
+- `POST /api/support/self-test`: support-facing environment self-test for runtime, profiles dir, diagnostics, and support pages.
 - Local smoke validation: `npm run ops:smoke`
 
 ## Landing / Support Surface
