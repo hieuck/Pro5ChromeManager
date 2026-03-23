@@ -8,18 +8,24 @@ inclusion: always
 
 ---
 
-## Trạng thái hiện tại (cập nhật: 2026-03-22)
+## Trạng thái hiện tại (cập nhật: 2026-03-23 session 2)
 
 ### Code health
 - TypeScript: ✅ clean (0 errors) — server + electron
-- Tests: ✅ 86/86 pass (8 test files)
+- Tests: ✅ 99/99 pass (11 test files)
 - Dependencies: ✅ 0 vulnerabilities
 - Audit: ✅ không có TODO/FIXME/any/unhandled promise
 
-### Bugs đã fix trong session này
+### Thay đổi gần đây (session 2 — real user journey)
+- Fix critical: ProfileManager.initialize() migrate legacy email-named dirs → UUID (one-time, tự động)
+- Fix: totalSessions=null/missing cho profiles v0 schema → repair + persist khi load
+- Fix: profileDirMap tracking để saveProfile/deleteProfile/exportProfile dùng đúng dir
+- Root cause phát hiện qua real run: profiles trên disk có dir name = email (legacy), không phải UUID
+- Commit: `fix: migrate legacy email-named profile dirs to UUID + repair totalSessions on load`
+
+### Bugs đã fix trong session trước (session 1)
 - `index.ts` không gọi `initialize()` cho managers → đã fix, tất cả managers được init đúng thứ tự
-- `exportProfile` dùng `assertWithinBase` với `os.tmpdir()` → sẽ throw khi export → đã bỏ check (destPath do server tạo, không phải user input)
-- `POST /api/profiles` không enforce free tier limit → đã thêm `licenseManager.canCreateProfile()` check vào create/import/import-bulk
+- `exportProfile` dùng `assertWithinBase` với `os.tmpdir()` → đã bỏ check (destPath do server tạo, không phải user input)
 - Icon files là placeholder 69 bytes → đã generate PNG 256x256 + ICO multi-size bằng `scripts/generate-icons.js`
 - `package.json` thiếu `generate:icons` script → đã thêm, `package:electron` tự chạy trước khi build
 - `.gitignore` thiếu nhiều entries → đã viết lại đầy đủ
@@ -43,7 +49,6 @@ inclusion: always
 - Task 15: pathSanitizer → applied vào ProfileManager, Zod validation, 127.0.0.1 binding
 - Task 16: Onboarding → WelcomeScreen + OnboardingWizard 3 bước
 - Task 17: Keyboard Shortcuts → arrow keys, Enter, Escape, ? modal (ShortcutsHelp)
-- Task 18: LicenseManager → hybrid validation + offline key (HMAC-SHA256), upgrade modal
 - Task 19: BackupManager → auto-backup 24h, rotation 7 bản, restore via PowerShell/unzip
 - Task 20: Activity Log → appendActivityLog() trong InstanceManager + `GET /api/profiles/:id/activity`
 - Task 21: Electron Desktop App → `src/electron/main.ts` + `preload.ts` + `electron-builder.yml`
@@ -56,7 +61,6 @@ inclusion: always
 
 ### Files quan trọng
 - `src/server/managers/BackupManager.ts` — backup/restore với PowerShell Expand-Archive
-- `src/server/managers/LicenseManager.ts` — hybrid + offline key
 - `src/electron/main.ts` — Electron main process, tray, auto-updater
 - `src/electron/preload.ts` — contextIsolation preload
 - `electron-builder.yml` — Windows NSIS installer config
@@ -79,15 +83,17 @@ inclusion: always
 | `afterEach` TS error | `vi.restoreAllMocks()` trả về `VitestUtils` | Wrap trong `{ }` block |
 | `await` trong `new Promise` callback | callback là sync | Check files trước khi vào Promise |
 | `archiver.file().catch()` TS error | `.file()` trả về `this`, không phải Promise | Không chain `.catch()` trên archiver |
+| Legacy profile dirs named by email | Profiles tạo bởi version cũ dùng email làm dir name thay vì UUID | profileDirMap + auto-rename trong initialize() |
+| `totalSessions` không persist sau repair | Migration v0→v1 đã set `totalSessions=0` trước khi repair check chạy → `needsSave=false` | Track `rawVersion < CURRENT_SCHEMA_VERSION` để set `needsSave=true` |
 
 ---
 
 ## Next session nên làm gì
 
-Không còn task tự động hóa được. Dự án production-ready. Để release v1.0.0:
+Không còn task tồn đọng. Dự án production-ready. Bugs từ real user journey đã được fix và commit.
+
+Để release v1.0.0:
 ```bash
-git add -A
-git commit -m "chore: release v1.0.0"
 git tag v1.0.0
 git push origin main --tags
 # GitHub Actions tự build installer và upload lên Releases
