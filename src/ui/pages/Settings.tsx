@@ -566,7 +566,7 @@ const SupportTab: React.FC = () => {
       `${t.settings.dataDirLabel}: ${status.dataDir}`,
       `${t.settings.diagnosticsLabel}: ${status.diagnosticsReady ? t.settings.diagnosticsReadyState : t.settings.diagnosticsMissingState}`,
       `${t.settings.onboardingLabel}: ${status.onboardingCompleted ? t.settings.statusCompleted : t.settings.statusPending}`,
-      `${t.settings.onboardingStateLabel}: ${status.onboardingState.status} (${t.settings.stepLabel} ${status.onboardingState.currentStep})`,
+      `${t.settings.onboardingStateLabel}: ${getOnboardingStateLabel(status.onboardingState.status)} (${t.settings.stepLabel} ${status.onboardingState.currentStep})`,
       `${t.settings.profilesLabel}: ${status.profileCount}`,
       `${t.settings.proxiesLabel}: ${status.proxyCount}`,
       `${t.settings.backupsLabel}: ${status.backupCount}`,
@@ -697,6 +697,14 @@ const SupportTab: React.FC = () => {
     return level === 'error' ? t.settings.incidentLevelError : t.settings.incidentLevelWarn;
   }
 
+  function getOnboardingStateLabel(statusValue?: SupportStatus['onboardingState']['status'] | null): string {
+    if (statusValue === 'in_progress') return t.settings.onboardingStateInProgress;
+    if (statusValue === 'profile_created') return t.settings.onboardingStateProfileCreated;
+    if (statusValue === 'completed') return t.settings.onboardingStateCompleted;
+    if (statusValue === 'skipped') return t.settings.onboardingStateSkipped;
+    return t.settings.onboardingStateNotStarted;
+  }
+
   return (
     <div>
       <Row justify="end" style={{ marginBottom: 12 }}>
@@ -727,7 +735,7 @@ const SupportTab: React.FC = () => {
           <Typography.Text><strong>{t.settings.dataDirLabel}:</strong> {status.dataDir}</Typography.Text>
           <Typography.Text><strong>{t.settings.logFilesLabel}:</strong> {status.logFileCount}</Typography.Text>
           <Typography.Text><strong>{t.settings.onboardingLabel}:</strong> {status.onboardingCompleted ? t.settings.statusCompleted : t.settings.statusPending}</Typography.Text>
-          <Typography.Text><strong>{t.settings.onboardingStateLabel}:</strong> {status.onboardingState.status} / {t.settings.stepLabel} {status.onboardingState.currentStep}</Typography.Text>
+          <Typography.Text><strong>{t.settings.onboardingStateLabel}:</strong> {getOnboardingStateLabel(status.onboardingState.status)} / {t.settings.stepLabel} {status.onboardingState.currentStep}</Typography.Text>
           <Typography.Text><strong>{t.settings.onboardingRuntimeLabel}:</strong> {status.onboardingState.selectedRuntime ?? t.settings.noneValue}</Typography.Text>
           <Typography.Text><strong>{t.settings.onboardingDraftProfileLabel}:</strong> {status.onboardingState.draftProfileName ?? t.settings.noneValue}</Typography.Text>
           <Typography.Text><strong>{t.settings.lastOnboardingOpenLabel}:</strong> {status.onboardingState.lastOpenedAt ? new Date(status.onboardingState.lastOpenedAt).toLocaleString() : t.settings.noneValue}</Typography.Text>

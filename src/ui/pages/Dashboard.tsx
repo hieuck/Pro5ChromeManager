@@ -215,6 +215,20 @@ const Dashboard: React.FC = () => {
     return t.settings.feedbackSentimentNeutral;
   }, [t.settings.feedbackSentimentNegative, t.settings.feedbackSentimentNeutral, t.settings.feedbackSentimentPositive]);
 
+  const getOnboardingStatusLabel = useCallback((statusValue?: SupportStatus['onboardingState']['status'] | null): string => {
+    if (statusValue === 'in_progress') return t.settings.onboardingStateInProgress;
+    if (statusValue === 'profile_created') return t.settings.onboardingStateProfileCreated;
+    if (statusValue === 'completed') return t.settings.onboardingStateCompleted;
+    if (statusValue === 'skipped') return t.settings.onboardingStateSkipped;
+    return t.settings.onboardingStateNotStarted;
+  }, [
+    t.settings.onboardingStateCompleted,
+    t.settings.onboardingStateInProgress,
+    t.settings.onboardingStateNotStarted,
+    t.settings.onboardingStateProfileCreated,
+    t.settings.onboardingStateSkipped,
+  ]);
+
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes, runtimesRes, logsRes] = await Promise.all([
@@ -747,7 +761,7 @@ const Dashboard: React.FC = () => {
       `${t.settings.recentIncidentsLabel}: ${support.recentIncidentCount} (${support.recentErrorCount} ${t.settings.errorsLabel})`,
       `${t.settings.diagnosticsLabel}: ${support.diagnosticsReady ? t.common.yes : t.common.no}`,
       `${t.settings.dataDirLabel}: ${support.dataDir}`,
-      `${t.settings.onboardingLabel}: ${support.onboardingState.status}`,
+      `${t.settings.onboardingLabel}: ${getOnboardingStatusLabel(support.onboardingState.status)}`,
       `${t.settings.lastLaunchLabel}: ${support.usageMetrics.lastProfileLaunchAt ?? t.settings.noneValue}`,
       support.warnings.length ? `${t.settings.warningsLabel}: ${support.warnings.join(' | ')}` : `${t.settings.warningsLabel}: ${t.settings.noneValue}`,
     ];
@@ -2639,7 +2653,7 @@ const Dashboard: React.FC = () => {
               {support?.onboardingCompleted ? t.dashboard.onboardingDone : t.dashboard.onboardingPending}
             </Typography.Text>
             <Typography.Text type="secondary">
-              {`${t.dashboard.onboardingStatus}: ${support?.onboardingState.status ?? 'not_started'}`}
+              {`${t.dashboard.onboardingStatus}: ${getOnboardingStatusLabel(support?.onboardingState.status)}`}
             </Typography.Text>
             {support?.onboardingState.selectedRuntime ? (
               <Typography.Text type="secondary">
