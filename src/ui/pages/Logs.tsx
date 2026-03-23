@@ -252,6 +252,38 @@ const Logs: React.FC = () => {
     [matchedEntries],
   );
 
+  const getLogLevelLabel = useCallback((level: ParsedLogEntry['level'] | 'all' | 'issues') => {
+    switch (level) {
+      case 'debug':
+        return t.logs.filterDebug;
+      case 'info':
+        return t.logs.filterInfo;
+      case 'warn':
+        return t.logs.filterWarn;
+      case 'error':
+        return t.logs.filterError;
+      case 'issues':
+        return t.logs.issuesOnly;
+      case 'all':
+      default:
+        return t.logs.filterAll;
+    }
+  }, [t.logs.filterAll, t.logs.filterDebug, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly]);
+
+  const getSortOrderLabel = useCallback((order: 'newest' | 'oldest') => (
+    order === 'oldest' ? t.logs.sortOldest : t.logs.sortNewest
+  ), [t.logs.sortNewest, t.logs.sortOldest]);
+
+  const formatMaybeValue = useCallback((value: string | null | undefined, fallback = t.settings.noneValue) => (
+    value && value.trim() ? value : fallback
+  ), [t.settings.noneValue]);
+
+  const formatIssueSummary = useCallback((entry: ParsedLogEntry | null | undefined, emptyLabel = t.settings.noneValue) => (
+    entry
+      ? `${getLogLevelLabel(entry.level)} | ${formatMaybeValue(entry.timestamp, t.logs.unknownValue)} | ${entry.message}`
+      : emptyLabel
+  ), [formatMaybeValue, getLogLevelLabel, t.logs.unknownValue, t.settings.noneValue]);
+
   const issueStreak = useMemo(() => {
     let streak = 0;
 
@@ -612,13 +644,11 @@ const Logs: React.FC = () => {
   const handleCopyRecentIssueDigest = useCallback(async () => {
     const latestRecentIssue = recentIssueEntries[0] ?? null;
     const digestLines = [
-      'Pro5 recent incident digest',
-      `Incidents in last 60 minutes: ${recentIssueEntries.length}`,
-      `Recent errors: ${recentIssueBreakdown.error}`,
-      `Recent warnings: ${recentIssueBreakdown.warn}`,
-      latestRecentIssue
-        ? `Latest recent issue: ${latestRecentIssue.level.toUpperCase()} | ${latestRecentIssue.timestamp ?? 'unknown'} | ${latestRecentIssue.message}`
-        : 'Latest recent issue: none',
+      t.logs.recentIncidentDigestTitle,
+      `${t.logs.incidentsLast60Label}: ${recentIssueEntries.length}`,
+      `${t.logs.recentErrorsLabel}: ${recentIssueBreakdown.error}`,
+      `${t.logs.recentWarningsLabel}: ${recentIssueBreakdown.warn}`,
+      `${t.logs.latestRecentIssueLabel}: ${formatIssueSummary(latestRecentIssue)}`,
     ];
 
     try {
@@ -627,25 +657,23 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [recentIssueBreakdown.error, recentIssueBreakdown.warn, recentIssueEntries, t.logs.copyFailed, t.logs.recentIssueDigestCopied]);
+  }, [formatIssueSummary, recentIssueBreakdown.error, recentIssueBreakdown.warn, recentIssueEntries, t.logs.copyFailed, t.logs.incidentsLast60Label, t.logs.latestRecentIssueLabel, t.logs.recentErrorsLabel, t.logs.recentIncidentDigestTitle, t.logs.recentIssueDigestCopied, t.logs.recentWarningsLabel]);
 
   const handleCopyIssueDigest = useCallback(async () => {
     const digestLines = [
-      'Pro5 log digest',
-      `Visible entries: ${filteredEntries.length}/${entries.length}`,
-      `Issues: ${issueEntries.length}`,
-      `Visible errors: ${filteredCounts.error}`,
-      `Visible warnings: ${filteredCounts.warn}`,
-      `Visible debug: ${filteredCounts.debug}`,
-      `Visible info: ${filteredCounts.info}`,
-      `Active filter: ${filter}`,
-      `Recent window only: ${recentWindowOnly ? 'yes' : 'no'}`,
-      `Sort order: ${sortOrder}`,
-      query.trim() ? `Search: ${query.trim()}` : 'Search: none',
-      latestVisibleIssue
-        ? `Latest visible issue: ${latestVisibleIssue.level.toUpperCase()} | ${latestVisibleIssue.timestamp ?? 'unknown'} | ${latestVisibleIssue.message}`
-        : 'Latest visible issue: none',
-      latestVisibleIssue?.source ? `Latest visible source: ${latestVisibleIssue.source}` : null,
+      t.logs.logDigestTitle,
+      `${t.logs.visibleEntriesLabel}: ${filteredEntries.length}/${entries.length}`,
+      `${t.logs.issuesLabel}: ${issueEntries.length}`,
+      `${t.logs.visibleErrorsLabel}: ${filteredCounts.error}`,
+      `${t.logs.visibleWarningsLabel}: ${filteredCounts.warn}`,
+      `${t.logs.visibleDebugLabel}: ${filteredCounts.debug}`,
+      `${t.logs.visibleInfoLabel}: ${filteredCounts.info}`,
+      `${t.logs.activeFilterLabel}: ${getLogLevelLabel(filter)}`,
+      `${t.logs.recentWindowOnlyLabel}: ${recentWindowOnly ? t.common.yes : t.common.no}`,
+      `${t.logs.sortOrderLabel}: ${getSortOrderLabel(sortOrder)}`,
+      `${t.logs.searchLabel}: ${formatMaybeValue(query.trim())}`,
+      `${t.logs.latestVisibleIssueLabel}: ${formatIssueSummary(latestVisibleIssue)}`,
+      `${t.logs.latestVisibleSourceLabel}: ${formatMaybeValue(latestVisibleIssue?.source)}`,
     ].filter(Boolean);
 
     try {
@@ -654,16 +682,16 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [entries.length, filter, filteredCounts.debug, filteredCounts.error, filteredCounts.info, filteredCounts.warn, filteredEntries.length, issueEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.logs.copyFailed, t.logs.digestCopied]);
+  }, [entries.length, filter, filteredCounts.debug, filteredCounts.error, filteredCounts.info, filteredCounts.warn, filteredEntries.length, formatIssueSummary, formatMaybeValue, getLogLevelLabel, getSortOrderLabel, issueEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.common.no, t.common.yes, t.logs.activeFilterLabel, t.logs.copyFailed, t.logs.digestCopied, t.logs.issuesLabel, t.logs.latestVisibleIssueLabel, t.logs.latestVisibleSourceLabel, t.logs.logDigestTitle, t.logs.recentWindowOnlyLabel, t.logs.searchLabel, t.logs.sortOrderLabel, t.logs.visibleDebugLabel, t.logs.visibleEntriesLabel, t.logs.visibleErrorsLabel, t.logs.visibleInfoLabel, t.logs.visibleWarningsLabel]);
 
   const handleCopyLatestIssue = useCallback(async () => {
     if (!latestIssue) return;
 
     const lines = [
-      `Level: ${latestIssue.level.toUpperCase()}`,
-      `Timestamp: ${latestIssue.timestamp ?? 'unknown'}`,
-      `Message: ${latestIssue.message}`,
-      `Raw: ${latestIssue.raw}`,
+      `${t.logs.levelLabel}: ${getLogLevelLabel(latestIssue.level)}`,
+      `${t.logs.timestampLabel}: ${formatMaybeValue(latestIssue.timestamp, t.logs.unknownValue)}`,
+      `${t.logs.messageLabel}: ${latestIssue.message}`,
+      `${t.logs.rawLabel}: ${latestIssue.raw}`,
     ];
 
     try {
@@ -672,7 +700,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [latestIssue, t.logs.copyFailed, t.logs.latestIssueCopied]);
+  }, [formatMaybeValue, getLogLevelLabel, latestIssue, t.logs.copyFailed, t.logs.latestIssueCopied, t.logs.levelLabel, t.logs.messageLabel, t.logs.rawLabel, t.logs.timestampLabel, t.logs.unknownValue]);
 
   const handleFocusLatestIssue = useCallback(() => {
     if (!latestIssue) return;
@@ -694,10 +722,10 @@ const Logs: React.FC = () => {
     if (!latestVisibleIssue) return;
 
     const lines = [
-      `Level: ${latestVisibleIssue.level.toUpperCase()}`,
-      `Timestamp: ${latestVisibleIssue.timestamp ?? 'unknown'}`,
-      `Message: ${latestVisibleIssue.message}`,
-      `Raw: ${latestVisibleIssue.raw}`,
+      `${t.logs.levelLabel}: ${getLogLevelLabel(latestVisibleIssue.level)}`,
+      `${t.logs.timestampLabel}: ${formatMaybeValue(latestVisibleIssue.timestamp, t.logs.unknownValue)}`,
+      `${t.logs.messageLabel}: ${latestVisibleIssue.message}`,
+      `${t.logs.rawLabel}: ${latestVisibleIssue.raw}`,
     ];
 
     try {
@@ -706,27 +734,25 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [latestVisibleIssue, t.logs.copyFailed, t.logs.visibleIssueCopied]);
+  }, [formatMaybeValue, getLogLevelLabel, latestVisibleIssue, t.logs.copyFailed, t.logs.levelLabel, t.logs.messageLabel, t.logs.rawLabel, t.logs.timestampLabel, t.logs.unknownValue, t.logs.visibleIssueCopied]);
 
   const handleCopyVisibleSliceSummary = useCallback(async () => {
     const lines = [
-      'Pro5 visible log slice',
-      `Visible entries: ${filteredEntries.length}/${entries.length}`,
-      `Visible errors: ${filteredCounts.error}`,
-      `Visible warnings: ${filteredCounts.warn}`,
-      `Visible debug: ${filteredCounts.debug}`,
-      `Visible info: ${filteredCounts.info}`,
-      `Visible heat: ${visibleTrendStatus.label}`,
-      `Level filter: ${filter}`,
-      `Recent window only: ${recentWindowOnly ? 'yes' : 'no'}`,
-      `Sort order: ${sortOrder}`,
-      `Search: ${query.trim() || 'none'}`,
-      `Visible issues in last 15 minutes: ${visibleIssueTrend.last15m}`,
-      `Visible issues in last 60 minutes: ${visibleIssueTrend.last60m}`,
-      latestVisibleIssue
-        ? `Latest visible issue: ${latestVisibleIssue.level.toUpperCase()} | ${latestVisibleIssue.timestamp ?? 'unknown'} | ${latestVisibleIssue.message}`
-        : 'Latest visible issue: none',
-      latestVisibleIssue?.source ? `Latest visible source: ${latestVisibleIssue.source}` : null,
+      t.logs.visibleLogSliceTitle,
+      `${t.logs.visibleEntriesLabel}: ${filteredEntries.length}/${entries.length}`,
+      `${t.logs.visibleErrorsLabel}: ${filteredCounts.error}`,
+      `${t.logs.visibleWarningsLabel}: ${filteredCounts.warn}`,
+      `${t.logs.visibleDebugLabel}: ${filteredCounts.debug}`,
+      `${t.logs.visibleInfoLabel}: ${filteredCounts.info}`,
+      `${t.logs.visibleHeatLabel}: ${visibleTrendStatus.label}`,
+      `${t.logs.levelFilterLabel}: ${getLogLevelLabel(filter)}`,
+      `${t.logs.recentWindowOnlyLabel}: ${recentWindowOnly ? t.common.yes : t.common.no}`,
+      `${t.logs.sortOrderLabel}: ${getSortOrderLabel(sortOrder)}`,
+      `${t.logs.searchLabel}: ${formatMaybeValue(query.trim())}`,
+      `${t.logs.visibleIssuesLast15Label}: ${visibleIssueTrend.last15m}`,
+      `${t.logs.visibleIssuesLast60Label}: ${visibleIssueTrend.last60m}`,
+      `${t.logs.latestVisibleIssueLabel}: ${formatIssueSummary(latestVisibleIssue)}`,
+      `${t.logs.latestVisibleSourceLabel}: ${formatMaybeValue(latestVisibleIssue?.source)}`,
     ].filter(Boolean);
 
     try {
@@ -747,10 +773,31 @@ const Logs: React.FC = () => {
     recentWindowOnly,
     sortOrder,
     t.logs.copyFailed,
+    t.logs.latestVisibleIssueLabel,
+    t.logs.latestVisibleSourceLabel,
     t.logs.visibleSliceCopied,
+    t.logs.visibleLogSliceTitle,
+    t.logs.visibleEntriesLabel,
+    t.logs.visibleErrorsLabel,
+    t.logs.visibleWarningsLabel,
+    t.logs.visibleDebugLabel,
+    t.logs.visibleInfoLabel,
+    t.logs.visibleHeatLabel,
+    t.logs.visibleIssuesLast15Label,
+    t.logs.visibleIssuesLast60Label,
+    t.logs.levelFilterLabel,
+    t.logs.recentWindowOnlyLabel,
+    t.logs.sortOrderLabel,
+    t.logs.searchLabel,
     visibleIssueTrend.last15m,
     visibleIssueTrend.last60m,
     visibleTrendStatus.label,
+    formatIssueSummary,
+    formatMaybeValue,
+    getLogLevelLabel,
+    getSortOrderLabel,
+    t.common.no,
+    t.common.yes,
   ]);
 
   const handleFocusRepeatedRecentIssue = useCallback((messageText: string) => {
@@ -785,12 +832,12 @@ const Logs: React.FC = () => {
     if (!entry) return;
 
     const lines = [
-      'Pro5 recent issue source latest',
-      `Source: ${source}`,
-      `Level: ${entry.level.toUpperCase()}`,
-      `Timestamp: ${entry.timestamp ?? 'unknown'}`,
-      `Message: ${entry.message}`,
-      `Raw: ${entry.raw}`,
+      t.logs.recentIssueSourceLatestTitle,
+      `${t.logs.sourceLabel}: ${source}`,
+      `${t.logs.levelLabel}: ${getLogLevelLabel(entry.level)}`,
+      `${t.logs.timestampLabel}: ${formatMaybeValue(entry.timestamp, t.logs.unknownValue)}`,
+      `${t.logs.messageLabel}: ${entry.message}`,
+      `${t.logs.rawLabel}: ${entry.raw}`,
     ];
 
     try {
@@ -799,7 +846,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [t.logs.copyFailed, t.logs.recentIssueSourceLatestCopied]);
+  }, [formatMaybeValue, getLogLevelLabel, t.logs.copyFailed, t.logs.levelLabel, t.logs.messageLabel, t.logs.rawLabel, t.logs.recentIssueSourceLatestCopied, t.logs.recentIssueSourceLatestTitle, t.logs.sourceLabel, t.logs.timestampLabel, t.logs.unknownValue]);
 
   const handleCopyRepeatedRecentIssues = useCallback(async () => {
     const lines = [
@@ -855,16 +902,16 @@ const Logs: React.FC = () => {
 
     const entry = source.latestEntry;
     const lines = [
-      'Pro5 visible source latest',
-      `Source: ${source.source}`,
-      `Visible lines: ${source.count}`,
-      `Suggested action: ${visibleSourceActionHint}`,
-      `Top source timestamp: ${visibleTopSourceTimestamp}`,
-      `Top source trend: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
-      `Level: ${entry.level.toUpperCase()}`,
-      `Timestamp: ${entry.timestamp ?? 'unknown'}`,
-      `Message: ${entry.message}`,
-      `Raw: ${entry.raw}`,
+      t.logs.visibleSourceLatestTitle,
+      `${t.logs.sourceLabel}: ${source.source}`,
+      `${t.logs.visibleLinesLabel}: ${source.count}`,
+      `${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`,
+      `${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`,
+      `${t.logs.visibleTopSourceTrendLabel}: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
+      `${t.logs.levelLabel}: ${getLogLevelLabel(entry.level)}`,
+      `${t.logs.timestampLabel}: ${formatMaybeValue(entry.timestamp, t.logs.unknownValue)}`,
+      `${t.logs.messageLabel}: ${entry.message}`,
+      `${t.logs.rawLabel}: ${entry.raw}`,
     ];
 
     try {
@@ -873,7 +920,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [t.logs.copyFailed, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestUnavailable, visibleSourceActionHint, visibleTopSourceTimestamp, visibleTopSourceTrend.label, visibleTopSourceTrend.last15m, visibleTopSourceTrend.last60m]);
+  }, [formatMaybeValue, getLogLevelLabel, t.logs.copyFailed, t.logs.levelLabel, t.logs.messageLabel, t.logs.rawLabel, t.logs.sourceLabel, t.logs.timestampLabel, t.logs.unknownValue, t.logs.visibleLinesLabel, t.logs.visibleSourceActionHintLabel, t.logs.visibleSourceLatestCopied, t.logs.visibleSourceLatestTitle, t.logs.visibleSourceLatestUnavailable, t.logs.visibleTopSourceTimestampLabel, t.logs.visibleTopSourceTrendLabel, visibleSourceActionHint, visibleTopSourceTimestamp, visibleTopSourceTrend.label, visibleTopSourceTrend.last15m, visibleTopSourceTrend.last60m]);
 
   const handleCopyVisibleTopSourceSummary = useCallback(async () => {
     if (!visibleTopSource?.latestEntry) {
@@ -882,17 +929,17 @@ const Logs: React.FC = () => {
     }
 
     const lines = [
-      'Pro5 visible top source summary',
-      `Source: ${visibleTopSource.source}`,
-      `Visible lines: ${visibleTopSource.count}`,
-      `Top source share: ${visibleTopSourceShare}%`,
-      `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
-      `Source mode: ${visibleSourceMode.label}`,
-      `Suggested action: ${visibleSourceActionHint}`,
-      `Top source timestamp: ${visibleTopSourceTimestamp}`,
-      `Top source trend: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
-      `Latest level: ${visibleTopSource.latestEntry.level.toUpperCase()}`,
-      `Latest message: ${visibleTopSource.latestEntry.message}`,
+      t.logs.visibleTopSourceSummaryTitle,
+      `${t.logs.sourceLabel}: ${visibleTopSource.source}`,
+      `${t.logs.visibleLinesLabel}: ${visibleTopSource.count}`,
+      `${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`,
+      `${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`,
+      `${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`,
+      `${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`,
+      `${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`,
+      `${t.logs.visibleTopSourceTrendLabel}: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
+      `${t.logs.latestLevelLabel}: ${getLogLevelLabel(visibleTopSource.latestEntry.level)}`,
+      `${t.logs.latestMessageLabel}: ${visibleTopSource.latestEntry.message}`,
     ];
 
     try {
@@ -903,8 +950,13 @@ const Logs: React.FC = () => {
     }
   }, [
     t.logs.copyFailed,
+    t.logs.latestLevelLabel,
+    t.logs.latestMessageLabel,
+    t.logs.sourceLabel,
+    t.logs.visibleLinesLabel,
     t.logs.visibleTopSourceSummaryCopied,
     t.logs.visibleTopSourceSummaryUnavailable,
+    t.logs.visibleTopSourceSummaryTitle,
     visibleSourceActionHint,
     visibleSourceMode.label,
     visibleTopSource,
@@ -929,21 +981,21 @@ const Logs: React.FC = () => {
     }
 
     const lines = [
-      'Pro5 visible source digest',
-      `Source: ${source.source}`,
-      `Visible lines: ${source.count}`,
-      `Top source share: ${visibleTopSourceShare}%`,
-      `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
-      `Source mode: ${visibleSourceMode.label}`,
-      `Source hint: ${visibleSourceMode.hint}`,
-      `Suggested action: ${visibleSourceActionHint}`,
-      `Top source freshness: ${visibleTopSourceFreshness}`,
-      `Top source timestamp: ${visibleTopSourceTimestamp}`,
-      `Top source trend: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
-      `Latest level: ${source.latestEntry.level.toUpperCase()}`,
-      `Latest timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
-      `Latest message: ${source.latestEntry.message}`,
-      `Latest raw: ${source.latestEntry.raw}`,
+      t.logs.visibleSourceDigestTitle,
+      `${t.logs.sourceLabel}: ${source.source}`,
+      `${t.logs.visibleLinesLabel}: ${source.count}`,
+      `${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`,
+      `${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`,
+      `${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`,
+      `${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`,
+      `${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`,
+      `${t.logs.visibleTopSourceFreshnessLabel}: ${visibleTopSourceFreshness}`,
+      `${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`,
+      `${t.logs.visibleTopSourceTrendLabel}: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
+      `${t.logs.latestLevelLabel}: ${getLogLevelLabel(source.latestEntry.level)}`,
+      `${t.logs.latestTimestampLabel}: ${formatMaybeValue(source.latestEntry.timestamp, t.logs.unknownValue)}`,
+      `${t.logs.latestMessageLabel}: ${source.latestEntry.message}`,
+      `${t.logs.latestRawLabel}: ${source.latestEntry.raw}`,
     ];
 
     try {
@@ -953,8 +1005,18 @@ const Logs: React.FC = () => {
       void message.error(t.logs.copyFailed);
     }
   }, [
+    formatMaybeValue,
+    getLogLevelLabel,
     t.logs.copyFailed,
+    t.logs.latestLevelLabel,
+    t.logs.latestMessageLabel,
+    t.logs.latestRawLabel,
+    t.logs.latestTimestampLabel,
+    t.logs.sourceLabel,
+    t.logs.unknownValue,
+    t.logs.visibleLinesLabel,
     t.logs.visibleSourceDigestCopied,
+    t.logs.visibleSourceDigestTitle,
     t.logs.visibleSourceDigestUnavailable,
     visibleSourceMode.hint,
     visibleSourceMode.label,
@@ -975,12 +1037,12 @@ const Logs: React.FC = () => {
     }
 
     const lines = [
-      'Pro5 visible sources',
-      `Top source share: ${visibleTopSourceShare}%`,
-      `Top 3 concentration: ${visibleTopSourcesConcentration}%`,
-      `Source mode: ${visibleSourceMode.label}`,
-      `Source hint: ${visibleSourceMode.hint}`,
-      ...visibleSources.map((source) => `${source.count}x | ${source.source} | ${source.latestEntry.level.toUpperCase()} | ${source.latestEntry.message}`),
+      t.logs.visibleSourcesDigestTitle,
+      `${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`,
+      `${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`,
+      `${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`,
+      `${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`,
+      ...visibleSources.map((source) => `${source.count}x | ${source.source} | ${getLogLevelLabel(source.latestEntry.level)} | ${source.latestEntry.message}`),
     ];
 
     try {
@@ -990,8 +1052,10 @@ const Logs: React.FC = () => {
       void message.error(t.logs.copyFailed);
     }
   }, [
+    getLogLevelLabel,
     t.logs.copyFailed,
     t.logs.visibleSourcesCopied,
+    t.logs.visibleSourcesDigestTitle,
     t.logs.visibleSourcesUnavailable,
     visibleSourceMode.hint,
     visibleSourceMode.label,
@@ -1014,14 +1078,14 @@ const Logs: React.FC = () => {
     }
 
     const lines = [
-      'Pro5 recent issue source digest',
-      `Source: ${source.source}`,
-      `Issue lines (60m): ${source.count}`,
-      `Highest level: ${source.level.toUpperCase()}`,
-      `Latest issue level: ${source.latestEntry.level.toUpperCase()}`,
-      `Latest issue timestamp: ${source.latestEntry.timestamp ?? 'unknown'}`,
-      `Latest issue message: ${source.latestEntry.message}`,
-      `Latest issue raw: ${source.latestEntry.raw}`,
+      t.logs.recentIssueSourceDigestTitle,
+      `${t.logs.sourceLabel}: ${source.source}`,
+      `${t.logs.issueLines60mLabel}: ${source.count}`,
+      `${t.logs.highestLevelLabel}: ${getLogLevelLabel(source.level)}`,
+      `${t.logs.latestIssueLevelLabel}: ${getLogLevelLabel(source.latestEntry.level)}`,
+      `${t.logs.latestIssueTimestampLabel}: ${formatMaybeValue(source.latestEntry.timestamp, t.logs.unknownValue)}`,
+      `${t.logs.latestIssueMessageLabel}: ${source.latestEntry.message}`,
+      `${t.logs.latestIssueRawLabel}: ${source.latestEntry.raw}`,
     ];
 
     try {
@@ -1031,9 +1095,20 @@ const Logs: React.FC = () => {
       void message.error(t.logs.copyFailed);
     }
   }, [
+    formatMaybeValue,
+    getLogLevelLabel,
     t.logs.copyFailed,
+    t.logs.highestLevelLabel,
+    t.logs.issueLines60mLabel,
+    t.logs.latestIssueLevelLabel,
+    t.logs.latestIssueMessageLabel,
+    t.logs.latestIssueRawLabel,
+    t.logs.latestIssueTimestampLabel,
     t.logs.recentIssueSourceDigestCopied,
+    t.logs.recentIssueSourceDigestTitle,
     t.logs.recentIssueSourceDigestUnavailable,
+    t.logs.sourceLabel,
+    t.logs.unknownValue,
   ]);
 
   const handleResetViewState = useCallback(() => {
