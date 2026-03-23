@@ -558,67 +558,69 @@ const SupportTab: React.FC = () => {
     }
 
     const summaryLines = [
-      'Pro5 support summary',
-      `App version: ${status.appVersion}`,
-      `Node: ${status.nodeVersion}`,
-      `Platform: ${status.platform}/${status.arch}`,
-      `Uptime: ${formatUptime(status.uptimeSeconds)}`,
-      `Data dir: ${status.dataDir}`,
-      `Diagnostics: ${status.diagnosticsReady ? 'ready' : 'missing base config'}`,
-      `Onboarding: ${status.onboardingCompleted ? 'completed' : 'pending'}`,
-      `Onboarding state: ${status.onboardingState.status} (step ${status.onboardingState.currentStep})`,
-      `Profiles: ${status.profileCount}`,
-      `Proxies: ${status.proxyCount}`,
-      `Backups: ${status.backupCount}`,
-      `Feedback inbox: ${status.feedbackCount} entries`,
-      `Usage: ${status.usageMetrics.profileCreates} created / ${status.usageMetrics.profileImports} imported / ${status.usageMetrics.profileLaunches} launches`,
-      `Session checks: ${status.usageMetrics.sessionChecks} total / ${status.usageMetrics.sessionCheckLoggedIn} logged in / ${status.usageMetrics.sessionCheckLoggedOut} logged out / ${status.usageMetrics.sessionCheckErrors} errors`,
-      `Offline secret: ${status.offlineSecretConfigured ? 'configured' : 'missing'}`,
-      `Code signing: ${status.codeSigningConfigured ? 'configured' : 'missing'}`,
-      `Support pages: ${status.supportPagesReady ? 'ready' : 'missing'}`,
-      `Release readiness: ${status.releaseReady ? 'ready' : 'needs attention'}`,
-      `Recent incidents: ${status.recentIncidentCount} total / ${status.recentErrorCount} errors`,
-      `Last incident: ${status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'none'}`,
+      t.settings.supportSummaryTitle,
+      `${t.settings.appVersionLabel}: ${status.appVersion}`,
+      `${t.settings.nodeVersionLabel}: ${status.nodeVersion}`,
+      `${t.settings.platformLabel}: ${status.platform}/${status.arch}`,
+      `${t.settings.uptimeLabel}: ${formatUptime(status.uptimeSeconds)}`,
+      `${t.settings.dataDirLabel}: ${status.dataDir}`,
+      `${t.settings.diagnosticsLabel}: ${status.diagnosticsReady ? t.settings.diagnosticsReadyState : t.settings.diagnosticsMissingState}`,
+      `${t.settings.onboardingLabel}: ${status.onboardingCompleted ? t.settings.statusCompleted : t.settings.statusPending}`,
+      `${t.settings.onboardingStateLabel}: ${status.onboardingState.status} (${t.settings.stepLabel} ${status.onboardingState.currentStep})`,
+      `${t.settings.profilesLabel}: ${status.profileCount}`,
+      `${t.settings.proxiesLabel}: ${status.proxyCount}`,
+      `${t.settings.backupsLabel}: ${status.backupCount}`,
+      `${t.settings.feedbackInboxLabel}: ${status.feedbackCount} ${t.settings.entriesLabel}`,
+      `${t.settings.usageLabel}: ${status.usageMetrics.profileCreates} ${t.settings.createdLabel} / ${status.usageMetrics.profileImports} ${t.settings.importedLabel} / ${status.usageMetrics.profileLaunches} ${t.settings.launchesLabel}`,
+      `${t.settings.sessionChecksLabel}: ${status.usageMetrics.sessionChecks} ${t.settings.totalLabel} / ${status.usageMetrics.sessionCheckLoggedIn} ${t.settings.loggedInLabel} / ${status.usageMetrics.sessionCheckLoggedOut} ${t.settings.loggedOutLabel} / ${status.usageMetrics.sessionCheckErrors} ${t.settings.errorsLabel}`,
+      `${t.settings.offlineSecretLabel}: ${status.offlineSecretConfigured ? t.settings.configuredState : t.settings.missingState}`,
+      `${t.settings.codeSigningLabel}: ${status.codeSigningConfigured ? t.settings.configuredState : t.settings.missingState}`,
+      `${t.settings.supportPagesLabel}: ${status.supportPagesReady ? t.settings.readyState : t.settings.missingState}`,
+      `${t.settings.releaseReadinessLabel}: ${status.releaseReady ? t.settings.readyState : t.settings.needsAttentionState}`,
+      `${t.settings.recentIncidentsLabel}: ${status.recentIncidentCount} ${t.settings.totalLabel} / ${status.recentErrorCount} ${t.settings.errorsLabel}`,
+      `${t.settings.lastIncidentLabel}: ${status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : t.settings.noneValue}`,
     ];
 
     if (status.usageMetrics.lastProfileCreatedAt) {
-      summaryLines.push(`Last profile created: ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`);
+      summaryLines.push(`${t.settings.lastProfileCreatedLabel}: ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`);
     }
     if (status.usageMetrics.lastProfileImportedAt) {
-      summaryLines.push(`Last profile imported: ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`);
+      summaryLines.push(`${t.settings.lastProfileImportedLabel}: ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`);
     }
     if (status.usageMetrics.lastProfileLaunchAt) {
-      summaryLines.push(`Last launch: ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`);
+      summaryLines.push(`${t.settings.lastLaunchLabel}: ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`);
     }
     if (status.usageMetrics.lastSessionCheckAt) {
-      summaryLines.push(`Last session check: ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`);
+      summaryLines.push(`${t.settings.lastSessionCheckLabel}: ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`);
     }
     if (status.onboardingState.lastOpenedAt) {
-      summaryLines.push(`Last onboarding open: ${new Date(status.onboardingState.lastOpenedAt).toLocaleString()}`);
+      summaryLines.push(`${t.settings.lastOnboardingOpenLabel}: ${new Date(status.onboardingState.lastOpenedAt).toLocaleString()}`);
     }
     if (status.onboardingState.profileCreatedAt) {
-      summaryLines.push(`Onboarding profile created: ${new Date(status.onboardingState.profileCreatedAt).toLocaleString()}`);
+      summaryLines.push(`${t.settings.onboardingProfileCreatedLabel}: ${new Date(status.onboardingState.profileCreatedAt).toLocaleString()}`);
     }
     if (status.lastFeedbackAt) {
       summaryLines.push(`Last feedback: ${new Date(status.lastFeedbackAt).toLocaleString()}`);
     }
 
     if (status.warnings.length > 0) {
-      summaryLines.push(`Warnings: ${status.warnings.join(' | ')}`);
+      summaryLines.push(`${t.settings.warningsLabel}: ${status.warnings.join(' | ')}`);
+    } else {
+      summaryLines.push(`${t.settings.warningsLabel}: ${t.settings.noneValue}`);
     }
 
     if (selfTest) {
-      summaryLines.push(`Self-test: ${selfTest.status.toUpperCase()} at ${new Date(selfTest.checkedAt).toLocaleString()}`);
+      summaryLines.push(`${t.settings.selfTestLabel}: ${getSelfTestStatusLabel(selfTest.status)} @ ${new Date(selfTest.checkedAt).toLocaleString()}`);
       summaryLines.push(
-        ...selfTest.checks.map((check) => `- ${check.label}: ${check.status.toUpperCase()} (${check.detail})`),
+        ...selfTest.checks.map((check) => `- ${check.label}: ${getSelfTestStatusLabel(check.status)} (${check.detail})`),
       );
     }
 
     if (incidentState && incidentState.incidents.length > 0) {
-      summaryLines.push('Recent incident details:');
+      summaryLines.push(t.settings.recentIncidentDetailsLabel);
       summaryLines.push(
         ...incidentState.incidents.slice(0, 5).map((incident) =>
-          `- [${incident.level.toUpperCase()}] ${incident.source} @ ${new Date(incident.timestamp).toLocaleString()}: ${incident.message}`),
+          `- [${getIncidentLevelLabel(incident.level)}] ${incident.source} @ ${new Date(incident.timestamp).toLocaleString()}: ${incident.message}`),
       );
     }
 
@@ -659,7 +661,7 @@ const SupportTab: React.FC = () => {
 
     if (res.success) {
       feedbackForm.resetFields();
-      void message.success('Feedback saved locally');
+      void message.success(t.settings.feedbackSaved);
       await Promise.all([fetchStatus(), fetchFeedback()]);
     } else {
       void message.error(res.error);
