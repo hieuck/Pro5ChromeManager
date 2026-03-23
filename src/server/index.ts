@@ -8,6 +8,13 @@ import { wsServer } from './utils/wsServer';
 import { dataPath } from './utils/dataPaths';
 
 const app = express();
+type OpsLogEntry = {
+  timestamp: string | null;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  message: string;
+  source: string | null;
+  raw: string;
+};
 const bootState: { ready: boolean; startedAt: string; lastError: string | null } = {
   ready: false,
   startedAt: new Date().toISOString(),
@@ -164,7 +171,44 @@ function injectLogSource(line: string, source: string): string {
   }
 }
 
-async function loadOpsLogEntries(limit: number): Promise<string[]> {
+function normalizeLogLevel(value: unknown): OpsLogEntry['level'] {
+  const normalized = typeof value === 'string' ? value.toLowerCase() : '';
+  if (normalized === 'debug') return 'debug';
+  if (normalized === 'error') return 'error';
+  if (normalized === 'warn' || normalized === 'warning') return 'warn';
+  return 'info';
+}
+
+function parseOpsLogEntry(line: string): OpsLogEntry {
+  const trimmed = line.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const message =
+      typeof parsed.message === 'string' && parsed.message.trim()
+        ? parsed.message
+        : typeof parsed.msg === 'string' && parsed.msg.trim()
+          ? parsed.msg
+          : trimmed;
+
+    return {
+      timestamp: typeof parsed.timestamp === 'string' ? parsed.timestamp : null,
+      level: normalizeLogLevel(parsed.level),
+      message,
+      source: typeof parsed.source === 'string' && parsed.source.trim() ? parsed.source : null,
+      raw: trimmed,
+    };
+  } catch {
+    return {
+      timestamp: null,
+      level: 'info',
+      message: trimmed,
+      source: null,
+      raw: trimmed,
+    };
+  }
+}
+
+async function loadOpsLogEntries(limit: number): Promise<OpsLogEntry[]> {
   const logDir = dataPath('logs');
 
   try {
@@ -176,7 +220,7 @@ async function loadOpsLogEntries(limit: number): Promise<string[]> {
       /^app-\d{4}-\d{2}-\d{2}\.log$/.test(file),
     );
 
-    const entries: Array<{ line: string; timestamp: number }> = [];
+    const entries: Array<{ entry: OpsLogEntry; timestamp: number }> = [];
 
     for (const file of relevantFiles) {
       try {
@@ -186,7 +230,7 @@ async function loadOpsLogEntries(limit: number): Promise<string[]> {
           const normalized = injectLogSource(line, file);
           if (!normalized) continue;
           entries.push({
-            line: normalized,
+            entry: parseOpsLogEntry(normalized),
             timestamp: getLogTimestamp(normalized),
           });
         }
@@ -198,7 +242,7 @@ async function loadOpsLogEntries(limit: number): Promise<string[]> {
     return entries
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit)
-      .map((entry) => entry.line);
+      .map((entry) => entry.entry);
   } catch {
     return [];
   }
@@ -216,7 +260,7 @@ app.get('/api/logs', async (_req: Request, res: Response) => {
   }
 });
 
-app.get('/api/logs', async (_req: Request, res: Response) => {
+app.get('/api/logs-legacy-disabled', async (_req: Request, res: Response) => {
   try {
     const fs = await import('fs/promises');
     const logDir = dataPath('logs');

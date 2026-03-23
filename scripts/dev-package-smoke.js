@@ -110,6 +110,9 @@ async function main() {
         if (ready.status !== 'ready') {
           throw new Error(`Backend status is ${String(ready.status)}`);
         }
+        if (ready.dataDir !== dataDir) {
+          throw new Error(`Ready endpoint is serving a different app dataDir: ${String(ready.dataDir)}`);
+        }
 
         const uiRes = await fetchOk(appUrl);
         const html = await uiRes.text();
