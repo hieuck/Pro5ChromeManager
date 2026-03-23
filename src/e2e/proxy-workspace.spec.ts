@@ -54,6 +54,24 @@ test.describe('Proxy workspace', () => {
     await expect(page.getByText(':9002')).toBeVisible();
   });
 
+  test('applies the selected default type during bulk import', async ({ page }) => {
+    const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 210}`;
+
+    await gotoProxyWorkspace(page);
+
+    await page.locator('.ant-select').first().click();
+    await page.locator('.ant-select-dropdown').getByText('SOCKS5').click();
+
+    const bulkInput = await getBulkInput(page);
+    await bulkInput.fill(`${uniqueHost}:1080`);
+    await page.getByRole('button', { name: 'Import proxy' }).click();
+
+    const row = page.getByRole('row', { name: new RegExp(`${uniqueHost.replaceAll('.', '\\.')}.*:1080`) });
+    await expect(row).toBeVisible();
+    await expect(row.getByText('SOCKS5')).toBeVisible();
+    await expect(page.getByText(':1080')).toBeVisible();
+  });
+
   test('skips duplicate proxies during bulk import', async ({ page }) => {
     const uniqueHost = `198.51.100.${Math.floor(Math.random() * 40) + 10}`;
     const proxyLine = `${uniqueHost}:9100:repeat-user:repeat-pass`;
