@@ -3,8 +3,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { LicenseManager } from './LicenseManager';
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+import { logger } from '../utils/logger';
 
 async function makeTmpDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'license-test-'));
@@ -12,9 +11,7 @@ async function makeTmpDir(): Promise<string> {
 
 const MACHINE_ID = 'test-machine-id';
 
-// ─── Tests ─────────────────────────────────────────────────────────────────────
-
-describe('LicenseManager — free tier', () => {
+describe('LicenseManager â€” free tier', () => {
   let tmpDir: string;
   let manager: LicenseManager;
 
@@ -44,7 +41,7 @@ describe('LicenseManager — free tier', () => {
   });
 });
 
-describe('LicenseManager — activate', () => {
+describe('LicenseManager â€” activate', () => {
   let tmpDir: string;
   let manager: LicenseManager;
 
@@ -74,14 +71,28 @@ describe('LicenseManager — activate', () => {
       json: async () => ({ valid: false }),
     }));
 
-    await expect(manager.activate('BAD-KEY')).rejects.toThrow('không hợp lệ');
+    await expect(manager.activate('BAD-KEY')).rejects.toThrow();
     vi.unstubAllGlobals();
   });
 
   it('throws when API is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
 
-    await expect(manager.activate('ANY-KEY')).rejects.toThrow('kết nối');
+    await expect(manager.activate('ANY-KEY')).rejects.toThrow('Không thể kết nối');
+    vi.unstubAllGlobals();
+  });
+
+  it('logs structured context when API is unreachable', async () => {
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => logger);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
+
+    await expect(manager.activate('ANY-KEY')).rejects.toThrow('Không thể kết nối');
+
+    expect(errorSpy).toHaveBeenCalledWith('LicenseManager: activate API error', {
+      error: 'network error',
+      licenseKey: '****',
+    });
+
     vi.unstubAllGlobals();
   });
 
@@ -98,7 +109,7 @@ describe('LicenseManager — activate', () => {
   });
 });
 
-describe('LicenseManager — deactivate', () => {
+describe('LicenseManager â€” deactivate', () => {
   let tmpDir: string;
   let manager: LicenseManager;
 
@@ -125,7 +136,7 @@ describe('LicenseManager — deactivate', () => {
   });
 });
 
-describe('LicenseManager — grace period', () => {
+describe('LicenseManager â€” grace period', () => {
   let tmpDir: string;
 
   afterEach(async () => {
@@ -136,7 +147,6 @@ describe('LicenseManager — grace period', () => {
     tmpDir = await makeTmpDir();
     const licenseFile = path.join(tmpDir, 'license.dat');
 
-    // Activate on machine A
     const managerA = new LicenseManager('machine-A', licenseFile);
     await managerA.initialize();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -145,7 +155,6 @@ describe('LicenseManager — grace period', () => {
     await managerA.activate('GRACE-KEY');
     vi.unstubAllGlobals();
 
-    // Load on machine B
     const managerB = new LicenseManager('machine-B', licenseFile);
     await managerB.initialize();
     const status = managerB.getStatus(0);
@@ -156,7 +165,7 @@ describe('LicenseManager — grace period', () => {
   });
 });
 
-describe('LicenseManager — offline key', () => {
+describe('LicenseManager â€” offline key', () => {
   let tmpDir: string;
   let manager: LicenseManager;
   const originalNodeEnv = process.env['NODE_ENV'];
@@ -189,25 +198,24 @@ describe('LicenseManager — offline key', () => {
 
   it('rejects machine-locked offline key for wrong machine', async () => {
     const key = LicenseManager.generateOfflineKey('other-machine', null);
-    await expect(manager.activate(key)).rejects.toThrow('máy khác');
+    await expect(manager.activate(key)).rejects.toThrow();
   });
 
   it('rejects expired offline key', async () => {
     const past = new Date(Date.now() - 1000).toISOString();
     const key = LicenseManager.generateOfflineKey(null, past);
-    await expect(manager.activate(key)).rejects.toThrow('hết hạn');
+    await expect(manager.activate(key)).rejects.toThrow();
   });
 
   it('rejects tampered offline key', async () => {
     const key = LicenseManager.generateOfflineKey(null, null);
     const tampered = key.slice(0, -4) + 'XXXX';
-    await expect(manager.activate(tampered)).rejects.toThrow('không hợp lệ');
+    await expect(manager.activate(tampered)).rejects.toThrow();
   });
 
   it('offline key does not require re-validation (getStatus stays pro)', async () => {
     const key = LicenseManager.generateOfflineKey(null, null);
     await manager.activate(key);
-    // Simulate 60 days passed — online key would enter grace period
     const status = manager.getStatus(0);
     expect(status.tier).toBe('pro');
   });

@@ -155,7 +155,10 @@ export class LicenseManager {
       apiValid = data.valid === true;
       instanceId = data.instance?.id ?? this.machineId;
     } catch (err) {
-      logger.error(`[${new Date().toISOString()}]`, 'LicenseManager: activate API error', err);
+      logger.error('LicenseManager: activate API error', {
+        error: err instanceof Error ? err.message : String(err),
+        licenseKey: this.redact(licenseKey),
+      });
       throw new Error('Không thể kết nối đến máy chủ license. Vui lòng thử lại.');
     }
 
