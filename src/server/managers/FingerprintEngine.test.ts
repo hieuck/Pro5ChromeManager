@@ -206,10 +206,59 @@ describe('FingerprintEngine — prepareExtension', () => {
 
 describe('FingerprintDB', () => {
   it('falls back to defaults when file does not exist', async () => {
-    const db = new FingerprintDB();
-    // Load from non-existent path — should not throw
+    const missingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-db-missing-'));
+    const db = new FingerprintDB(
+      path.join(missingDir, 'missing-db.json'),
+      path.join(missingDir, 'missing-seed.json'),
+    );
     await expect(db.load()).resolves.not.toThrow();
     const data = db.get();
     expect(data.userAgents.windows.length).toBeGreaterThan(0);
+    expect(data.version).toBe('0.0.0');
+    await fs.rm(missingDir, { recursive: true, force: true });
+  });
+
+  it('loads from a bundled seed asset and persists it into the data dir', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-db-seed-'));
+    const dbPath = path.join(tmpDir, 'runtime', 'fingerprint-db.json');
+    const seedPath = path.join(tmpDir, 'seed-fingerprint-db.json');
+
+    await fs.writeFile(seedPath, JSON.stringify({
+      version: '9.9.9-test',
+      userAgents: {
+        windows: ['seed-windows-ua'],
+        mac: ['seed-mac-ua'],
+        linux: ['seed-linux-ua'],
+      },
+      webglRenderers: {
+        windows: ['seed-renderer'],
+        mac: ['seed-renderer'],
+        linux: ['seed-renderer'],
+      },
+      webglVendors: {
+        windows: ['seed-vendor'],
+        mac: ['seed-vendor'],
+        linux: ['seed-vendor'],
+      },
+      fonts: {
+        windows: ['Arial'],
+        mac: ['Arial'],
+        linux: ['Arial'],
+      },
+      resolutions: [{ width: 1920, height: 1080 }],
+      timezones: ['Asia/Ho_Chi_Minh'],
+    }), 'utf-8');
+
+    const db = new FingerprintDB(dbPath, seedPath);
+    await expect(db.load()).resolves.not.toThrow();
+
+    const data = db.get();
+    expect(data.version).toBe('9.9.9-test');
+    expect(data.userAgents.windows).toEqual(['seed-windows-ua']);
+
+    const persisted = JSON.parse(await fs.readFile(dbPath, 'utf-8')) as Record<string, unknown>;
+    expect(persisted['version']).toBe('9.9.9-test');
+
+    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 });

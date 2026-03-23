@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import path from 'path';
 import https from 'https';
 import { logger } from '../utils/logger';
@@ -86,6 +87,23 @@ const FALLBACK_DB: DBData = {
   timezones: ['Asia/Ho_Chi_Minh', 'America/New_York', 'Europe/London'],
 };
 
+function resolveSeedDbPath(): string | null {
+  const electronResourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+  const candidates = [
+    path.resolve(process.cwd(), 'data', 'fingerprint-db.json'),
+    path.resolve(__dirname, '../../../data/fingerprint-db.json'),
+    electronResourcesPath ? path.join(electronResourcesPath, 'resources', 'fingerprint-db.json') : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return candidates.find((candidate) => {
+    try {
+      return existsSync(candidate);
+    } catch {
+      return false;
+    }
+  }) ?? null;
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function pickRandom<T>(arr: T[]): T {
@@ -121,13 +139,36 @@ export function extractPlatformFromUA(ua: string): string {
 
 export class FingerprintDB {
   private data: DBData = FALLBACK_DB;
+  private readonly dbPath: string;
+  private readonly seedPath: string | null;
+
+  constructor(dbPath = DB_PATH, seedPath: string | null = resolveSeedDbPath()) {
+    this.dbPath = dbPath;
+    this.seedPath = seedPath;
+  }
 
   async load(): Promise<void> {
     try {
-      const raw = await fs.readFile(DB_PATH, 'utf-8');
+      const raw = await fs.readFile(this.dbPath, 'utf-8');
       this.data = JSON.parse(raw) as DBData;
-      logger.debug('FingerprintDB loaded from disk', { version: this.data.version });
+      logger.debug('FingerprintDB loaded from disk', { version: this.data.version, path: this.dbPath });
     } catch {
+      if (this.seedPath) {
+        try {
+          const raw = await fs.readFile(this.seedPath, 'utf-8');
+          this.data = JSON.parse(raw) as DBData;
+          logger.info('FingerprintDB seeded from bundled asset', { version: this.data.version, path: this.seedPath });
+
+          if (this.seedPath !== this.dbPath) {
+            await fs.mkdir(path.dirname(this.dbPath), { recursive: true });
+            await fs.writeFile(this.dbPath, raw, 'utf-8');
+          }
+          return;
+        } catch {
+          // Fall through to hardcoded fallback.
+        }
+      }
+
       logger.warn('FingerprintDB file not found or invalid, using fallback defaults');
       this.data = FALLBACK_DB;
     }
