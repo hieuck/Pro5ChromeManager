@@ -884,7 +884,7 @@ const SupportTab: React.FC = () => {
           </div>
         </Space>
       ) : (
-        <Typography.Text type="secondary">Khong tai duoc support status</Typography.Text>
+        <Typography.Text type="secondary">Không tải được support status</Typography.Text>
       )}
     </div>
   );
