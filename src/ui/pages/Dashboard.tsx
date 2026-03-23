@@ -6,7 +6,7 @@ import { apiClient } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import OnboardingWizard from '../components/OnboardingWizard';
-import { parseStoredLogLine } from '../utils/logParsing';
+import { parseStoredLogLine, type ParsedLogEntry } from '../utils/logParsing';
 
 interface DashboardProfile {
   id: string;
@@ -112,7 +112,7 @@ interface RuntimeEntry {
 
 interface LogEntry {
   timestamp: string;
-  level: string;
+  level: ParsedLogEntry['level'];
   message: string;
   raw: string;
   source: string | null;
@@ -488,7 +488,9 @@ const Dashboard: React.FC = () => {
         ? { color: 'red', label: t.dashboard.errorCountLabel }
         : latestEntry.level === 'warn'
           ? { color: 'gold', label: t.dashboard.warningCountLabel }
-          : { color: 'blue', label: t.dashboard.infoCountLabel };
+          : latestEntry.level === 'debug'
+            ? { color: 'cyan', label: t.dashboard.debugCountLabel }
+            : { color: 'blue', label: t.dashboard.infoCountLabel };
     const hottestIssueMinutes = minutesSince(hottestRecentIssue?.entry.timestamp ?? null);
     const hottestIssueFreshness =
       hottestIssueMinutes !== null && hottestIssueMinutes <= 5
@@ -545,7 +547,9 @@ const Dashboard: React.FC = () => {
         ? { color: 'red', label: t.dashboard.errorCountLabel }
         : topSourceLatestEntry?.level === 'warn'
           ? { color: 'gold', label: t.dashboard.warningCountLabel }
-          : { color: 'blue', label: t.dashboard.infoCountLabel };
+          : topSourceLatestEntry?.level === 'debug'
+            ? { color: 'cyan', label: t.dashboard.debugCountLabel }
+            : { color: 'blue', label: t.dashboard.infoCountLabel };
     const topSourceShare = topSource ? Math.round((topSource[1] / logs.length) * 100) : 0;
     const topSourcesConcentration = logs.length
       ? Math.round((topSources.reduce((sum, [, count]) => sum + count, 0) / logs.length) * 100)
@@ -563,6 +567,7 @@ const Dashboard: React.FC = () => {
       issues60: logHeat.incidents60,
       errors: logs.filter((entry) => entry.level === 'error').length,
       warnings: logs.filter((entry) => entry.level === 'warn').length,
+      debugs: logs.filter((entry) => entry.level === 'debug').length,
       infos: logs.filter((entry) => entry.level === 'info').length,
       issueRatio,
       latestEntry,
@@ -1131,6 +1136,7 @@ const Dashboard: React.FC = () => {
       `Issues (60m): ${activityDigest.issues60}`,
       `Errors: ${activityDigest.errors}`,
       `Warnings: ${activityDigest.warnings}`,
+      `Debug: ${activityDigest.debugs}`,
       `Info: ${activityDigest.infos}`,
       `Issue ratio: ${activityDigest.issueRatio}%`,
       `Signal mode: ${activityDigest.activitySignalMode.label}`,
@@ -2188,6 +2194,7 @@ const Dashboard: React.FC = () => {
                     <Tag color={activityDigest.activitySignalMode.color}>{`${t.dashboard.activitySignalModeLabel}: ${activityDigest.activitySignalMode.label}`}</Tag>
                     <Tag color="red">{`${t.dashboard.errorCountLabel}: ${activityDigest.errors}`}</Tag>
                     <Tag color="gold">{`${t.dashboard.warningCountLabel}: ${activityDigest.warnings}`}</Tag>
+                    <Tag color="cyan">{`${t.dashboard.debugCountLabel}: ${activityDigest.debugs}`}</Tag>
                     <Tag color="blue">{`${t.dashboard.infoCountLabel}: ${activityDigest.infos}`}</Tag>
                     <Tag color={activityDigest.issueRatio >= 60 ? 'red' : activityDigest.issueRatio >= 30 ? 'gold' : 'green'}>
                       {`${t.dashboard.issueRatioLabel}: ${activityDigest.issueRatio}%`}

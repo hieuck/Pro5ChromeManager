@@ -9,7 +9,7 @@ import { parseStoredLogLine, type ParsedLogEntry } from '../utils/logParsing';
 const LOGS_VIEW_STORAGE_KEY = 'pro5.logs.view';
 
 interface StoredLogsViewState {
-  filter: 'all' | 'issues' | 'info' | 'warn' | 'error';
+  filter: 'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error';
   query: string;
   sourceFilter: string;
   recentWindowOnly: boolean;
@@ -18,7 +18,7 @@ interface StoredLogsViewState {
 
 interface LogsRouteState {
   presetQuery?: string;
-  presetFilter?: 'all' | 'issues' | 'info' | 'warn' | 'error';
+  presetFilter?: 'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error';
   presetSourceFilter?: string;
   presetRecentWindowOnly?: boolean;
   presetSortOrder?: 'newest' | 'oldest';
@@ -94,7 +94,7 @@ const Logs: React.FC = () => {
       const parsed = JSON.parse(rawValue) as Partial<StoredLogsViewState>;
 
       return {
-        filter: parsed.filter === 'issues' || parsed.filter === 'info' || parsed.filter === 'warn' || parsed.filter === 'error' ? parsed.filter : 'all',
+        filter: parsed.filter === 'issues' || parsed.filter === 'debug' || parsed.filter === 'info' || parsed.filter === 'warn' || parsed.filter === 'error' ? parsed.filter : 'all',
         query: typeof parsed.query === 'string' ? parsed.query : '',
         sourceFilter: typeof parsed.sourceFilter === 'string' ? parsed.sourceFilter : '',
         recentWindowOnly: Boolean(parsed.recentWindowOnly),
@@ -113,7 +113,7 @@ const Logs: React.FC = () => {
 
   const [entries, setEntries] = useState<ParsedLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'issues' | 'info' | 'warn' | 'error'>(initialViewState.filter);
+  const [filter, setFilter] = useState<'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error'>(initialViewState.filter);
   const [query, setQuery] = useState(initialViewState.query);
   const [sourceFilter, setSourceFilter] = useState(initialViewState.sourceFilter);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -224,12 +224,14 @@ const Logs: React.FC = () => {
   );
 
   const counts = useMemo(() => ({
+    debug: entries.filter((entry) => entry.level === 'debug').length,
     info: entries.filter((entry) => entry.level === 'info').length,
     warn: entries.filter((entry) => entry.level === 'warn').length,
     error: entries.filter((entry) => entry.level === 'error').length,
   }), [entries]);
 
   const filteredCounts = useMemo(() => ({
+    debug: filteredEntries.filter((entry) => entry.level === 'debug').length,
     info: filteredEntries.filter((entry) => entry.level === 'info').length,
     warn: filteredEntries.filter((entry) => entry.level === 'warn').length,
     error: filteredEntries.filter((entry) => entry.level === 'error').length,
@@ -634,6 +636,7 @@ const Logs: React.FC = () => {
       `Issues: ${issueEntries.length}`,
       `Visible errors: ${filteredCounts.error}`,
       `Visible warnings: ${filteredCounts.warn}`,
+      `Visible debug: ${filteredCounts.debug}`,
       `Visible info: ${filteredCounts.info}`,
       `Active filter: ${filter}`,
       `Recent window only: ${recentWindowOnly ? 'yes' : 'no'}`,
@@ -651,7 +654,7 @@ const Logs: React.FC = () => {
     } catch {
       void message.error(t.logs.copyFailed);
     }
-  }, [entries.length, filter, filteredCounts.error, filteredCounts.info, filteredCounts.warn, filteredEntries.length, issueEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.logs.copyFailed, t.logs.digestCopied]);
+  }, [entries.length, filter, filteredCounts.debug, filteredCounts.error, filteredCounts.info, filteredCounts.warn, filteredEntries.length, issueEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.logs.copyFailed, t.logs.digestCopied]);
 
   const handleCopyLatestIssue = useCallback(async () => {
     if (!latestIssue) return;
@@ -711,6 +714,7 @@ const Logs: React.FC = () => {
       `Visible entries: ${filteredEntries.length}/${entries.length}`,
       `Visible errors: ${filteredCounts.error}`,
       `Visible warnings: ${filteredCounts.warn}`,
+      `Visible debug: ${filteredCounts.debug}`,
       `Visible info: ${filteredCounts.info}`,
       `Visible heat: ${visibleTrendStatus.label}`,
       `Level filter: ${filter}`,
@@ -733,6 +737,7 @@ const Logs: React.FC = () => {
     }
   }, [
     entries.length,
+    filteredCounts.debug,
     filteredCounts.error,
     filteredCounts.info,
     filteredCounts.warn,
@@ -1053,7 +1058,9 @@ const Logs: React.FC = () => {
         onClose: () => setFilter('all'),
       });
     } else if (filter !== 'all') {
-      const levelLabel = filter === 'info'
+      const levelLabel = filter === 'debug'
+        ? t.logs.filterDebug
+        : filter === 'info'
         ? t.logs.filterInfo
         : filter === 'warn'
           ? t.logs.filterWarn
@@ -1099,7 +1106,7 @@ const Logs: React.FC = () => {
     }
 
     return tags;
-  }, [filter, query, recentWindowOnly, sortOrder, sourceFilter, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly, t.logs.levelFilterLabel, t.logs.recentWindowOnly, t.logs.searchFilterLabel, t.logs.sortFilterLabel, t.logs.sortOldest, t.logs.sourceFilterLabel]);
+  }, [filter, query, recentWindowOnly, sortOrder, sourceFilter, t.logs.filterDebug, t.logs.filterError, t.logs.filterInfo, t.logs.filterWarn, t.logs.issuesOnly, t.logs.levelFilterLabel, t.logs.recentWindowOnly, t.logs.searchFilterLabel, t.logs.sortFilterLabel, t.logs.sortOldest, t.logs.sourceFilterLabel]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -1119,6 +1126,7 @@ const Logs: React.FC = () => {
                 options={[
                   { label: t.logs.filterAll, value: 'all' },
                   { label: t.logs.issuesOnly, value: 'issues' },
+                  { label: t.logs.filterDebug, value: 'debug' },
                   { label: t.logs.filterInfo, value: 'info' },
                   { label: t.logs.filterWarn, value: 'warn' },
                   { label: t.logs.filterError, value: 'error' },
@@ -1218,17 +1226,22 @@ const Logs: React.FC = () => {
         </Card>
 
         <Row gutter={[16, 16]}>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
+            <Card hoverable onClick={() => setFilter('debug')}>
+              <Statistic title={t.logs.filterDebug} value={counts.debug} />
+            </Card>
+          </Col>
+          <Col xs={24} md={6}>
             <Card hoverable onClick={() => setFilter('info')}>
               <Statistic title={t.logs.filterInfo} value={counts.info} />
             </Card>
           </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
             <Card hoverable onClick={() => setFilter('warn')}>
               <Statistic title={t.logs.filterWarn} value={counts.warn} />
             </Card>
           </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
             <Card hoverable onClick={() => setFilter('error')}>
               <Statistic title={t.logs.filterError} value={counts.error} />
             </Card>
@@ -1240,7 +1253,7 @@ const Logs: React.FC = () => {
             type={(filteredCounts.error || filteredCounts.warn) ? 'warning' : 'info'}
             showIcon
             message={t.logs.visibleBreakdown}
-            description={`${filteredEntries.length} ${t.logs.visibleEntries}${query.trim() ? ` · ${t.logs.searchMatches.replace('{count}', String(filteredEntries.length))}` : ''} · ${t.logs.visibleIssueRatio.replace('{count}', String(visibleIssueRatio))} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
+            description={`${filteredEntries.length} ${t.logs.visibleEntries}${query.trim() ? ` · ${t.logs.searchMatches.replace('{count}', String(filteredEntries.length))}` : ''} · ${t.logs.visibleIssueRatio.replace('{count}', String(visibleIssueRatio))} · ${filteredCounts.error} ${t.logs.filterError.toLowerCase()} · ${filteredCounts.warn} ${t.logs.filterWarn.toLowerCase()} · ${filteredCounts.debug} ${t.logs.filterDebug.toLowerCase()} · ${filteredCounts.info} ${t.logs.filterInfo.toLowerCase()}`}
             action={(
               <Button size="small" icon={<CopyOutlined />} onClick={() => { void handleCopyVisibleSliceSummary(); }}>
                 {t.logs.copyVisibleSlice}

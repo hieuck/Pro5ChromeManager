@@ -1,13 +1,14 @@
 export interface ParsedLogEntry {
   timestamp: string | null;
-  level: 'info' | 'warn' | 'error';
+  level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
   raw: string;
   source: string | null;
 }
 
-function normalizeLevel(value: unknown): 'info' | 'warn' | 'error' {
+function normalizeLevel(value: unknown): 'debug' | 'info' | 'warn' | 'error' {
   const normalized = typeof value === 'string' ? value.toLowerCase() : '';
+  if (normalized === 'debug') return 'debug';
   if (normalized === 'error') return 'error';
   if (normalized === 'warn' || normalized === 'warning') return 'warn';
   return 'info';
