@@ -512,6 +512,7 @@ const LogsTab: React.FC = () => {
 };
 
 const SupportTab: React.FC = () => {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<SupportStatus | null>(null);
   const [selfTest, setSelfTest] = useState<SupportSelfTestResult | null>(null);
   const [incidentState, setIncidentState] = useState<SupportIncidentsResult | null>(null);
@@ -552,7 +553,7 @@ const SupportTab: React.FC = () => {
 
   async function handleCopySupportSummary(): Promise<void> {
     if (!status) {
-      void message.warning('Support status is not available yet');
+      void message.warning(t.settings.supportSummaryUnavailable);
       return;
     }
 
@@ -623,9 +624,9 @@ const SupportTab: React.FC = () => {
 
     try {
       await navigator.clipboard.writeText(summaryLines.join('\n'));
-      void message.success('Support summary copied');
+      void message.success(t.settings.supportSummaryCopied);
     } catch {
-      void message.error('Failed to copy support summary');
+      void message.error(t.settings.supportSummaryCopyFailed);
     }
   }
 
@@ -635,7 +636,7 @@ const SupportTab: React.FC = () => {
     setSelfTesting(false);
     if (res.success) {
       setSelfTest(res.data);
-      void message.success('Support self-test completed');
+      void message.success(t.settings.supportSelfTestCompleted);
     } else {
       void message.error(res.error);
     }
@@ -677,19 +678,19 @@ const SupportTab: React.FC = () => {
       <Row justify="end" style={{ marginBottom: 12 }}>
         <Space>
           <Button icon={<CopyOutlined />} onClick={() => void handleCopySupportSummary()}>
-            Copy support summary
+            {t.settings.copySupportSummary}
           </Button>
           <Button icon={<DownloadOutlined />} onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
-            Export diagnostics
+            {t.settings.exportDiagnostics}
           </Button>
           <Button onClick={() => void fetchIncidents()} loading={incidentLoading}>
-            Refresh incidents
+            {t.settings.refreshIncidents}
           </Button>
           <Button onClick={() => void runSelfTest()} loading={selfTesting}>
-            Run self-test
+            {t.settings.runSelfTest}
           </Button>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void fetchStatus()}>
-            Lam moi
+            {t.settings.refresh}
           </Button>
         </Space>
       </Row>
@@ -780,8 +781,8 @@ const SupportTab: React.FC = () => {
             </div>
           ) : null}
           <div style={{ marginTop: 8 }}>
-            <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
-              Feedback inbox
+              <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+              {t.settings.feedbackInbox}
             </Typography.Text>
             <Form form={feedbackForm} layout="vertical">
               <Row gutter={12}>
@@ -822,10 +823,10 @@ const SupportTab: React.FC = () => {
               </Form.Item>
               <Space style={{ marginBottom: 12 }}>
                 <Button type="primary" loading={submittingFeedback} onClick={() => void handleSubmitFeedback()}>
-                  Save feedback
+                  {t.settings.saveFeedback}
                 </Button>
                 <Button loading={feedbackLoading} onClick={() => void fetchFeedback()}>
-                  Refresh feedback
+                  {t.settings.refreshFeedback}
                 </Button>
               </Space>
             </Form>
@@ -851,13 +852,13 @@ const SupportTab: React.FC = () => {
               </div>
             ) : (
               <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                {feedbackLoading ? 'Loading feedback...' : 'No feedback saved yet'}
+                {feedbackLoading ? t.settings.loadingFeedback : t.settings.noFeedbackSaved}
               </Typography.Text>
             )}
           </div>
           <div style={{ marginTop: 8 }}>
             <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
-              Recent incidents
+              {t.settings.recentIncidents}
             </Typography.Text>
             {incidentState && incidentState.incidents.length > 0 ? (
               <div>
@@ -878,13 +879,13 @@ const SupportTab: React.FC = () => {
               </div>
             ) : (
               <Typography.Text type="secondary">
-                {incidentLoading ? 'Loading incidents...' : 'No recent warn/error incidents found'}
+                {incidentLoading ? t.settings.loadingIncidents : t.settings.noRecentIncidents}
               </Typography.Text>
             )}
           </div>
         </Space>
       ) : (
-        <Typography.Text type="secondary">Không tải được support status</Typography.Text>
+        <Typography.Text type="secondary">{t.settings.supportStatusLoadFailed}</Typography.Text>
       )}
     </div>
   );
