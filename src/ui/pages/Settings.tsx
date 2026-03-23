@@ -673,6 +673,28 @@ const SupportTab: React.FC = () => {
     return `${hours}h ${minutes}m ${secs}s`;
   }
 
+  function getSelfTestStatusLabel(statusValue: SupportSelfTestResult['status']): string {
+    if (statusValue === 'pass') return t.settings.statusPass;
+    if (statusValue === 'warn') return t.settings.statusWarn;
+    return t.settings.statusFail;
+  }
+
+  function getFeedbackCategoryLabel(category: SupportFeedbackEntry['category']): string {
+    if (category === 'bug') return t.settings.feedbackCategoryBug;
+    if (category === 'question') return t.settings.feedbackCategoryQuestion;
+    return t.settings.feedbackCategoryFeedback;
+  }
+
+  function getFeedbackSentimentLabel(sentiment: SupportFeedbackEntry['sentiment']): string {
+    if (sentiment === 'positive') return t.settings.feedbackSentimentPositive;
+    if (sentiment === 'negative') return t.settings.feedbackSentimentNegative;
+    return t.settings.feedbackSentimentNeutral;
+  }
+
+  function getIncidentLevelLabel(level: IncidentEntry['level']): string {
+    return level === 'error' ? t.settings.incidentLevelError : t.settings.incidentLevelWarn;
+  }
+
   return (
     <div>
       <Row justify="end" style={{ marginBottom: 12 }}>
@@ -765,13 +787,13 @@ const SupportTab: React.FC = () => {
                 {t.settings.selfTestLabel} ({new Date(selfTest.checkedAt).toLocaleString()})
               </Typography.Text>
               <Tag color={selfTest.status === 'pass' ? 'success' : selfTest.status === 'warn' ? 'warning' : 'error'}>
-                {selfTest.status.toUpperCase()}
+                {getSelfTestStatusLabel(selfTest.status)}
               </Tag>
               <div style={{ marginTop: 8 }}>
                 {selfTest.checks.map((check) => (
                   <div key={check.key} style={{ marginBottom: 8 }}>
                     <Tag color={check.status === 'pass' ? 'success' : check.status === 'warn' ? 'warning' : 'error'}>
-                      {check.status.toUpperCase()}
+                      {getSelfTestStatusLabel(check.status)}
                     </Tag>
                     <Typography.Text strong>{check.label}:</Typography.Text>{' '}
                     <Typography.Text type="secondary">{check.detail}</Typography.Text>
@@ -835,10 +857,10 @@ const SupportTab: React.FC = () => {
                 {feedbackState.entries.map((entry) => (
                   <div key={entry.id} style={{ marginBottom: 10 }}>
                     <Tag color={entry.category === 'bug' ? 'error' : entry.category === 'question' ? 'processing' : 'default'}>
-                      {entry.category.toUpperCase()}
+                      {getFeedbackCategoryLabel(entry.category)}
                     </Tag>
                     <Tag color={entry.sentiment === 'negative' ? 'error' : entry.sentiment === 'positive' ? 'success' : 'default'}>
-                      {entry.sentiment.toUpperCase()}
+                      {getFeedbackSentimentLabel(entry.sentiment)}
                     </Tag>
                     <Typography.Text type="secondary">{new Date(entry.createdAt).toLocaleString()}</Typography.Text>
                     <div>
@@ -865,7 +887,7 @@ const SupportTab: React.FC = () => {
                 {incidentState.incidents.map((incident, index) => (
                   <div key={`${incident.timestamp}-${incident.source}-${index}`} style={{ marginBottom: 10 }}>
                     <Tag color={incident.level === 'error' ? 'error' : 'warning'}>
-                      {incident.level.toUpperCase()}
+                      {getIncidentLevelLabel(incident.level)}
                     </Tag>
                     <Typography.Text strong>{incident.source}</Typography.Text>{' '}
                     <Typography.Text type="secondary">
