@@ -259,6 +259,22 @@ const Dashboard: React.FC = () => {
     }
   }, [t.settings.statusFail, t.settings.statusPass, t.settings.statusWarn]);
 
+  const formatMaybeValue = useCallback((value?: string | null, fallback = t.settings.noneValue) => (
+    value && value.trim() ? value : fallback
+  ), [t.settings.noneValue]);
+
+  const formatIncidentSummary = useCallback((entry?: IncidentEntry | null) => (
+    entry
+      ? `${getIncidentLevelLabel(entry.level)} @ ${formatTime(entry.timestamp)}`
+      : t.settings.noneValue
+  ), [getIncidentLevelLabel, t.settings.noneValue]);
+
+  const formatActivitySummary = useCallback((entry?: LogEntry | null) => (
+    entry
+      ? `${getLogLevelLabel(entry.level)} @ ${formatTime(entry.timestamp)}`
+      : t.settings.noneValue
+  ), [getLogLevelLabel, t.settings.noneValue]);
+
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     const [profilesRes, proxiesRes, instancesRes, supportRes, incidentsRes, feedbackRes, backupsRes, runtimesRes, logsRes] = await Promise.all([
@@ -981,13 +997,13 @@ const Dashboard: React.FC = () => {
     }
 
     const summaryLines = [
-      'Pro5 hottest dashboard issue',
-      `Heat: ${logHeat.label}`,
-      `Repeats (60m): ${hottestRecentIssue.count}`,
-      `Level: ${hottestRecentIssue.entry.level.toUpperCase()}`,
-      `Timestamp: ${formatTime(hottestRecentIssue.entry.timestamp)}`,
-      `Message: ${hottestRecentIssue.entry.message}`,
-      `Raw: ${hottestRecentIssue.entry.raw}`,
+      t.dashboard.hottestIssueDigestTitle,
+      `${t.dashboard.logHeatLabel}: ${logHeat.label}`,
+      `${t.dashboard.hottestIssueRepeatsDigestLabel}: ${hottestRecentIssue.count}`,
+      `${t.dashboard.levelLabel}: ${getLogLevelLabel(hottestRecentIssue.entry.level)}`,
+      `${t.dashboard.timestampLabel}: ${formatTime(hottestRecentIssue.entry.timestamp)}`,
+      `${t.dashboard.messageLabel}: ${hottestRecentIssue.entry.message}`,
+      `${t.dashboard.rawLabel}: ${hottestRecentIssue.entry.raw}`,
     ];
 
     try {
@@ -999,9 +1015,17 @@ const Dashboard: React.FC = () => {
   }, [
     hottestRecentIssue,
     logHeat.label,
+    getLogLevelLabel,
     t.dashboard.hottestIssueCopied,
     t.dashboard.hottestIssueCopyFailed,
+    t.dashboard.hottestIssueDigestTitle,
+    t.dashboard.hottestIssueRepeatsDigestLabel,
     t.dashboard.hottestIssueUnavailable,
+    t.dashboard.levelLabel,
+    t.dashboard.logHeatLabel,
+    t.dashboard.messageLabel,
+    t.dashboard.rawLabel,
+    t.dashboard.timestampLabel,
   ]);
 
   const handleCopyIncidentDigest = useCallback(async () => {
@@ -1012,32 +1036,32 @@ const Dashboard: React.FC = () => {
 
     setCopyingIncidentDigest(true);
     const summaryLines = [
-      'Pro5 recent incident digest',
-      `Incident heat: ${incidentDigest.heat.label}`,
-      `Incident trend: ${incidentDigest.trend.label}`,
-      `Incident freshness: ${incidentDigest.freshness.label}`,
-      `Total incidents: ${incidentDigest.total}`,
-      `Incidents (15m): ${incidentDigest.incidents15}`,
-      `Incidents (60m): ${incidentDigest.incidents60}`,
-      `Errors: ${incidentDigest.errors}`,
-      `Warnings: ${incidentDigest.warnings}`,
-      `Error ratio: ${incidentDigest.errorRatio}%`,
-      incidentDigest.topSource ? `Top source share: ${incidentDigest.topSource[0]} (${incidentDigest.topSourceRatio}%)` : null,
-      `Top source concentration: ${incidentDigest.topSourcesConcentration}%`,
-      `Source mode: ${incidentDigest.sourceMode.label}`,
-      `Source mode hint: ${incidentDigest.sourceModeHint}`,
-      `Suggested action: ${incidentDigest.incidentActionHint}`,
+      t.dashboard.incidentDigestTitle,
+      `${t.dashboard.incidentHeatLabel}: ${incidentDigest.heat.label}`,
+      `${t.dashboard.incidentTrendLabel}: ${incidentDigest.trend.label}`,
+      `${t.dashboard.incidentFreshnessLabel}: ${incidentDigest.freshness.label}`,
+      `${t.dashboard.totalIncidentsLabel}: ${incidentDigest.total}`,
+      `${t.dashboard.incidentIssues15Label}: ${incidentDigest.incidents15}`,
+      `${t.dashboard.incidentIssues60Label}: ${incidentDigest.incidents60}`,
+      `${t.dashboard.errorCountLabel}: ${incidentDigest.errors}`,
+      `${t.dashboard.warningCountLabel}: ${incidentDigest.warnings}`,
+      `${t.dashboard.errorRatioLabel}: ${incidentDigest.errorRatio}%`,
+      incidentDigest.topSource ? `${t.dashboard.topSourceShareDigestLabel}: ${incidentDigest.topSource[0]} (${incidentDigest.topSourceRatio}%)` : null,
+      `${t.dashboard.topSourcesConcentrationLabel}: ${incidentDigest.topSourcesConcentration}%`,
+      `${t.dashboard.incidentSourceModeLabel}: ${incidentDigest.sourceMode.label}`,
+      `${t.dashboard.incidentSourceModeHintLabel}: ${incidentDigest.sourceModeHint}`,
+      `${t.dashboard.incidentActionHintLabel}: ${incidentDigest.incidentActionHint}`,
       incidentDigest.topSourceLatestIncident
-        ? `Top source latest: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
+        ? `${t.dashboard.topSourceLatestDigestLabel}: ${formatIncidentSummary(incidentDigest.topSourceLatestIncident)}`
         : null,
-      incidentDigest.topSourceLatestIncident ? `Top source latest level: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()}` : null,
-      incidentDigest.topSourceLatestIncident ? `Top source freshness: ${incidentDigest.topSourceFreshness.label}` : null,
-      incidentDigest.topSourceLatestIncident ? `Top source message: ${incidentDigest.topSourceLatestIncident.message}` : null,
-      `Latest incident: ${incidentDigest.latestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.latestIncident.timestamp)}`,
-      `Latest source: ${incidentDigest.latestIncident.source}`,
-      `Latest message: ${incidentDigest.latestIncident.message}`,
+      incidentDigest.topSourceLatestIncident ? `${t.dashboard.topSourceLatestLevelDigestLabel}: ${getIncidentLevelLabel(incidentDigest.topSourceLatestIncident.level)}` : null,
+      incidentDigest.topSourceLatestIncident ? `${t.dashboard.topSourceFreshnessLabel}: ${incidentDigest.topSourceFreshness.label}` : null,
+      incidentDigest.topSourceLatestIncident ? `${t.dashboard.topSourceMessageDigestLabel}: ${incidentDigest.topSourceLatestIncident.message}` : null,
+      `${t.dashboard.latestIncidentDigestLabel}: ${formatIncidentSummary(incidentDigest.latestIncident)}`,
+      `${t.dashboard.latestSourceDigestLabel}: ${formatMaybeValue(incidentDigest.latestIncident.source)}`,
+      `${t.dashboard.latestMessageLabel}: ${incidentDigest.latestIncident.message}`,
       incidentDigest.topSources.length
-        ? `Top sources: ${incidentDigest.topSources.map(([source, count]) => `${source} (${count})`).join(', ')}`
+        ? `${t.dashboard.topSourcesDigestLabel}: ${incidentDigest.topSources.map(([source, count]) => `${source} (${count})`).join(', ')}`
         : null,
     ].filter(Boolean);
 
@@ -1051,9 +1075,21 @@ const Dashboard: React.FC = () => {
     }
   }, [
     incidentDigest,
+    formatIncidentSummary,
+    formatMaybeValue,
+    getIncidentLevelLabel,
     t.dashboard.incidentDigestCopied,
     t.dashboard.incidentDigestCopyFailed,
+    t.dashboard.incidentDigestTitle,
     t.dashboard.incidentDigestUnavailable,
+    t.dashboard.topSourceLatestDigestLabel,
+    t.dashboard.topSourceLatestLevelDigestLabel,
+    t.dashboard.topSourceMessageDigestLabel,
+    t.dashboard.topSourceShareDigestLabel,
+    t.dashboard.totalIncidentsLabel,
+    t.dashboard.latestIncidentDigestLabel,
+    t.dashboard.latestSourceDigestLabel,
+    t.dashboard.topSourcesDigestLabel,
   ]);
 
   const handleCopyLatestIncident = useCallback(async () => {
@@ -1065,11 +1101,11 @@ const Dashboard: React.FC = () => {
     setCopyingLatestIncident(true);
     const latestIncident = incidentDigest.latestIncident;
     const summaryLines = [
-      'Pro5 latest dashboard incident',
-      `Level: ${latestIncident.level.toUpperCase()}`,
-      `Timestamp: ${formatTime(latestIncident.timestamp)}`,
-      `Source: ${latestIncident.source}`,
-      `Message: ${latestIncident.message}`,
+      t.dashboard.latestIncidentDigestTitle,
+      `${t.dashboard.levelLabel}: ${getIncidentLevelLabel(latestIncident.level)}`,
+      `${t.dashboard.timestampLabel}: ${formatTime(latestIncident.timestamp)}`,
+      `${t.dashboard.sourceLabel}: ${formatMaybeValue(latestIncident.source)}`,
+      `${t.dashboard.messageLabel}: ${latestIncident.message}`,
     ];
 
     try {
@@ -1082,9 +1118,16 @@ const Dashboard: React.FC = () => {
     }
   }, [
     incidentDigest,
+    formatMaybeValue,
+    getIncidentLevelLabel,
     t.dashboard.latestIncidentCopied,
     t.dashboard.latestIncidentCopyFailed,
+    t.dashboard.latestIncidentDigestTitle,
     t.dashboard.latestIncidentUnavailable,
+    t.dashboard.levelLabel,
+    t.dashboard.messageLabel,
+    t.dashboard.sourceLabel,
+    t.dashboard.timestampLabel,
   ]);
 
   const handleCopyTopIncidentSource = useCallback(async () => {
@@ -1095,13 +1138,13 @@ const Dashboard: React.FC = () => {
 
     setCopyingTopIncidentSource(true);
     const summaryLines = [
-      'Pro5 top incident source',
-      `Source: ${incidentDigest.topSource[0]}`,
-      `Count (recent incidents): ${incidentDigest.topSource[1]}`,
+      t.dashboard.topIncidentSourceDigestTitle,
+      `${t.dashboard.sourceLabel}: ${incidentDigest.topSource[0]}`,
+      `${t.dashboard.topIncidentSourceCountLabel}: ${incidentDigest.topSource[1]}`,
       incidentDigest.topSourceLatestIncident
-        ? `Latest incident: ${incidentDigest.topSourceLatestIncident.level.toUpperCase()} @ ${formatTime(incidentDigest.topSourceLatestIncident.timestamp)}`
+        ? `${t.dashboard.latestIncidentDigestLabel}: ${formatIncidentSummary(incidentDigest.topSourceLatestIncident)}`
         : null,
-      incidentDigest.topSourceLatestIncident ? `Latest message: ${incidentDigest.topSourceLatestIncident.message}` : null,
+      incidentDigest.topSourceLatestIncident ? `${t.dashboard.latestMessageLabel}: ${incidentDigest.topSourceLatestIncident.message}` : null,
     ];
 
     try {
@@ -1114,9 +1157,13 @@ const Dashboard: React.FC = () => {
     }
   }, [
     incidentDigest,
+    formatIncidentSummary,
     t.dashboard.topIncidentSourceCopied,
     t.dashboard.topIncidentSourceCopyFailed,
+    t.dashboard.topIncidentSourceCountLabel,
+    t.dashboard.topIncidentSourceDigestTitle,
     t.dashboard.topIncidentSourceUnavailable,
+    t.dashboard.sourceLabel,
   ]);
 
   const handleCopyTopIncidentSources = useCallback(async () => {
@@ -1127,7 +1174,7 @@ const Dashboard: React.FC = () => {
 
     setCopyingTopIncidentSources(true);
     const summaryLines = [
-      'Pro5 top dashboard incident sources',
+      t.dashboard.topIncidentSourcesDigestTitle,
       ...incidentDigest.topSources.map(([source, count], index) => `${index + 1}. ${source} (${count})`),
     ];
 
@@ -1143,6 +1190,7 @@ const Dashboard: React.FC = () => {
     incidentDigest,
     t.dashboard.topIncidentSourcesCopied,
     t.dashboard.topIncidentSourcesCopyFailed,
+    t.dashboard.topIncidentSourcesDigestTitle,
     t.dashboard.topIncidentSourcesUnavailable,
   ]);
 
@@ -1155,11 +1203,11 @@ const Dashboard: React.FC = () => {
     setCopyingTopSourceLatestIncident(true);
     const latestIncident = incidentDigest.topSourceLatestIncident;
     const summaryLines = [
-      'Pro5 top source latest incident',
-      `Source: ${latestIncident.source}`,
-      `Level: ${latestIncident.level.toUpperCase()}`,
-      `Timestamp: ${formatTime(latestIncident.timestamp)}`,
-      `Message: ${latestIncident.message}`,
+      t.dashboard.topSourceLatestIncidentDigestTitle,
+      `${t.dashboard.sourceLabel}: ${formatMaybeValue(latestIncident.source)}`,
+      `${t.dashboard.levelLabel}: ${getIncidentLevelLabel(latestIncident.level)}`,
+      `${t.dashboard.timestampLabel}: ${formatTime(latestIncident.timestamp)}`,
+      `${t.dashboard.messageLabel}: ${latestIncident.message}`,
     ];
 
     try {
@@ -1172,9 +1220,16 @@ const Dashboard: React.FC = () => {
     }
   }, [
     incidentDigest,
+    formatMaybeValue,
+    getIncidentLevelLabel,
     t.dashboard.topSourceLatestIncidentCopied,
     t.dashboard.topSourceLatestIncidentCopyFailed,
+    t.dashboard.topSourceLatestIncidentDigestTitle,
     t.dashboard.topSourceLatestIncidentUnavailable,
+    t.dashboard.levelLabel,
+    t.dashboard.messageLabel,
+    t.dashboard.sourceLabel,
+    t.dashboard.timestampLabel,
   ]);
 
   const handleCopyActivityDigest = useCallback(async () => {
@@ -1185,42 +1240,42 @@ const Dashboard: React.FC = () => {
 
     setCopyingActivityDigest(true);
     const summaryLines = [
-      'Pro5 dashboard activity digest',
-      `Log heat: ${logHeat.label}`,
-      `Visible activity entries: ${activityDigest.total}`,
-      `Issues (15m): ${activityDigest.issues15}`,
-      `Issues (60m): ${activityDigest.issues60}`,
-      `Errors: ${activityDigest.errors}`,
-      `Warnings: ${activityDigest.warnings}`,
-      `Debug: ${activityDigest.debugs}`,
-      `Info: ${activityDigest.infos}`,
-      `Issue ratio: ${activityDigest.issueRatio}%`,
-      `Signal mode: ${activityDigest.activitySignalMode.label}`,
-      `Signal hint: ${activityDigest.activitySignalMode.hint}`,
-      `Activity freshness: ${activityDigest.activityFreshness.label}`,
-      `Latest activity level: ${activityDigest.latestActivityLevel.label}`,
-      activityDigest.topSource ? `Top activity source: ${activityDigest.topSource[0]} (${activityDigest.topSource[1]})` : null,
+      t.dashboard.activityDigestTitle,
+      `${t.dashboard.logHeatLabel}: ${logHeat.label}`,
+      `${t.dashboard.activityEntriesDigestLabel}: ${activityDigest.total}`,
+      `${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`,
+      `${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`,
+      `${t.dashboard.errorCountLabel}: ${activityDigest.errors}`,
+      `${t.dashboard.warningCountLabel}: ${activityDigest.warnings}`,
+      `${t.dashboard.debugCountLabel}: ${activityDigest.debugs}`,
+      `${t.dashboard.infoCountLabel}: ${activityDigest.infos}`,
+      `${t.dashboard.issueRatioLabel}: ${activityDigest.issueRatio}%`,
+      `${t.dashboard.activitySignalModeLabel}: ${activityDigest.activitySignalMode.label}`,
+      `${t.dashboard.activitySignalHintLabel}: ${activityDigest.activitySignalMode.hint}`,
+      `${t.dashboard.activityFreshnessLabel}: ${activityDigest.activityFreshness.label}`,
+      `${t.dashboard.latestActivityLevelLabel}: ${activityDigest.latestActivityLevel.label}`,
+      activityDigest.topSource ? `${t.dashboard.topActivitySourceDigestLabel}: ${activityDigest.topSource[0]} (${activityDigest.topSource[1]})` : null,
       activityDigest.topSourceLatestEntry
-        ? `Top source latest: ${activityDigest.topSourceLatestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.topSourceLatestEntry.timestamp)}`
+        ? `${t.dashboard.topActivitySourceLatestDigestLabel}: ${formatActivitySummary(activityDigest.topSourceLatestEntry)}`
         : null,
-      activityDigest.topSourceLatestEntry ? `Top source latest freshness: ${activityDigest.topSourceLatestFreshness.label}` : null,
-      activityDigest.topSourceLatestEntry ? `Top source latest level: ${activityDigest.topSourceLatestLevel.label}` : null,
-      activityDigest.topSourceLatestEntry ? `Top source latest message: ${activityDigest.topSourceLatestEntry.message}` : null,
-      `Top activity source share: ${activityDigest.topSourceShare}%`,
-      `Top activity concentration: ${activityDigest.topSourcesConcentration}%`,
-      `Activity source mode: ${activityDigest.activitySourceMode.label}`,
-      `Activity source hint: ${activityDigest.activitySourceMode.hint}`,
-      activityDigest.hottestRecentIssue ? `Hottest issue repeats: ${activityDigest.hottestRecentIssue.count}` : null,
-      activityDigest.hottestRecentIssue ? `Hottest issue freshness: ${activityDigest.hottestIssueFreshness.label}` : null,
-      activityDigest.hottestRecentIssue ? `Hottest issue level: ${activityDigest.hottestIssueLevel.label}` : null,
-      `Latest activity: ${activityDigest.latestEntry.level.toUpperCase()} @ ${formatTime(activityDigest.latestEntry.timestamp)}`,
-      `Latest message: ${activityDigest.latestEntry.message}`,
-      activityDigest.latestEntry.source ? `Latest source: ${activityDigest.latestEntry.source}` : null,
+      activityDigest.topSourceLatestEntry ? `${t.dashboard.topActivitySourceFreshnessDigestLabel}: ${activityDigest.topSourceLatestFreshness.label}` : null,
+      activityDigest.topSourceLatestEntry ? `${t.dashboard.topActivitySourceLatestLevelDigestLabel}: ${activityDigest.topSourceLatestLevel.label}` : null,
+      activityDigest.topSourceLatestEntry ? `${t.dashboard.topActivitySourceLatestMessageDigestLabel}: ${activityDigest.topSourceLatestEntry.message}` : null,
+      `${t.dashboard.topActivitySourceShareLabel}: ${activityDigest.topSourceShare}%`,
+      `${t.dashboard.topActivitySourcesConcentrationLabel}: ${activityDigest.topSourcesConcentration}%`,
+      `${t.dashboard.activitySourceModeLabel}: ${activityDigest.activitySourceMode.label}`,
+      `${t.dashboard.activitySourceModeHintLabel}: ${activityDigest.activitySourceMode.hint}`,
+      activityDigest.hottestRecentIssue ? `${t.dashboard.hottestIssueRepeatsDigestLabel}: ${activityDigest.hottestRecentIssue.count}` : null,
+      activityDigest.hottestRecentIssue ? `${t.dashboard.hottestIssueFreshnessLabel}: ${activityDigest.hottestIssueFreshness.label}` : null,
+      activityDigest.hottestRecentIssue ? `${t.dashboard.hottestIssueLevelLabel}: ${activityDigest.hottestIssueLevel.label}` : null,
+      `${t.dashboard.latestActivityDigestLabel}: ${formatActivitySummary(activityDigest.latestEntry)}`,
+      `${t.dashboard.latestMessageLabel}: ${activityDigest.latestEntry.message}`,
+      activityDigest.latestEntry.source ? `${t.dashboard.latestSourceDigestLabel}: ${activityDigest.latestEntry.source}` : null,
       activityDigest.topRecentIssues.length
-        ? `Top issues: ${activityDigest.topRecentIssues.map((issue) => `${issue.entry.message} (${issue.count})`).join(', ')}`
+        ? `${t.dashboard.topIssuesDigestLabel}: ${activityDigest.topRecentIssues.map((issue) => `${issue.entry.message} (${issue.count})`).join(', ')}`
         : null,
       activityDigest.topSources.length
-        ? `Top activity sources: ${activityDigest.topSources.map(([source, count]) => `${source} (${count})`).join(', ')}`
+        ? `${t.dashboard.topActivitySourcesDigestLabel}: ${activityDigest.topSources.map(([source, count]) => `${source} (${count})`).join(', ')}`
         : null,
     ].filter(Boolean);
 
@@ -1234,10 +1289,23 @@ const Dashboard: React.FC = () => {
     }
   }, [
     activityDigest,
+    formatActivitySummary,
     logHeat.label,
     t.dashboard.activityDigestCopied,
     t.dashboard.activityDigestCopyFailed,
+    t.dashboard.activityDigestTitle,
     t.dashboard.activityDigestUnavailable,
+    t.dashboard.activityEntriesDigestLabel,
+    t.dashboard.topActivitySourceDigestLabel,
+    t.dashboard.topActivitySourceLatestDigestLabel,
+    t.dashboard.topActivitySourceFreshnessDigestLabel,
+    t.dashboard.topActivitySourceLatestLevelDigestLabel,
+    t.dashboard.topActivitySourceLatestMessageDigestLabel,
+    t.dashboard.hottestIssueRepeatsDigestLabel,
+    t.dashboard.latestActivityDigestLabel,
+    t.dashboard.latestSourceDigestLabel,
+    t.dashboard.topIssuesDigestLabel,
+    t.dashboard.topActivitySourcesDigestLabel,
   ]);
 
   const handleCopyLatestActivity = useCallback(async () => {
@@ -1249,11 +1317,11 @@ const Dashboard: React.FC = () => {
     setCopyingLatestActivity(true);
     const latestEntry = activityDigest.latestEntry;
     const summaryLines = [
-      'Pro5 latest dashboard activity',
-      `Level: ${latestEntry.level.toUpperCase()}`,
-      `Timestamp: ${formatTime(latestEntry.timestamp)}`,
-      `Message: ${latestEntry.message}`,
-      `Raw: ${latestEntry.raw}`,
+      t.dashboard.latestActivityDigestTitle,
+      `${t.dashboard.levelLabel}: ${getLogLevelLabel(latestEntry.level)}`,
+      `${t.dashboard.timestampLabel}: ${formatTime(latestEntry.timestamp)}`,
+      `${t.dashboard.messageLabel}: ${latestEntry.message}`,
+      `${t.dashboard.rawLabel}: ${latestEntry.raw}`,
     ];
 
     try {
@@ -1266,9 +1334,15 @@ const Dashboard: React.FC = () => {
     }
   }, [
     activityDigest,
+    getLogLevelLabel,
     t.dashboard.latestActivityCopied,
     t.dashboard.latestActivityCopyFailed,
+    t.dashboard.latestActivityDigestTitle,
     t.dashboard.latestActivityUnavailable,
+    t.dashboard.levelLabel,
+    t.dashboard.messageLabel,
+    t.dashboard.rawLabel,
+    t.dashboard.timestampLabel,
   ]);
 
   const handleCopyTopActivityIssues = useCallback(async () => {
@@ -1279,8 +1353,8 @@ const Dashboard: React.FC = () => {
 
     setCopyingTopActivityIssues(true);
     const summaryLines = [
-      'Pro5 top dashboard activity issues',
-      `Log heat: ${logHeat.label}`,
+      t.dashboard.topActivityIssuesDigestTitle,
+      `${t.dashboard.logHeatLabel}: ${logHeat.label}`,
       ...activityDigest.topRecentIssues.map((issue, index) => `${index + 1}. ${issue.entry.message} (${issue.count})`),
     ];
 
@@ -1297,6 +1371,7 @@ const Dashboard: React.FC = () => {
     logHeat.label,
     t.dashboard.topActivityIssuesCopied,
     t.dashboard.topActivityIssuesCopyFailed,
+    t.dashboard.topActivityIssuesDigestTitle,
     t.dashboard.topActivityIssuesUnavailable,
   ]);
 
@@ -1309,15 +1384,15 @@ const Dashboard: React.FC = () => {
     setCopyingTopActivitySourceLatest(true);
     const entry = activityDigest.topSourceLatestEntry;
     const summaryLines = [
-      'Pro5 top activity source latest',
-      `Source: ${activityDigest.topSource[0]}`,
-      `Count: ${activityDigest.topSource[1]}`,
-      `Level: ${entry.level.toUpperCase()}`,
-      `Timestamp: ${formatTime(entry.timestamp)}`,
-      `Freshness: ${activityDigest.topSourceLatestFreshness.label}`,
-      `Level label: ${activityDigest.topSourceLatestLevel.label}`,
-      `Message: ${entry.message}`,
-      `Raw: ${entry.raw}`,
+      t.dashboard.topActivitySourceLatestDigestTitle,
+      `${t.dashboard.sourceLabel}: ${activityDigest.topSource[0]}`,
+      `${t.dashboard.countLabel}: ${activityDigest.topSource[1]}`,
+      `${t.dashboard.levelLabel}: ${getLogLevelLabel(entry.level)}`,
+      `${t.dashboard.timestampLabel}: ${formatTime(entry.timestamp)}`,
+      `${t.dashboard.freshnessLabel}: ${activityDigest.topSourceLatestFreshness.label}`,
+      `${t.dashboard.levelTextLabel}: ${activityDigest.topSourceLatestLevel.label}`,
+      `${t.dashboard.messageLabel}: ${entry.message}`,
+      `${t.dashboard.rawLabel}: ${entry.raw}`,
     ];
 
     try {
@@ -1330,9 +1405,19 @@ const Dashboard: React.FC = () => {
     }
   }, [
     activityDigest,
+    getLogLevelLabel,
+    t.dashboard.countLabel,
+    t.dashboard.freshnessLabel,
+    t.dashboard.levelLabel,
+    t.dashboard.levelTextLabel,
     t.dashboard.topActivitySourceLatestCopied,
     t.dashboard.topActivitySourceLatestCopyFailed,
+    t.dashboard.topActivitySourceLatestDigestTitle,
     t.dashboard.topActivitySourceLatestUnavailable,
+    t.dashboard.messageLabel,
+    t.dashboard.rawLabel,
+    t.dashboard.sourceLabel,
+    t.dashboard.timestampLabel,
   ]);
 
   const handleCopyTopActivitySources = useCallback(async () => {
@@ -1343,10 +1428,10 @@ const Dashboard: React.FC = () => {
 
     setCopyingTopActivitySources(true);
     const summaryLines = [
-      'Pro5 top dashboard activity sources',
-      `Source mode: ${activityDigest.activitySourceMode.label}`,
-      `Top source share: ${activityDigest.topSourceShare}%`,
-      `Top source concentration: ${activityDigest.topSourcesConcentration}%`,
+      t.dashboard.topActivitySourcesDigestTitle,
+      `${t.dashboard.activitySourceModeLabel}: ${activityDigest.activitySourceMode.label}`,
+      `${t.dashboard.topActivitySourceShareLabel}: ${activityDigest.topSourceShare}%`,
+      `${t.dashboard.topActivitySourcesConcentrationLabel}: ${activityDigest.topSourcesConcentration}%`,
       ...activityDigest.topSources.map(([source, count], index) => `${index + 1}. ${source} (${count})`),
     ];
 
@@ -1362,6 +1447,7 @@ const Dashboard: React.FC = () => {
     activityDigest,
     t.dashboard.topActivitySourcesCopied,
     t.dashboard.topActivitySourcesCopyFailed,
+    t.dashboard.topActivitySourcesDigestTitle,
     t.dashboard.topActivitySourcesUnavailable,
   ]);
 
