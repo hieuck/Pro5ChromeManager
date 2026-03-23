@@ -8,11 +8,19 @@ const APP_URL = 'http://127.0.0.1:3210/ui';
 const IS_DEV = process.env['NODE_ENV'] === 'development';
 const ICON_PATH = path.join(__dirname, '../../resources/icon.png');
 const UPDATE_CONFIG_PATH = path.join(process.resourcesPath, 'app-update.yml');
+const APP_NAME = 'Pro5 Chrome Manager';
+const APP_ID = 'com.pro5chrome.manager';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let serverStarted = false;
 let updateReady = false;
+
+app.setName(APP_NAME);
+if (process.platform === 'win32') {
+  app.setAppUserModelId(APP_ID);
+}
+app.setPath('userData', path.join(app.getPath('appData'), APP_NAME));
 
 function resolveMainLogDir(): string {
   const dataDir = process.env['DATA_DIR'];
