@@ -696,60 +696,60 @@ const SupportTab: React.FC = () => {
       </Row>
       {status ? (
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          <Typography.Text><strong>App version:</strong> {status.appVersion}</Typography.Text>
-          <Typography.Text><strong>Node:</strong> {status.nodeVersion}</Typography.Text>
-          <Typography.Text><strong>Platform:</strong> {status.platform} / {status.arch}</Typography.Text>
-          <Typography.Text><strong>Uptime:</strong> {formatUptime(status.uptimeSeconds)}</Typography.Text>
-          <Typography.Text><strong>Data dir:</strong> {status.dataDir}</Typography.Text>
-          <Typography.Text><strong>Log files:</strong> {status.logFileCount}</Typography.Text>
-          <Typography.Text><strong>Onboarding:</strong> {status.onboardingCompleted ? 'Completed' : 'Pending'}</Typography.Text>
-          <Typography.Text><strong>Onboarding state:</strong> {status.onboardingState.status} / step {status.onboardingState.currentStep}</Typography.Text>
-          <Typography.Text><strong>Onboarding runtime:</strong> {status.onboardingState.selectedRuntime ?? 'None'}</Typography.Text>
-          <Typography.Text><strong>Onboarding draft profile:</strong> {status.onboardingState.draftProfileName ?? 'None'}</Typography.Text>
-          <Typography.Text><strong>Last onboarding open:</strong> {status.onboardingState.lastOpenedAt ? new Date(status.onboardingState.lastOpenedAt).toLocaleString() : 'None'}</Typography.Text>
-          <Typography.Text><strong>Profiles:</strong> {status.profileCount}</Typography.Text>
-          <Typography.Text><strong>Proxies:</strong> {status.proxyCount}</Typography.Text>
-          <Typography.Text><strong>Backups:</strong> {status.backupCount}</Typography.Text>
-          <Typography.Text><strong>Feedback inbox:</strong> {status.feedbackCount}</Typography.Text>
-          <Typography.Text><strong>Last feedback:</strong> {status.lastFeedbackAt ? new Date(status.lastFeedbackAt).toLocaleString() : 'None'}</Typography.Text>
+          <Typography.Text><strong>{t.settings.appVersionLabel}:</strong> {status.appVersion}</Typography.Text>
+          <Typography.Text><strong>{t.settings.nodeVersionLabel}:</strong> {status.nodeVersion}</Typography.Text>
+          <Typography.Text><strong>{t.settings.platformLabel}:</strong> {status.platform} / {status.arch}</Typography.Text>
+          <Typography.Text><strong>{t.settings.uptimeLabel}:</strong> {formatUptime(status.uptimeSeconds)}</Typography.Text>
+          <Typography.Text><strong>{t.settings.dataDirLabel}:</strong> {status.dataDir}</Typography.Text>
+          <Typography.Text><strong>{t.settings.logFilesLabel}:</strong> {status.logFileCount}</Typography.Text>
+          <Typography.Text><strong>{t.settings.onboardingLabel}:</strong> {status.onboardingCompleted ? t.settings.statusCompleted : t.settings.statusPending}</Typography.Text>
+          <Typography.Text><strong>{t.settings.onboardingStateLabel}:</strong> {status.onboardingState.status} / {t.settings.stepLabel} {status.onboardingState.currentStep}</Typography.Text>
+          <Typography.Text><strong>{t.settings.onboardingRuntimeLabel}:</strong> {status.onboardingState.selectedRuntime ?? t.settings.noneValue}</Typography.Text>
+          <Typography.Text><strong>{t.settings.onboardingDraftProfileLabel}:</strong> {status.onboardingState.draftProfileName ?? t.settings.noneValue}</Typography.Text>
+          <Typography.Text><strong>{t.settings.lastOnboardingOpenLabel}:</strong> {status.onboardingState.lastOpenedAt ? new Date(status.onboardingState.lastOpenedAt).toLocaleString() : t.settings.noneValue}</Typography.Text>
+          <Typography.Text><strong>{t.settings.profilesLabel}:</strong> {status.profileCount}</Typography.Text>
+          <Typography.Text><strong>{t.settings.proxiesLabel}:</strong> {status.proxyCount}</Typography.Text>
+          <Typography.Text><strong>{t.settings.backupsLabel}:</strong> {status.backupCount}</Typography.Text>
+          <Typography.Text><strong>{t.settings.feedbackInboxLabel}:</strong> {status.feedbackCount}</Typography.Text>
+          <Typography.Text><strong>{t.settings.lastFeedbackLabel}:</strong> {status.lastFeedbackAt ? new Date(status.lastFeedbackAt).toLocaleString() : t.settings.noneValue}</Typography.Text>
           <Typography.Text>
-            <strong>Usage:</strong> {status.usageMetrics.profileCreates} created / {status.usageMetrics.profileImports} imported / {status.usageMetrics.profileLaunches} launches
+            <strong>{t.settings.usageLabel}:</strong> {status.usageMetrics.profileCreates} {t.settings.createdLabel} / {status.usageMetrics.profileImports} {t.settings.importedLabel} / {status.usageMetrics.profileLaunches} {t.settings.launchesLabel}
           </Typography.Text>
           <Typography.Text>
-            <strong>Session checks:</strong> {status.usageMetrics.sessionChecks} total / {status.usageMetrics.sessionCheckLoggedIn} logged in / {status.usageMetrics.sessionCheckLoggedOut} logged out / {status.usageMetrics.sessionCheckErrors} errors
+            <strong>{t.settings.sessionChecksLabel}:</strong> {status.usageMetrics.sessionChecks} {t.settings.totalLabel} / {status.usageMetrics.sessionCheckLoggedIn} {t.settings.loggedInLabel} / {status.usageMetrics.sessionCheckLoggedOut} {t.settings.loggedOutLabel} / {status.usageMetrics.sessionCheckErrors} {t.settings.errorsLabel}
           </Typography.Text>
           <Typography.Text>
-            <strong>Last usage:</strong>{' '}
+            <strong>{t.settings.lastUsageLabel}:</strong>{' '}
             {status.usageMetrics.lastProfileLaunchAt
-              ? `Launch ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`
+              ? `${t.settings.lastUsageLaunch} ${new Date(status.usageMetrics.lastProfileLaunchAt).toLocaleString()}`
               : status.usageMetrics.lastProfileCreatedAt
-                ? `Create ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`
+                ? `${t.settings.lastUsageCreate} ${new Date(status.usageMetrics.lastProfileCreatedAt).toLocaleString()}`
                 : status.usageMetrics.lastProfileImportedAt
-                  ? `Import ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`
+                  ? `${t.settings.lastUsageImport} ${new Date(status.usageMetrics.lastProfileImportedAt).toLocaleString()}`
                   : status.usageMetrics.lastSessionCheckAt
-                    ? `Session check ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`
-                    : 'None'}
+                    ? `${t.settings.lastUsageSessionCheck} ${new Date(status.usageMetrics.lastSessionCheckAt).toLocaleString()}`
+                    : t.settings.noneValue}
           </Typography.Text>
-          <Typography.Text><strong>Recent incidents:</strong> {status.recentIncidentCount} total / {status.recentErrorCount} errors</Typography.Text>
-          <Typography.Text><strong>Last incident:</strong> {status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : 'None'}</Typography.Text>
+          <Typography.Text><strong>{t.settings.recentIncidentsLabel}:</strong> {status.recentIncidentCount} {t.settings.totalLabel} / {status.recentErrorCount} {t.settings.errorsLabel}</Typography.Text>
+          <Typography.Text><strong>{t.settings.lastIncidentLabel}:</strong> {status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : t.settings.noneValue}</Typography.Text>
           <Typography.Text>
-            <strong>Diagnostics:</strong> {status.diagnosticsReady ? 'Ready to export' : 'Missing base config'}
-          </Typography.Text>
-          <Typography.Text>
-            <strong>Offline secret:</strong> {status.offlineSecretConfigured ? 'Configured' : 'Missing'}
+            <strong>{t.settings.diagnosticsLabel}:</strong> {status.diagnosticsReady ? t.settings.diagnosticsReadyState : t.settings.diagnosticsMissingState}
           </Typography.Text>
           <Typography.Text>
-            <strong>Code signing:</strong> {status.codeSigningConfigured ? 'Configured' : 'Missing'}
+            <strong>{t.settings.offlineSecretLabel}:</strong> {status.offlineSecretConfigured ? t.settings.configuredState : t.settings.missingState}
           </Typography.Text>
           <Typography.Text>
-            <strong>Support pages:</strong> {status.supportPagesReady ? 'Ready' : 'Missing pages'}
+            <strong>{t.settings.codeSigningLabel}:</strong> {status.codeSigningConfigured ? t.settings.configuredState : t.settings.missingState}
           </Typography.Text>
           <Typography.Text>
-            <strong>Release readiness:</strong> {status.releaseReady ? 'Ready' : 'Needs attention'}
+            <strong>{t.settings.supportPagesLabel}:</strong> {status.supportPagesReady ? t.settings.readyState : t.settings.missingPagesState}
+          </Typography.Text>
+          <Typography.Text>
+            <strong>{t.settings.releaseReadinessLabel}:</strong> {status.releaseReady ? t.settings.readyState : t.settings.needsAttentionState}
           </Typography.Text>
           {status.warnings.length > 0 ? (
             <div>
-              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>Warnings</Typography.Text>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>{t.settings.warningsLabel}</Typography.Text>
               {status.warnings.map((warning) => (
                 <Tag key={warning} color="warning" style={{ marginBottom: 8 }}>
                   {warning}
@@ -757,12 +757,12 @@ const SupportTab: React.FC = () => {
               ))}
             </div>
           ) : (
-            <Tag color="success">Operationally ready</Tag>
+            <Tag color="success">{t.settings.operationallyReady}</Tag>
           )}
           {selfTest ? (
             <div style={{ marginTop: 8 }}>
               <Typography.Text strong style={{ display: 'block', marginBottom: 4 }}>
-                Self-test ({new Date(selfTest.checkedAt).toLocaleString()})
+                {t.settings.selfTestLabel} ({new Date(selfTest.checkedAt).toLocaleString()})
               </Typography.Text>
               <Tag color={selfTest.status === 'pass' ? 'success' : selfTest.status === 'warn' ? 'warning' : 'error'}>
                 {selfTest.status.toUpperCase()}
