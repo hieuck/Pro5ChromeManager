@@ -77,6 +77,18 @@ export function migrateProfile(raw: Record<string, unknown>, targetVersion: numb
     profile['schemaVersion'] = 1;
   }
 
+  // Data repair: normalize legacy proxy format { server, username, password, bypass } → null
+  // (current ProxyConfig requires { id, type, host, port })
+  const proxy = profile['proxy'];
+  if (proxy !== null && typeof proxy === 'object') {
+    const p = proxy as Record<string, unknown>;
+    const isLegacyFormat = 'server' in p && !('id' in p);
+    if (isLegacyFormat) {
+      // Legacy proxy with empty server = no proxy
+      profile['proxy'] = null;
+    }
+  }
+
   return profile;
 }
 
@@ -120,6 +132,25 @@ export class ProfileManager {
         // Data repair: fix null/missing totalSessions (can happen even at schemaVersion=1)
         if (migrated['totalSessions'] === null || migrated['totalSessions'] === undefined) {
           migrated['totalSessions'] = 0;
+          needsSave = true;
+        }
+
+        // Data repair: generate fingerprint if missing (legacy profiles had no fingerprint field)
+        if (!migrated['fingerprint'] || typeof migrated['fingerprint'] !== 'object') {
+          try {
+            await fingerprintEngine.initialize();
+          } catch { /* already initialized */ }
+          migrated['fingerprint'] = fingerprintEngine.generateFingerprint() as unknown as Record<string, unknown>;
+          needsSave = true;
+          logger.info('ProfileManager: generated missing fingerprint for legacy profile', {
+            id: migrated['id'],
+          });
+        }
+
+        // Data repair: normalize legacy proxy format (already handled in migrateProfile, but
+        // mark needsSave if proxy was in legacy format so the normalized version is persisted)
+        const rawProxy = parsed['proxy'];
+        if (rawProxy !== null && typeof rawProxy === 'object' && 'server' in (rawProxy as object) && !('id' in (rawProxy as object))) {
           needsSave = true;
         }
 
