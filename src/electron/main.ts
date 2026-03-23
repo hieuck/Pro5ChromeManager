@@ -173,7 +173,7 @@ function createTray(): void {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Mo Pro5 Chrome Manager',
+      label: 'Mở Pro5 Chrome Manager',
       click: () => {
         if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
         else createWindow();
@@ -181,7 +181,7 @@ function createTray(): void {
     },
     { type: 'separator' },
     {
-      label: 'Thoat',
+      label: 'Thoát',
       click: () => {
         tray?.destroy();
         app.exit(0);
