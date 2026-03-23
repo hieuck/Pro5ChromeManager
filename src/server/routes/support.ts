@@ -183,6 +183,10 @@ async function getSupportPagesReady(): Promise<boolean> {
   ]).then((results) => results.every(Boolean));
 }
 
+function isProductionLikeRuntime(): boolean {
+  return process.env['NODE_ENV'] === 'production';
+}
+
 async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const { configManager } = await import('../managers/ConfigManager');
   const { profileManager } = await import('../managers/ProfileManager');
@@ -207,12 +211,13 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const offlineSecretConfigured = Boolean(process.env['PRO5_OFFLINE_SECRET']);
   const codeSigningConfigured = Boolean(process.env['CSC_LINK']);
   const supportPagesReady = await getSupportPagesReady();
+  const releaseRuntime = isProductionLikeRuntime();
 
   const warnings = [
     !diagnosticsReady ? 'Base configuration file is missing.' : null,
-    !offlineSecretConfigured ? 'PRO5_OFFLINE_SECRET is not configured for production licensing.' : null,
-    !codeSigningConfigured ? 'CSC_LINK is not configured; Windows builds may show SmartScreen warnings.' : null,
-    !supportPagesReady ? 'Public support/legal pages are incomplete.' : null,
+    releaseRuntime && !offlineSecretConfigured ? 'PRO5_OFFLINE_SECRET is not configured for production licensing.' : null,
+    releaseRuntime && !codeSigningConfigured ? 'CSC_LINK is not configured; Windows builds may show SmartScreen warnings.' : null,
+    releaseRuntime && !supportPagesReady ? 'Public support/legal pages are incomplete.' : null,
   ].filter((item): item is string => Boolean(item));
 
   return {

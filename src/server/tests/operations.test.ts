@@ -107,6 +107,7 @@ describe('Operations endpoints', () => {
         diagnosticsReady: boolean;
         supportPagesReady: boolean;
         releaseReady: boolean;
+        warnings: string[];
         onboardingCompleted: boolean;
         onboardingState: {
           status: string;
@@ -143,6 +144,7 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.diagnosticsReady).toBe(true);
     expect(statusJson.data.supportPagesReady).toBe(true);
     expect(statusJson.data.releaseReady).toBe(true);
+    expect(statusJson.data.warnings).toEqual([]);
     expect(statusJson.data.onboardingCompleted).toBe(false);
     expect(statusJson.data.onboardingState.status).toBe('not_started');
     expect(statusJson.data.onboardingState.currentStep).toBe(0);
@@ -185,6 +187,83 @@ describe('Operations endpoints', () => {
     expect(selfTestJson.data.status).toBe('pass');
     expect(selfTestJson.data.checks.some((check) => check.key === 'runtime' && check.status === 'pass')).toBe(true);
     expect(selfTestJson.data.checks.some((check) => check.key === 'diagnostics' && check.status === 'pass')).toBe(true);
+  });
+
+  it('keeps release-only support warnings out of test runtime status', async () => {
+    const previousNodeEnv = process.env['NODE_ENV'];
+    const previousOfflineSecret = process.env['PRO5_OFFLINE_SECRET'];
+    const previousCodeSigning = process.env['CSC_LINK'];
+
+    process.env['NODE_ENV'] = 'test';
+    delete process.env['PRO5_OFFLINE_SECRET'];
+    delete process.env['CSC_LINK'];
+
+    try {
+      const statusRes = await fetch(`${baseUrl}/api/support/status`);
+      expect(statusRes.status).toBe(200);
+      const statusJson = await statusRes.json() as {
+        success: boolean;
+        data: {
+          warnings: string[];
+        };
+      };
+
+      expect(statusJson.success).toBe(true);
+      expect(statusJson.data.warnings).not.toContain('PRO5_OFFLINE_SECRET is not configured for production licensing.');
+      expect(statusJson.data.warnings).not.toContain('CSC_LINK is not configured; Windows builds may show SmartScreen warnings.');
+      expect(statusJson.data.warnings).not.toContain('Public support/legal pages are incomplete.');
+    } finally {
+      process.env['NODE_ENV'] = previousNodeEnv;
+      if (previousOfflineSecret === undefined) {
+        delete process.env['PRO5_OFFLINE_SECRET'];
+      } else {
+        process.env['PRO5_OFFLINE_SECRET'] = previousOfflineSecret;
+      }
+      if (previousCodeSigning === undefined) {
+        delete process.env['CSC_LINK'];
+      } else {
+        process.env['CSC_LINK'] = previousCodeSigning;
+      }
+    }
+  });
+
+  it('keeps production release warnings in support status when release config is missing', async () => {
+    const previousNodeEnv = process.env['NODE_ENV'];
+    const previousOfflineSecret = process.env['PRO5_OFFLINE_SECRET'];
+    const previousCodeSigning = process.env['CSC_LINK'];
+
+    process.env['NODE_ENV'] = 'production';
+    delete process.env['PRO5_OFFLINE_SECRET'];
+    delete process.env['CSC_LINK'];
+
+    try {
+      const statusRes = await fetch(`${baseUrl}/api/support/status`);
+      expect(statusRes.status).toBe(200);
+      const statusJson = await statusRes.json() as {
+        success: boolean;
+        data: {
+          warnings: string[];
+          releaseReady: boolean;
+        };
+      };
+
+      expect(statusJson.success).toBe(true);
+      expect(statusJson.data.releaseReady).toBe(false);
+      expect(statusJson.data.warnings).toContain('PRO5_OFFLINE_SECRET is not configured for production licensing.');
+      expect(statusJson.data.warnings).toContain('CSC_LINK is not configured; Windows builds may show SmartScreen warnings.');
+    } finally {
+      process.env['NODE_ENV'] = previousNodeEnv;
+      if (previousOfflineSecret === undefined) {
+        delete process.env['PRO5_OFFLINE_SECRET'];
+      } else {
+        process.env['PRO5_OFFLINE_SECRET'] = previousOfflineSecret;
+      }
+      if (previousCodeSigning === undefined) {
+        delete process.env['CSC_LINK'];
+      } else {
+        process.env['CSC_LINK'] = previousCodeSigning;
+      }
+    }
   });
 
   it('returns recent incident summaries', async () => {
