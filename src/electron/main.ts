@@ -14,9 +14,18 @@ let tray: Tray | null = null;
 let serverStarted = false;
 let updateReady = false;
 
+function resolveMainLogDir(): string {
+  const dataDir = process.env['DATA_DIR'];
+  if (dataDir) {
+    return path.join(path.resolve(dataDir), 'logs');
+  }
+
+  return path.join(app.getPath('userData'), 'logs');
+}
+
 async function writeMainLog(level: 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>): Promise<void> {
   try {
-    const logDir = path.join(app.getPath('userData'), 'logs');
+    const logDir = resolveMainLogDir();
     await fsp.mkdir(logDir, { recursive: true });
     const logPath = path.join(logDir, 'electron-main.log');
     const entry = JSON.stringify({

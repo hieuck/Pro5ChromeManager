@@ -308,6 +308,56 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.lastIncidentAt).toBeTruthy();
   });
 
+  it('aggregates server and electron logs into the shared ops stream', async () => {
+    await fs.mkdir(path.join(tmpDir, 'logs'), { recursive: true });
+    const appLogName = `app-${new Date().toISOString().slice(0, 10)}.log`;
+
+    await fs.writeFile(
+      path.join(tmpDir, 'logs', appLogName),
+      `${JSON.stringify({
+        timestamp: '2026-03-23T00:00:01.000Z',
+        level: 'info',
+        message: 'Server booted',
+      })}\n`,
+      'utf-8',
+    );
+
+    await fs.writeFile(
+      path.join(tmpDir, 'logs', 'electron-main.log'),
+      `${JSON.stringify({
+        timestamp: '2026-03-23T00:00:02.000Z',
+        level: 'error',
+        message: 'Renderer failed to load URL',
+      })}\n`,
+      'utf-8',
+    );
+
+    const logsRes = await fetch(`${baseUrl}/api/logs`);
+    expect(logsRes.status).toBe(200);
+    const logsJson = await logsRes.json() as {
+      success: boolean;
+      data: string[];
+    };
+
+    expect(logsJson.success).toBe(true);
+    expect(logsJson.data.length).toBeGreaterThanOrEqual(2);
+
+    const entries = logsJson.data.map((line) => JSON.parse(line) as {
+      level: string;
+      message: string;
+      source?: string;
+    });
+
+    expect(entries.some((entry) =>
+      entry.level === 'info' &&
+      entry.message === 'Server booted' &&
+      entry.source === appLogName)).toBe(true);
+    expect(entries.some((entry) =>
+      entry.level === 'error' &&
+      entry.message === 'Renderer failed to load URL' &&
+      entry.source === 'electron-main.log')).toBe(true);
+  });
+
   it('includes usage metrics snapshots in support status', async () => {
     const { usageMetricsManager } = await import('../managers/UsageMetricsManager');
     await usageMetricsManager.recordProfileCreated();

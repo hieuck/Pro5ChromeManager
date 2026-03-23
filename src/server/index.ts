@@ -1,4 +1,5 @@
 import express, { NextFunction, Request, Response } from 'express';
+import fs from 'fs/promises';
 import http from 'http';
 import path from 'path';
 import { configManager } from './managers/ConfigManager';
@@ -124,7 +125,97 @@ app.use('/api', backupRoutes);
 import supportRoutes from './routes/support';
 app.use('/api', supportRoutes);
 
+function getLogTimestamp(line: string): number {
+  try {
+    const parsed = JSON.parse(line) as { timestamp?: unknown };
+    if (typeof parsed.timestamp === 'string') {
+      const timestamp = new Date(parsed.timestamp).getTime();
+      return Number.isNaN(timestamp) ? 0 : timestamp;
+    }
+  } catch {
+    const match = line.match(/^(\S+)\s+\[(\w+)\]\s+(.*)$/);
+    if (match?.[1]) {
+      const timestamp = new Date(match[1]).getTime();
+      return Number.isNaN(timestamp) ? 0 : timestamp;
+    }
+  }
+
+  return 0;
+}
+
+function injectLogSource(line: string, source: string): string {
+  const trimmed = line.trim();
+  if (!trimmed) return '';
+
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    return JSON.stringify({
+      ...parsed,
+      source: typeof parsed.source === 'string' && parsed.source.trim() ? parsed.source : source,
+    });
+  } catch {
+    return JSON.stringify({
+      timestamp: null,
+      level: 'info',
+      message: trimmed,
+      source,
+      raw: trimmed,
+    });
+  }
+}
+
+async function loadOpsLogEntries(limit: number): Promise<string[]> {
+  const logDir = dataPath('logs');
+
+  try {
+    const files = await fs.readdir(logDir);
+    const relevantFiles = files.filter((file) =>
+      file === 'electron-main.log' ||
+      file.startsWith('exceptions-') ||
+      file.startsWith('rejections-') ||
+      /^app-\d{4}-\d{2}-\d{2}\.log$/.test(file),
+    );
+
+    const entries: Array<{ line: string; timestamp: number }> = [];
+
+    for (const file of relevantFiles) {
+      try {
+        const content = await fs.readFile(path.join(logDir, file), 'utf-8');
+        const lines = content.split(/\r?\n/).filter(Boolean).slice(-200);
+        for (const line of lines) {
+          const normalized = injectLogSource(line, file);
+          if (!normalized) continue;
+          entries.push({
+            line: normalized,
+            timestamp: getLogTimestamp(normalized),
+          });
+        }
+      } catch {
+        // skip unreadable files
+      }
+    }
+
+    return entries
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit)
+      .map((entry) => entry.line);
+  } catch {
+    return [];
+  }
+}
+
 // Logs endpoint — reads the latest daily-rotated app log file
+app.get('/api/logs', async (_req: Request, res: Response) => {
+  try {
+    const entries = await loadOpsLogEntries(200);
+    res.json({ success: true, data: entries });
+    return;
+  } catch {
+    res.status(500).json({ success: false, error: 'Failed to read logs' });
+    return;
+  }
+});
+
 app.get('/api/logs', async (_req: Request, res: Response) => {
   try {
     const fs = await import('fs/promises');
