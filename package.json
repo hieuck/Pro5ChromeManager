@@ -1,7 +1,7 @@
 {
-  "name": "anti-detect-browser-manager",
+  "name": "pro5-chrome-manager",
   "version": "1.0.0",
-  "description": "Anti-Detect Browser Manager - quản lý trình duyệt đa profile",
+  "description": "Pro5 Chrome Manager desktop app for isolated Chromium profiles",
   "main": "dist/electron-main/main.js",
   "scripts": {
     "build:server": "tsc -p tsconfig.json",

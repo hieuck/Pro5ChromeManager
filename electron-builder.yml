@@ -11,7 +11,6 @@ files:
   - dist/ui/**/*
   - dist/electron-main/**/*
   - data/fingerprint-db.json
-  - src/extension/**/*
   - package.json
   - node_modules/**/*
 

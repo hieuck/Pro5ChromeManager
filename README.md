@@ -108,6 +108,7 @@ data/            # Runtime data (tự tạo khi chạy lần đầu)
   config.json    # App config
   profiles/      # Profile data + Chromium user data
   proxies.json   # Proxy list (passwords encrypted AES-256-GCM)
+  extensions/    # Generated fingerprint extensions per profile
   backups/       # Auto backups (7 bản gần nhất)
   logs/          # App logs (daily rotate)
 resources/       # Electron app icons
