@@ -1,4 +1,41 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+
+interface DashboardProfileRecord {
+  id: string;
+}
+
+async function setOnboardingCompleted(request: APIRequestContext, completed: boolean): Promise<void> {
+  const response = await request.put('/api/config', {
+    data: {
+      onboardingCompleted: completed,
+    },
+  });
+  const json = await response.json() as { success: boolean; error?: string };
+  if (!json.success) {
+    throw new Error(json.error ?? 'Failed to update onboarding state');
+  }
+}
+
+async function deleteAllProfiles(request: APIRequestContext): Promise<void> {
+  const response = await request.get('/api/profiles');
+  const json = await response.json() as {
+    success: boolean;
+    error?: string;
+    data: DashboardProfileRecord[];
+  };
+
+  if (!json.success) {
+    throw new Error(json.error ?? 'Failed to list profiles');
+  }
+
+  for (const profile of json.data) {
+    const deleteResponse = await request.delete(`/api/profiles/${profile.id}`);
+    const deleteJson = await deleteResponse.json() as { success: boolean; error?: string };
+    if (!deleteJson.success) {
+      throw new Error(deleteJson.error ?? `Failed to delete profile ${profile.id}`);
+    }
+  }
+}
 
 async function gotoDashboard(page: Page): Promise<void> {
   await page.goto('/ui/dashboard');
@@ -70,5 +107,17 @@ test.describe('Ops surfaces', () => {
 
     await expect(page.getByText(uniqueMessage)).toBeVisible();
     await expect(page.getByText(/ops-e2e@example\.com/i)).toBeVisible();
+  });
+
+  test('opens the first-profile creation flow from the dashboard when no profiles exist', async ({ page, request }) => {
+    await deleteAllProfiles(request);
+    await setOnboardingCompleted(request, true);
+
+    await gotoDashboard(page);
+    await page.getByRole('button', { name: /t.+o h.+ s.+ .+u ti.+n/i }).first().click();
+
+    await expect(page).toHaveURL(/\/ui\/profiles$/);
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog')).toContainText(/t.+n h.+ s.+/i);
   });
 });
