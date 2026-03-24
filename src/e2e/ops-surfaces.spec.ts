@@ -55,4 +55,20 @@ test.describe('Ops surfaces', () => {
     await expect(page.getByRole('button', { name: /Xuất diagnostics/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Export Diagnostics$/i })).toHaveCount(0);
   });
+  test('submits support feedback from settings and shows the saved entry', async ({ page }) => {
+    const uniqueMessage = `E2E support feedback ${Date.now()}`;
+
+    await gotoSettings(page);
+    await page.getByRole('tab', { name: /h.+ tr.+|support/i }).click();
+
+    await expect(page.getByRole('button', { name: /copy support summary/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /ch.+y self-test|run self-test/i })).toBeVisible();
+
+    await page.getByRole('textbox', { name: /n.+i dung|message/i }).fill(uniqueMessage);
+    await page.getByRole('textbox', { name: /email/i }).fill('ops-e2e@example.com');
+    await page.getByRole('button', { name: /l.+u feedback|save feedback/i }).click();
+
+    await expect(page.getByText(uniqueMessage)).toBeVisible();
+    await expect(page.getByText(/ops-e2e@example\.com/i)).toBeVisible();
+  });
 });
