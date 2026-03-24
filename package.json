@@ -43,16 +43,17 @@
     "archiver": "^7.0.1",
     "electron-updater": "^6.8.3",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.3.1",
     "proxy-chain": "^2.4.0",
     "react-router-dom": "^6.24.0",
     "uuid": "^10.0.0",
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.18.0",
-    "zod": "^3.23.8",
-    "express-rate-limit": "^8.3.1"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/archiver": "^6.0.2",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.0",
