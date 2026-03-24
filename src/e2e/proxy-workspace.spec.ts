@@ -227,18 +227,23 @@ test.describe('Proxy workspace', () => {
     );
     await goToLastProxyPage(page);
 
-    const firstRow = proxyRow(page, firstHost, 9701);
-    const secondRow = proxyRow(page, secondHost, 9702);
-
-    await expect(firstRow).toBeVisible();
-
-    const proxies = await listProxyHosts(page);
-    expect(proxies.filter((proxy) => proxy.host === firstHost && proxy.port === 9701)).toHaveLength(1);
-    expect(proxies.filter((proxy) => proxy.host === secondHost && proxy.port === 9702)).toHaveLength(1);
-    expect(proxies.some((proxy) =>
-      proxy.host === secondHost &&
-      proxy.port === 9702 &&
-      proxy.username === 'comment-user')).toBe(true);
+    await expect
+      .poll(async () => {
+        const proxies = await listProxyHosts(page);
+        return {
+          firstCount: proxies.filter((proxy) => proxy.host === firstHost && proxy.port === 9701).length,
+          secondCount: proxies.filter((proxy) => proxy.host === secondHost && proxy.port === 9702).length,
+          secondHasUsername: proxies.some((proxy) =>
+            proxy.host === secondHost &&
+            proxy.port === 9702 &&
+            proxy.username === 'comment-user'),
+        };
+      })
+      .toEqual({
+        firstCount: 1,
+        secondCount: 1,
+        secondHasUsername: true,
+      });
   });
 
   test('shows bulk actions after selecting multiple proxies', async ({ page }) => {

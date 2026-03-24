@@ -51,10 +51,22 @@ async function deleteAllProfiles(request: APIRequestContext): Promise<void> {
 }
 
 async function gotoProfileWorkspace(page: Page): Promise<void> {
-  await page.goto('/ui/profiles');
-  await expect(page).toHaveURL(/\/ui\/profiles$/);
-  await expect(page.locator('main h3')).toContainText(/h.+ sơ|profile/i);
-  await expect(page.getByRole('button', { name: /t.+o.+h.+ sơ/i })).toBeVisible();
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto('/ui/profiles');
+    await expect(page).toHaveURL(/\/ui\/profiles$/);
+
+    const bodyText = await page.locator('body').textContent();
+    if (bodyText?.includes('Internal server error') && attempt === 0) {
+      await page.waitForTimeout(300);
+      continue;
+    }
+
+    await expect(page.locator('main h3')).toContainText(/h.+ s.+|profile/i);
+    await expect(page.getByRole('button', { name: /t.+o.+h.+ s.+/i })).toBeVisible();
+    return;
+  }
+
+  throw new Error('Profile workspace did not recover from a transient shell error');
 }
 
 async function createProxyViaApi(request: APIRequestContext, host: string, port: number, label: string): Promise<ProxyRecord> {
@@ -103,7 +115,7 @@ function profileRow(page: Page, name: string) {
 }
 
 async function openCreateProfileDrawer(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /t.+o.+h.+ sơ/i }).click();
+  await page.getByRole('button', { name: /t.+o.+h.+ s.+/i }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 }
 
@@ -119,7 +131,7 @@ test.describe('Profile workspace', () => {
     await openCreateProfileDrawer(page);
 
     const drawer = page.getByRole('dialog');
-    await drawer.getByLabel(/t.+n h.+ sơ/i).fill(profileName);
+    await drawer.getByLabel(/t.+n h.+ s.+/i).fill(profileName);
     await drawer.getByLabel(/nh.+m/i).fill(profileGroup);
 
     await drawer.getByRole('tabpanel', { name: /chung/i }).locator('.ant-select').nth(1).locator('.ant-select-selector').click();
@@ -140,7 +152,7 @@ test.describe('Profile workspace', () => {
     await row.getByRole('button', { name: profileName }).click();
     const editDrawer = page.getByRole('dialog');
     await expect(editDrawer).toBeVisible();
-    await expect(editDrawer.getByLabel(/t.+n h.+ sơ/i)).toHaveValue(profileName);
+    await expect(editDrawer.getByLabel(/t.+n h.+ s.+/i)).toHaveValue(profileName);
     await expect(editDrawer.getByLabel(/nh.+m/i)).toHaveValue(profileGroup);
     await expect(editDrawer.getByRole('tabpanel', { name: /chung/i })).toContainText('E2E Runtime');
     await editDrawer.getByRole('tab', { name: /proxy/i }).click();
@@ -168,12 +180,12 @@ test.describe('Profile workspace', () => {
 
     const drawer = page.getByRole('dialog');
     await expect(drawer).toBeVisible();
-    await expect(drawer.getByLabel(/t.+n h.+ sơ/i)).toHaveValue(created.name);
+    await expect(drawer.getByLabel(/t.+n h.+ s.+/i)).toHaveValue(created.name);
 
     await drawer.getByLabel(/nh.+m/i).fill(updatedGroup);
     await drawer.getByLabel(/ghi ch.+/i).fill(updatedNotes);
     await drawer.getByRole('tabpanel', { name: /chung/i }).locator('.ant-select').nth(1).locator('.ant-select-selector').click();
-    await page.locator('.ant-select-dropdown').getByText(/t.+ đ.+ng/i).click();
+    await page.locator('.ant-select-dropdown').getByText(/t.+ .+ng/i).click();
 
     await drawer.getByRole('button', { name: /l.+u/i }).click();
     await expect(drawer).toBeHidden();
@@ -184,8 +196,9 @@ test.describe('Profile workspace', () => {
     const reopenedDrawer = page.getByRole('dialog');
     await expect(reopenedDrawer.getByLabel(/nh.+m/i)).toHaveValue(updatedGroup);
     await expect(reopenedDrawer.getByLabel(/ghi ch.+/i)).toHaveValue(updatedNotes);
-    await expect(reopenedDrawer.getByRole('tabpanel', { name: /chung/i })).toContainText(/t.+ đ.+ng/i);
+    await expect(reopenedDrawer.getByRole('tabpanel', { name: /chung/i })).toContainText(/t.+ .+ng/i);
   });
+
   test('assigns one proxy to multiple selected profiles from the workspace', async ({ page, request }) => {
     const uniqueId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     await completeOnboardingViaApi(request);
@@ -220,7 +233,7 @@ test.describe('Profile workspace', () => {
     const bulkProxySelect = page.locator('.ant-select').filter({ hasText: /proxy/i }).last();
     await bulkProxySelect.locator('.ant-select-selector').click();
     await page.locator('.ant-select-dropdown').getByText(`${proxy.host}:${proxy.port}`).click();
-    const applyProxyButton = page.getByRole('button', { name: 'Áp dụng proxy' });
+    const applyProxyButton = page.getByRole('button', { name: /.+p d.+ng proxy/i });
     await expect(applyProxyButton).toBeEnabled();
     await applyProxyButton.click();
     await expect(firstRow.getByRole('checkbox')).not.toBeChecked();

@@ -4,6 +4,10 @@ interface DashboardProfileRecord {
   id: string;
 }
 
+interface BackupEntry {
+  filename: string;
+}
+
 async function setOnboardingCompleted(request: APIRequestContext, completed: boolean): Promise<void> {
   const response = await request.put('/api/config', {
     data: {
@@ -35,6 +39,21 @@ async function deleteAllProfiles(request: APIRequestContext): Promise<void> {
       throw new Error(deleteJson.error ?? `Failed to delete profile ${profile.id}`);
     }
   }
+}
+
+async function listBackups(request: APIRequestContext): Promise<BackupEntry[]> {
+  const response = await request.get('/api/backups');
+  const json = await response.json() as {
+    success: boolean;
+    error?: string;
+    data: BackupEntry[];
+  };
+
+  if (!json.success) {
+    throw new Error(json.error ?? 'Failed to list backups');
+  }
+
+  return json.data;
 }
 
 async function gotoDashboard(page: Page): Promise<void> {
@@ -107,6 +126,34 @@ test.describe('Ops surfaces', () => {
 
     await expect(page.getByText(uniqueMessage)).toBeVisible();
     await expect(page.getByText(/ops-e2e@example\.com/i)).toBeVisible();
+  });
+
+  test('runs support self-test from settings and shows the latest result', async ({ page }) => {
+    await gotoSettings(page);
+    await page.getByRole('tab', { name: /h.+ tr.+|support/i }).click();
+
+    await page.getByRole('button', { name: /ch.+y self-test|run self-test/i }).click();
+
+    await expect(page.getByText(/self-test/i).first()).toBeVisible();
+    await expect(page.locator('.ant-tag').filter({ hasText: /đạt|cảnh báo|lỗi|pass|warn|fail/i }).first()).toBeVisible();
+    await expect(page.getByText(/runtime|diagnostics|proxy|data dir/i).first()).toBeVisible();
+  });
+
+  test('creates a backup from the dashboard and surfaces the latest backup entry', async ({ page, request }) => {
+    const beforeBackups = await listBackups(request);
+
+    await gotoDashboard(page);
+    await page.getByRole('button', { name: /backup ngay|create backup/i }).first().click();
+
+    await expect
+      .poll(async () => (await listBackups(request)).length)
+      .toBeGreaterThan(beforeBackups.length);
+
+    const afterBackups = await listBackups(request);
+    const latestBackup = afterBackups[0];
+    expect(latestBackup).toBeTruthy();
+
+    await expect(page.getByText(latestBackup.filename).first()).toBeVisible();
   });
 
   test('opens the first-profile creation flow from the dashboard when no profiles exist', async ({ page, request }) => {
