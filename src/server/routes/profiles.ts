@@ -180,16 +180,22 @@ router.put('/profiles/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const body = UpdateProfileSchema.parse(req.body);
-    const profile = await profileManager.updateProfile(id, {
-      name: body.name,
-      notes: body.notes,
-      tags: body.tags,
-      group: body.group,
-      owner: body.owner,
-      runtime: body.runtime,
-      proxy: resolveProxySelection(body.proxyId),
-      fingerprint: body.fingerprint as Parameters<typeof profileManager.updateProfile>[1]['fingerprint'],
-    });
+    const nextFields: Parameters<typeof profileManager.updateProfile>[1] = {
+      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      ...(body.tags !== undefined ? { tags: body.tags } : {}),
+      ...(body.group !== undefined ? { group: body.group } : {}),
+      ...(body.owner !== undefined ? { owner: body.owner } : {}),
+      ...(body.runtime !== undefined ? { runtime: body.runtime } : {}),
+      ...(body.fingerprint !== undefined
+        ? { fingerprint: body.fingerprint as Parameters<typeof profileManager.updateProfile>[1]['fingerprint'] }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(body, 'proxyId')
+        ? { proxy: resolveProxySelection(body.proxyId) }
+        : {}),
+    };
+
+    const profile = await profileManager.updateProfile(id, nextFields);
     res.json({ success: true, data: profile });
   } catch (err) {
     logger.error('PUT /api/profiles/:id error', { error: err instanceof Error ? err.message : String(err) });

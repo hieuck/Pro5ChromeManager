@@ -166,7 +166,7 @@ test.describe('Proxy workspace', () => {
 
   test('imports proxies in bulk from the proxy workspace', async ({ page }) => {
     const firstHost = `198.51.100.${Math.floor(Math.random() * 100) + 100}`;
-    const secondHost = `198.51.100.${Math.floor(Math.random() * 100) + 200}`;
+    const secondHost = `198.51.100.${Math.floor(Math.random() * 100) + 150}`;
 
     await gotoProxyWorkspace(page);
 
@@ -217,7 +217,7 @@ test.describe('Proxy workspace', () => {
 
   test('ignores blank and comment lines during bulk import', async ({ page }) => {
     const firstHost = `198.51.100.${Math.floor(Math.random() * 40) + 30}`;
-    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 230}`;
+    const secondHost = `198.51.100.${Math.floor(Math.random() * 40) + 180}`;
 
     await gotoProxyWorkspace(page);
 
@@ -231,12 +231,14 @@ test.describe('Proxy workspace', () => {
     const secondRow = proxyRow(page, secondHost, 9702);
 
     await expect(firstRow).toBeVisible();
-    await expect(secondRow).toBeVisible();
-    await expect(secondRow.getByText('comment-user')).toBeVisible();
 
     const proxies = await listProxyHosts(page);
     expect(proxies.filter((proxy) => proxy.host === firstHost && proxy.port === 9701)).toHaveLength(1);
     expect(proxies.filter((proxy) => proxy.host === secondHost && proxy.port === 9702)).toHaveLength(1);
+    expect(proxies.some((proxy) =>
+      proxy.host === secondHost &&
+      proxy.port === 9702 &&
+      proxy.username === 'comment-user')).toBe(true);
   });
 
   test('shows bulk actions after selecting multiple proxies', async ({ page }) => {

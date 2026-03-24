@@ -609,19 +609,23 @@ describe('Operations endpoints', () => {
       }),
     });
     expect(createProfileRes.status).toBe(201);
-    const createdProfileJson = await createProfileRes.json() as {
-      success: boolean;
-      data: {
-        id: string;
-        proxy: { id: string; host: string; port: number; type: string; username?: string };
+      const createdProfileJson = await createProfileRes.json() as {
+        success: boolean;
+        data: {
+          id: string;
+          name: string;
+          runtime: string;
+          proxy: { id: string; host: string; port: number; type: string; username?: string };
+        };
       };
-    };
-    expect(createdProfileJson.success).toBe(true);
-    expect(createdProfileJson.data.proxy.id).toBe(createdProxyJson.data.id);
-    expect(createdProfileJson.data.proxy.host).toBe('10.0.0.1');
-    expect(createdProfileJson.data.proxy.port).toBe(8080);
-    expect(createdProfileJson.data.proxy.type).toBe('http');
-    expect(createdProfileJson.data.proxy.username).toBe('alice');
+      expect(createdProfileJson.success).toBe(true);
+      expect(createdProfileJson.data.name).toBe('Proxy bound profile');
+      expect(createdProfileJson.data.runtime).toBe('auto');
+      expect(createdProfileJson.data.proxy.id).toBe(createdProxyJson.data.id);
+      expect(createdProfileJson.data.proxy.host).toBe('10.0.0.1');
+      expect(createdProfileJson.data.proxy.port).toBe(8080);
+      expect(createdProfileJson.data.proxy.type).toBe('http');
+      expect(createdProfileJson.data.proxy.username).toBe('alice');
 
     const clearProxyRes = await fetch(`${baseUrl}/api/profiles/${createdProfileJson.data.id}`, {
       method: 'PUT',
@@ -630,16 +634,20 @@ describe('Operations endpoints', () => {
         proxyId: null,
       }),
     });
-    expect(clearProxyRes.status).toBe(200);
-    const clearedProfileJson = await clearProxyRes.json() as {
-      success: boolean;
-      data: {
-        proxy: null;
+      expect(clearProxyRes.status).toBe(200);
+      const clearedProfileJson = await clearProxyRes.json() as {
+        success: boolean;
+        data: {
+          name: string;
+          runtime: string;
+          proxy: null;
+        };
       };
-    };
-    expect(clearedProfileJson.success).toBe(true);
-    expect(clearedProfileJson.data.proxy).toBeNull();
-  });
+      expect(clearedProfileJson.success).toBe(true);
+      expect(clearedProfileJson.data.name).toBe('Proxy bound profile');
+      expect(clearedProfileJson.data.runtime).toBe('auto');
+      expect(clearedProfileJson.data.proxy).toBeNull();
+    });
 
   it('bulk tests proxies and persists health snapshots', async () => {
     const { proxyManager } = await import('../managers/ProxyManager');

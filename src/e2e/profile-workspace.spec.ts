@@ -29,6 +29,27 @@ async function completeOnboardingViaApi(request: APIRequestContext): Promise<voi
   }
 }
 
+async function deleteAllProfiles(request: APIRequestContext): Promise<void> {
+  const response = await request.get('/api/profiles');
+  const json = await response.json() as {
+    success: boolean;
+    error?: string;
+    data: ProfileRecord[];
+  };
+
+  if (!json.success) {
+    throw new Error(json.error ?? 'Failed to list profiles');
+  }
+
+  for (const profile of json.data) {
+    const deleteResponse = await request.delete(`/api/profiles/${profile.id}`);
+    const deleteJson = await deleteResponse.json() as { success: boolean; error?: string };
+    if (!deleteJson.success) {
+      throw new Error(deleteJson.error ?? `Failed to delete profile ${profile.id}`);
+    }
+  }
+}
+
 async function gotoProfileWorkspace(page: Page): Promise<void> {
   await page.goto('/ui/profiles');
   await expect(page).toHaveURL(/\/ui\/profiles$/);
@@ -164,5 +185,60 @@ test.describe('Profile workspace', () => {
     await expect(reopenedDrawer.getByLabel(/nh.+m/i)).toHaveValue(updatedGroup);
     await expect(reopenedDrawer.getByLabel(/ghi ch.+/i)).toHaveValue(updatedNotes);
     await expect(reopenedDrawer.getByRole('tabpanel', { name: /chung/i })).toContainText(/t.+ đ.+ng/i);
+  });
+  test('assigns one proxy to multiple selected profiles from the workspace', async ({ page, request }) => {
+    const uniqueId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    await completeOnboardingViaApi(request);
+    await deleteAllProfiles(request);
+    const proxy = await createProxyViaApi(
+      request,
+      `203.0.113.${Math.floor(Math.random() * 30) + 20}`,
+      8500,
+      `Bulk Assign ${uniqueId}`,
+    );
+    const firstProfile = await createProfileViaApi(request, {
+      name: `Bulk Proxy A ${uniqueId}`,
+      runtime: 'e2e',
+    });
+    const secondProfile = await createProfileViaApi(request, {
+      name: `Bulk Proxy B ${uniqueId}`,
+      runtime: 'e2e',
+    });
+
+    await gotoProfileWorkspace(page);
+
+    const firstRow = profileRow(page, firstProfile.name);
+    const secondRow = profileRow(page, secondProfile.name);
+    await expect(firstRow).toBeVisible();
+    await expect(secondRow).toBeVisible();
+
+    await firstRow.getByRole('checkbox').check();
+    await secondRow.getByRole('checkbox').check();
+    await expect(firstRow.getByRole('checkbox')).toBeChecked();
+    await expect(secondRow.getByRole('checkbox')).toBeChecked();
+
+    const bulkProxySelect = page.locator('.ant-select').filter({ hasText: /proxy/i }).last();
+    await bulkProxySelect.locator('.ant-select-selector').click();
+    await page.locator('.ant-select-dropdown').getByText(`${proxy.host}:${proxy.port}`).click();
+    const applyProxyButton = page.getByRole('button', { name: 'Áp dụng proxy' });
+    await expect(applyProxyButton).toBeEnabled();
+    await applyProxyButton.click();
+    await expect(firstRow.getByRole('checkbox')).not.toBeChecked();
+    await expect(secondRow.getByRole('checkbox')).not.toBeChecked();
+    await expect(applyProxyButton).not.toBeVisible();
+
+    const profileListResponse = await request.get('/api/profiles');
+    const profileListJson = await profileListResponse.json() as {
+      success: boolean;
+      data: ProfileRecord[];
+    };
+    expect(profileListJson.success).toBe(true);
+
+    const persistedFirst = profileListJson.data.find((profile) => profile.name === firstProfile.name);
+    const persistedSecond = profileListJson.data.find((profile) => profile.name === secondProfile.name);
+    expect(persistedFirst?.name).toBe(firstProfile.name);
+    expect(persistedSecond?.name).toBe(secondProfile.name);
+    expect(persistedFirst?.proxy?.id).toBe(proxy.id);
+    expect(persistedSecond?.proxy?.id).toBe(proxy.id);
   });
 });
