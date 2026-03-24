@@ -24,7 +24,10 @@
     "package:electron:dev": "npm run generate:icons && npm run build && electron-builder --dir --win --config electron-builder.yml --config.win.signAndEditExecutable=false && npm run ops:verify:dev-package && npm run ops:smoke:dev-package",
     "generate:icons": "node scripts/generate-icons.js",
     "package:electron": "npm run generate:icons && npm run build && electron-builder --config electron-builder.yml && npm run ops:artifacts && npm run ops:artifacts:verify",
-    "test": "node -r ./scripts/vite-safe-realpath-shim.cjs ./node_modules/vitest/vitest.mjs run --configLoader runner"
+    "test": "node -r ./scripts/vite-safe-realpath-shim.cjs ./node_modules/vitest/vitest.mjs run --configLoader runner",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "keywords": [
     "anti-detect",
