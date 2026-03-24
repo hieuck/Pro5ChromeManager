@@ -71,4 +71,42 @@ test.describe('Profile onboarding', () => {
     expect(configJson.success).toBe(true);
     expect(configJson.data.onboardingCompleted).toBe(true);
   });
+
+  test('marks onboarding as skipped when the user skips from the welcome flow', async ({ page, request }) => {
+    await deleteAllProfiles(request);
+    await setOnboardingCompleted(request, false);
+
+    await page.goto('/ui/profiles');
+    await expect(page).toHaveURL(/\/ui\/profiles$/);
+    await expect(page.getByRole('heading', { name: /ch.+o m.+ng/i })).toBeVisible();
+
+    await page.getByRole('button', { name: /b.+ qua/i }).click();
+
+    await expect(page.getByRole('heading', { level: 3, name: /profile manager|h.+ s.+/i })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    const configResponse = await request.get('/api/config');
+    const configJson = await configResponse.json() as {
+      success: boolean;
+      data: { onboardingCompleted: boolean };
+    };
+    expect(configJson.success).toBe(true);
+    expect(configJson.data.onboardingCompleted).toBe(true);
+
+    const supportResponse = await request.get('/api/support/status');
+    const supportJson = await supportResponse.json() as {
+      success: boolean;
+      data: {
+        onboardingCompleted: boolean;
+        onboardingState: {
+          status: string;
+          skippedAt: string | null;
+        };
+      };
+    };
+    expect(supportJson.success).toBe(true);
+    expect(supportJson.data.onboardingCompleted).toBe(true);
+    expect(supportJson.data.onboardingState.status).toBe('skipped');
+    expect(supportJson.data.onboardingState.skippedAt).toBeTruthy();
+  });
 });

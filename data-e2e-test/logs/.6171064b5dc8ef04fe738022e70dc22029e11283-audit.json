@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 7
+    },
+    "auditLog": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\logs\\.6171064b5dc8ef04fe738022e70dc22029e11283-audit.json",
+    "files": [
+        {
+            "date": 1774356359760,
+            "name": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\logs\\exceptions-2026-03-24.log",
+            "hash": "38f204d6807125b9b916341ecb52fa8ee0bf3d8782aa0cfc5687c86b8fce9035"
+        }
+    ],
+    "hashType": "sha256"
+}

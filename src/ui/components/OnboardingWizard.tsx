@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Steps, Button, Space, Select, Typography, Alert, Spin, Input } from 'antd';
 import { ChromeOutlined, GlobalOutlined, PlayCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/client';
+import { finalizeOnboarding, syncOnboardingState } from '../utils/onboarding';
 
 const { Text, Paragraph } = Typography;
 
@@ -17,18 +18,6 @@ interface OnboardingWizardProps {
   onFinish: () => void;
 }
 
-interface OnboardingStatePayload {
-  status?: 'not_started' | 'in_progress' | 'profile_created' | 'completed' | 'skipped';
-  currentStep?: number;
-  selectedRuntime?: string | null;
-  draftProfileName?: string | null;
-  createdProfileId?: string | null;
-  lastOpenedAt?: string | null;
-  profileCreatedAt?: string | null;
-  completedAt?: string | null;
-  skippedAt?: string | null;
-}
-
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) => {
   const [step, setStep] = useState(0);
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
@@ -38,10 +27,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
   const [profileName, setProfileName] = useState('Profile đầu tiên');
   const [createdProfileId, setCreatedProfileId] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
-
-  async function syncOnboardingState(payload: OnboardingStatePayload): Promise<void> {
-    await apiClient.post('/api/support/onboarding-state', payload);
-  }
 
   useEffect(() => {
     if (open && step === 0) {
@@ -102,8 +87,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
   }
 
   async function handleFinish(): Promise<void> {
-    await apiClient.put('/api/config', { onboardingCompleted: true });
-    await syncOnboardingState({
+    await finalizeOnboarding({
       status: 'completed',
       currentStep: 2,
       selectedRuntime: selectedRuntime ?? null,
@@ -115,14 +99,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
   }
 
   async function handleSkip(): Promise<void> {
-    await syncOnboardingState({
+    await finalizeOnboarding({
       status: 'skipped',
       currentStep: step,
       selectedRuntime: selectedRuntime ?? null,
       draftProfileName: profileName.trim() || null,
       skippedAt: new Date().toISOString(),
     });
-    await handleFinish();
+    onFinish();
   }
 
   const steps = [

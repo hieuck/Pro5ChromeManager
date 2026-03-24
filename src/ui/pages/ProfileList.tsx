@@ -42,6 +42,7 @@ import OnboardingWizard from '../components/OnboardingWizard';
 import WelcomeScreen from '../components/WelcomeScreen';
 import { useTranslation } from '../hooks/useTranslation';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { finalizeOnboarding } from '../utils/onboarding';
 
 interface Profile {
   id: string;
@@ -415,7 +416,11 @@ const ProfileList: React.FC = () => {
   }
 
   async function completeOnboarding(): Promise<void> {
-    await apiClient.put('/api/config', { onboardingCompleted: true });
+    await finalizeOnboarding({
+      status: 'skipped',
+      currentStep: 0,
+      skippedAt: new Date().toISOString(),
+    });
     setOnboardingCompleted(true);
   }
 
