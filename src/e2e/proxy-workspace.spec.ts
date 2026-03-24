@@ -1,10 +1,22 @@
 import { expect, test, type Page } from '@playwright/test';
 
 async function gotoProxyWorkspace(page: Page): Promise<void> {
-  await page.goto('/ui/proxies');
-  await expect(page).toHaveURL(/\/ui\/proxies$/);
-  await expect(page.locator('main h3')).toContainText(/proxy/i);
-  await expect(page.getByRole('button', { name: 'Import proxy' })).toBeVisible();
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto('/ui/proxies');
+    await expect(page).toHaveURL(/\/ui\/proxies$/);
+
+    const bodyText = await page.locator('body').textContent();
+    if (bodyText?.includes('Internal server error') && attempt === 0) {
+      await page.waitForTimeout(300);
+      continue;
+    }
+
+    await expect(page.locator('main h3')).toContainText(/proxy/i);
+    await expect(page.getByRole('button', { name: 'Import proxy' })).toBeVisible();
+    return;
+  }
+
+  throw new Error('Proxy workspace did not recover from a transient shell error');
 }
 
 async function openCreateProxyDialog(page: Page): Promise<void> {

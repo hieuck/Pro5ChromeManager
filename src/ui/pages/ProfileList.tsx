@@ -537,12 +537,11 @@ const ProfileList: React.FC = () => {
     setHighlightedIndex(-1);
   }, [filterGroup, filterOwner, filterProxyHealth, filterStatus, filterTag, search]);
 
-  if (!loading && profiles.length === 0 && !onboardingCompleted) {
+  if (profiles.length === 0 && !onboardingCompleted && (!loading || wizardOpen)) {
     return (
       <>
         <WelcomeScreen
           onCreateProfile={() => {
-            void completeOnboarding();
             setWizardOpen(true);
           }}
           onSkip={() => void completeOnboarding()}
@@ -550,6 +549,7 @@ const ProfileList: React.FC = () => {
         <OnboardingWizard
           open={wizardOpen}
           onFinish={() => {
+            setOnboardingCompleted(true);
             setWizardOpen(false);
             void fetchProfiles();
           }}
