@@ -33,6 +33,7 @@ import {
   TagsOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
+import { buildApiUrl } from '../api/client';
 import type { ColumnsType } from 'antd/es/table';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
@@ -310,7 +311,7 @@ const ProfileList: React.FC = () => {
   }
 
   function handleExport(profileId: string): void {
-    window.open(`http://127.0.0.1:3210/api/profiles/${profileId}/export`, '_blank');
+    window.open(buildApiUrl(`/api/profiles/${profileId}/export`), '_blank');
   }
 
   async function handleBulkStart(): Promise<void> {

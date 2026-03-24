@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { apiClient } from '../api/client';
+import { apiClient, buildApiUrl } from '../api/client';
 import ProxySelector from './ProxySelector';
 import FingerprintEditor from './FingerprintEditor';
 
@@ -52,7 +52,8 @@ interface ActivitySession {
 
 interface Runtime {
   key: string;
-  name: string;
+  name?: string;
+  label?: string;
   available: boolean;
 }
 
@@ -162,7 +163,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
       const formData = new FormData();
       formData.append('file', file.originFileObj);
       try {
-        const res = await fetch('http://127.0.0.1:3210/api/profiles/import', {
+      const res = await fetch(buildApiUrl('/api/profiles/import'), {
           method: 'POST',
           body: formData,
         });
@@ -206,7 +207,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
               options={[
                 { label: 'Tự động', value: 'auto' },
                 ...runtimes.map((r) => ({
-                  label: `${r.name}${r.available ? '' : ' (không khả dụng)'}`,
+                  label: `${r.label ?? r.name ?? r.key}${r.available ? '' : ' (không khả dụng)'}`,
                   value: r.key,
                   disabled: !r.available,
                 })),

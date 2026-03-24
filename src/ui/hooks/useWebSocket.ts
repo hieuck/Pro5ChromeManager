@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { buildWebSocketUrl } from '../api/client';
 
 export type WsEventType =
   | 'instance:started'
@@ -19,15 +20,6 @@ type WsEventHandler = (event: WsEvent) => void;
 const INITIAL_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 
-function getWebSocketUrl(): string {
-  if (typeof window !== 'undefined' && window.location) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/ws`;
-  }
-
-  return 'ws://127.0.0.1:3210/ws';
-}
-
 /**
  * Auto-reconnecting WebSocket hook with exponential backoff.
  * Calls onMessage for each parsed WsEvent received.
@@ -47,7 +39,7 @@ export function useWebSocket(onMessage: WsEventHandler): void {
   const connect = useCallback(() => {
     if (unmountedRef.current) return;
 
-    const ws = new WebSocket(getWebSocketUrl());
+    const ws = new WebSocket(buildWebSocketUrl('/ws'));
     wsRef.current = ws;
 
     ws.onopen = () => {

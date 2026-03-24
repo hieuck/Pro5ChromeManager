@@ -8,7 +8,7 @@ import {
   DownloadOutlined, SaveOutlined, CheckCircleOutlined, CloseCircleOutlined,
   QuestionCircleOutlined, CopyOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../api/client';
+import { apiClient, buildApiUrl } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 import OnboardingWizard from '../components/OnboardingWizard';
 
@@ -26,9 +26,10 @@ interface AppConfig {
 
 interface Runtime {
   key: string;
-  name: string;
-  executablePath: string;
+  name?: string;
+  label?: string;
   available: boolean;
+  executablePath?: string;
 }
 
 interface BackupEntry {
@@ -130,6 +131,7 @@ interface SupportFeedbackResult {
 // ─── Tab: General ─────────────────────────────────────────────────────────────
 
 const GeneralTab: React.FC = () => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -176,7 +178,7 @@ const GeneralTab: React.FC = () => {
 
     if (res.success) {
       localStorage.setItem('uiLanguage', values.uiLanguage);
-      void message.success('Đã lưu cài đặt');
+      void message.success(t.settings.settingsSaved);
     } else {
       void message.error(res.error);
     }
@@ -188,25 +190,25 @@ const GeneralTab: React.FC = () => {
   }
 
   function handleExportDiagnostics(): void {
-    window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank');
+    window.open(buildApiUrl('/api/support/diagnostics'), '_blank');
   }
 
   return (
     <Form form={form} layout="vertical" style={{ maxWidth: 560 }}>
-      <Form.Item name="uiLanguage" label="Ngôn ngữ giao diện">
+      <Form.Item name="uiLanguage" label={t.settings.uiLanguage}>
         <Select options={[{ label: 'Tiếng Việt', value: 'vi' }, { label: 'English', value: 'en' }]} />
       </Form.Item>
-      <Form.Item name="profilesDir" label="Thư mục profiles" rules={[{ required: true }]}>
+      <Form.Item name="profilesDir" label={t.settings.profilesDir} rules={[{ required: true }]}>
         <Input placeholder="./data/profiles" />
       </Form.Item>
-      <Form.Item name="headless" label="Chế độ headless mặc định" valuePropName="checked">
+      <Form.Item name="headless" label={t.settings.defaultHeadless} valuePropName="checked">
         <Switch />
       </Form.Item>
-      <Form.Item name="windowTitleSuffixEnabled" label="Hiển thị tên profile trên tiêu đề cửa sổ" valuePropName="checked">
+      <Form.Item name="windowTitleSuffixEnabled" label={t.settings.windowTitleSuffix} valuePropName="checked">
         <Switch />
       </Form.Item>
 
-      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>API Server</Typography.Text>
+      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>{t.settings.apiServer}</Typography.Text>
       <Row gutter={12}>
         <Col span={14}>
           <Form.Item name="apiHost" label="Host">
@@ -220,38 +222,34 @@ const GeneralTab: React.FC = () => {
         </Col>
       </Row>
 
-      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>Session Check</Typography.Text>
+      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>{t.settings.sessionCheck}</Typography.Text>
       <Row gutter={12}>
         <Col span={14}>
-          <Form.Item name="sessionCheckTimeout" label="Timeout (ms)">
+          <Form.Item name="sessionCheckTimeout" label={t.settings.sessionCheckTimeout}>
             <InputNumber min={5000} max={120000} step={1000} style={{ width: '100%' }} />
           </Form.Item>
         </Col>
         <Col span={10}>
-          <Form.Item name="sessionCheckHeadless" label="Headless" valuePropName="checked">
+          <Form.Item name="sessionCheckHeadless" label={t.settings.sessionCheckHeadless} valuePropName="checked">
             <Switch />
           </Form.Item>
         </Col>
       </Row>
 
-      <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={() => void handleSave()}>
-        Lưu cài đặt
-      </Button>
+      <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={() => void handleSave()}>{t.settings.saveSettings}</Button>
       <Button
         style={{ marginLeft: 12 }}
         icon={<QuestionCircleOutlined />}
         onClick={() => void handleResetOnboarding()}
-      >
-        Xem lại hướng dẫn
-      </Button>
+      >{t.settings.reviewOnboarding}</Button>
 
-      <Button
-        style={{ marginLeft: 12 }}
-        icon={<DownloadOutlined />}
-        onClick={handleExportDiagnostics}
-      >
-        Export Diagnostics
-      </Button>
+        <Button
+          style={{ marginLeft: 12 }}
+          icon={<DownloadOutlined />}
+          onClick={handleExportDiagnostics}
+        >
+          {t.settings.exportDiagnostics}
+        </Button>
 
       <OnboardingWizard open={wizardOpen} onFinish={() => setWizardOpen(false)} />
     </Form>
@@ -295,7 +293,7 @@ const RuntimesTab: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Tên', dataIndex: 'name', key: 'name' },
+    { title: 'Tên', key: 'name', render: (_: unknown, runtime: Runtime) => runtime.label ?? runtime.name ?? runtime.key },
     { title: 'Key', dataIndex: 'key', key: 'key', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
     {
       title: 'Đường dẫn',
@@ -395,7 +393,7 @@ const BackupTab: React.FC = () => {
   }
 
   function handleExport(filename: string): void {
-    window.open(`http://127.0.0.1:3210/api/backups/export/${encodeURIComponent(filename)}`, '_blank');
+    window.open(buildApiUrl(`/api/backups/export/${encodeURIComponent(filename)}`), '_blank');
   }
 
   function formatSize(bytes: number): string {
@@ -474,8 +472,8 @@ const LogsTab: React.FC = () => {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
-    const res = await apiClient.get<string[]>('/api/logs');
-    if (res.success) setLines(res.data);
+    const res = await apiClient.get<Array<{ raw: string }>>('/api/logs');
+    if (res.success) setLines(res.data.map((entry) => entry.raw));
     setLoading(false);
   }, []);
 
@@ -712,7 +710,7 @@ const SupportTab: React.FC = () => {
           <Button icon={<CopyOutlined />} onClick={() => void handleCopySupportSummary()}>
             {t.settings.copySupportSummary}
           </Button>
-          <Button icon={<DownloadOutlined />} onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
+          <Button icon={<DownloadOutlined />} onClick={() => window.open(buildApiUrl('/api/support/diagnostics'), '_blank')}>
             {t.settings.exportDiagnostics}
           </Button>
           <Button onClick={() => void fetchIncidents()} loading={incidentLoading}>

@@ -6,6 +6,27 @@ import { profileManager } from './ProfileManager';
 import { runtimeManager } from './RuntimeManager';
 import type { Profile } from './ProfileManager';
 
+async function bindServer(server: net.Server, port: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const onError = (error: Error) => {
+      server.off('listening', onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Server did not expose a TCP address'));
+        return;
+      }
+      resolve(address.port);
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, '127.0.0.1');
+  });
+}
+
 // ─── P5: Instance Port Uniqueness ─────────────────────────────────────────────
 // Validates: Requirements 10.1 — all running instances must have unique ports
 
@@ -18,15 +39,14 @@ describe('P5 — Port uniqueness (portScanner)', () => {
 
   it('findFreePort does not return an already-bound port', async () => {
     const server = net.createServer();
-    await new Promise<void>((resolve) => server.listen(40000, '127.0.0.1', resolve));
-    const addr = server.address() as net.AddressInfo;
-    const boundPort = addr.port;
+    const boundPort = await bindServer(server, 0);
+    const rangeEnd = boundPort + 20;
 
     try {
-      const found = await findFreePort(40000, 40010);
+      const found = await findFreePort(boundPort, rangeEnd);
       expect(found).not.toBe(boundPort);
-      expect(found).toBeGreaterThanOrEqual(40000);
-      expect(found).toBeLessThanOrEqual(40010);
+      expect(found).toBeGreaterThanOrEqual(boundPort);
+      expect(found).toBeLessThanOrEqual(rangeEnd);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

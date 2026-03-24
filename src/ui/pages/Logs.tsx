@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, Input, List, Row, Select, Space, Statistic, Switch, Tag, Typography, message } from 'antd';
 import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiClient } from '../api/client';
+import { apiClient, buildApiUrl } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
-import { parseStoredLogLine, type ParsedLogEntry } from '../utils/logParsing';
+import { type ParsedLogEntry } from '../utils/logParsing';
 
 const LOGS_VIEW_STORAGE_KEY = 'pro5.logs.view';
 
@@ -135,7 +135,7 @@ const Logs: React.FC = () => {
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
-    const res = await apiClient.get<string[]>('/api/logs');
+    const res = await apiClient.get<ParsedLogEntry[]>('/api/logs');
     setLoading(false);
 
     if (!res.success) {
@@ -143,7 +143,7 @@ const Logs: React.FC = () => {
       return;
     }
 
-    setEntries(res.data.slice().reverse().map(parseStoredLogLine));
+    setEntries(res.data.slice().reverse());
     setLastRefreshedAt(new Date().toISOString());
   }, []);
 
@@ -1748,7 +1748,7 @@ const Logs: React.FC = () => {
                     {t.logs.recentWarnings.replace('{count}', String(recentIssueBreakdown.warn))}
                   </Tag>
                 ) : null}
-                <Button size="small" onClick={() => window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank')}>
+                <Button size="small" onClick={() => window.open(buildApiUrl('/api/support/diagnostics'), '_blank')}>
                   {t.logs.exportDiagnostics}
                 </Button>
                 <Button size="small" onClick={() => navigate('/settings')}>

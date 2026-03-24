@@ -125,9 +125,10 @@ test.describe('Proxy workspace', () => {
     await expect(dialog).toBeHidden();
     await goToLastProxyPage(page);
 
-    await expect(page.getByText(uniqueHost)).toBeVisible();
-    await expect(page.getByText('demo-user')).toBeVisible();
-    await expect(page.getByText(':8080')).toBeVisible();
+    const row = proxyRow(page, uniqueHost, 8080);
+    await expect(row).toBeVisible();
+    await expect(row.getByText('demo-user')).toBeVisible();
+    await expect(row.getByText(':8080')).toBeVisible();
   });
 
   test('creates a proxy with a non-default type from the create dialog', async ({ page }) => {
@@ -160,11 +161,14 @@ test.describe('Proxy workspace', () => {
     await importProxyLines(page, `${firstHost}:9001\n${secondHost}:9002:bulk-user:bulk-pass`);
     await goToLastProxyPage(page);
 
-    await expect(page.getByText(firstHost)).toBeVisible();
-    await expect(page.getByText(secondHost)).toBeVisible();
-    await expect(page.getByText('bulk-user')).toBeVisible();
-    await expect(page.getByText(':9001')).toBeVisible();
-    await expect(page.getByText(':9002')).toBeVisible();
+    const firstRow = proxyRow(page, firstHost, 9001);
+    const secondRow = proxyRow(page, secondHost, 9002);
+
+    await expect(firstRow).toBeVisible();
+    await expect(secondRow).toBeVisible();
+    await expect(secondRow.getByText('bulk-user')).toBeVisible();
+    await expect(firstRow.getByText(':9001')).toBeVisible();
+    await expect(secondRow.getByText(':9002')).toBeVisible();
   });
 
   test('applies the selected default type during bulk import', async ({ page }) => {
@@ -181,7 +185,7 @@ test.describe('Proxy workspace', () => {
     const row = proxyRow(page, uniqueHost, 1080);
     await expect(row).toBeVisible();
     await expect(row.getByText('SOCKS5')).toBeVisible();
-    await expect(page.getByText(':1080')).toBeVisible();
+    await expect(row.getByText(':1080')).toBeVisible();
   });
 
   test('imports proxy URLs with scheme and credentials', async ({ page }) => {
@@ -196,7 +200,7 @@ test.describe('Proxy workspace', () => {
     await expect(row).toBeVisible();
     await expect(row.getByText('SOCKS5')).toBeVisible();
     await expect(row.getByText('url-user')).toBeVisible();
-    await expect(page.getByText(':1081')).toBeVisible();
+    await expect(row.getByText(':1081')).toBeVisible();
   });
 
   test('ignores blank and comment lines during bulk import', async ({ page }) => {

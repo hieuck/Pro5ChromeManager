@@ -13,7 +13,11 @@ const RuntimeBodySchema = z.object({
 // GET /api/runtimes
 router.get('/runtimes', async (_req: Request, res: Response) => {
   await runtimeManager.refreshAvailability();
-  res.json({ success: true, data: runtimeManager.listRuntimes() });
+  const runtimes = runtimeManager.listRuntimes().map((runtime) => ({
+    ...runtime,
+    name: runtime.label,
+  }));
+  res.json({ success: true, data: runtimes });
 });
 
 // POST /api/runtimes

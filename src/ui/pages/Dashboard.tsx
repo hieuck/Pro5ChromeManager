@@ -2,11 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Empty, Form, Input, List, Progress, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
 import { ApiOutlined, ArrowRightOutlined, CopyOutlined, DownloadOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../api/client';
+import { apiClient, buildApiUrl } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import OnboardingWizard from '../components/OnboardingWizard';
-import { parseStoredLogLine, type ParsedLogEntry } from '../utils/logParsing';
 
 interface DashboardProfile {
   id: string;
@@ -105,14 +104,15 @@ interface BackupEntry {
 
 interface RuntimeEntry {
   key: string;
-  name: string;
+  name?: string;
+  label?: string;
   available: boolean;
   executablePath?: string | null;
 }
 
 interface LogEntry {
   timestamp: string;
-  level: ParsedLogEntry['level'];
+  level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
   raw: string;
   source: string | null;
@@ -286,7 +286,7 @@ const Dashboard: React.FC = () => {
       apiClient.get<{ count: number; entries: FeedbackEntry[] }>('/api/support/feedback?limit=3'),
       apiClient.get<BackupEntry[]>('/api/backups'),
       apiClient.get<RuntimeEntry[]>('/api/runtimes'),
-      apiClient.get<string[]>('/api/logs'),
+      apiClient.get<LogEntry[]>('/api/logs'),
     ]);
 
     if (profilesRes.success) setProfiles(profilesRes.data);
@@ -302,15 +302,11 @@ const Dashboard: React.FC = () => {
     if (logsRes.success) {
       setLogs(
         logsRes.data
-          .slice(-8)
-          .reverse()
-          .map((line) => {
-            const parsed = parseStoredLogLine(line);
-            return {
-              ...parsed,
-              timestamp: parsed.timestamp ?? '',
-            };
-          }),
+          .slice(0, 8)
+          .map((entry) => ({
+            ...entry,
+            timestamp: entry.timestamp ?? '',
+          })),
       );
     }
     setLoading(false);
@@ -583,17 +579,9 @@ const Dashboard: React.FC = () => {
         : issueRatio >= 30
           ? { color: 'gold', label: t.dashboard.activitySignalMixed, hint: t.dashboard.activitySignalMixedHint }
           : { color: 'green', label: t.dashboard.activitySignalLight, hint: t.dashboard.activitySignalLightHint };
-    const activityActionHint =
-      logHeat.incidents15 >= 3 && hottestRecentIssue
-        ? t.dashboard.activityActionHottest
-        : topSourceShare >= 50 && topSource
-          ? t.dashboard.activityActionSource
-        : logHeat.incidents60 >= 5
-          ? t.dashboard.activityActionRecent
-          : t.dashboard.activityActionLatest;
-    const topSources = Array.from(
-      logs.reduce((acc, entry) => {
-        if (!entry.source) return acc;
+      const topSources = Array.from(
+        logs.reduce((acc, entry) => {
+          if (!entry.source) return acc;
         acc.set(entry.source, (acc.get(entry.source) ?? 0) + 1);
         return acc;
       }, new Map<string, number>()),
@@ -626,14 +614,22 @@ const Dashboard: React.FC = () => {
     const topSourcesConcentration = logs.length
       ? Math.round((topSources.reduce((sum, [, count]) => sum + count, 0) / logs.length) * 100)
       : 0;
-    const activitySourceMode =
-      topSourcesConcentration >= 80
-        ? { color: 'volcano', label: t.dashboard.activitySourceModeFocused, hint: t.dashboard.activitySourceModeFocusedHint }
-        : topSourcesConcentration >= 50
-          ? { color: 'gold', label: t.dashboard.activitySourceModeMixed, hint: t.dashboard.activitySourceModeMixedHint }
-          : { color: 'green', label: t.dashboard.activitySourceModeDistributed, hint: t.dashboard.activitySourceModeDistributedHint };
+      const activitySourceMode =
+        topSourcesConcentration >= 80
+          ? { color: 'volcano', label: t.dashboard.activitySourceModeFocused, hint: t.dashboard.activitySourceModeFocusedHint }
+          : topSourcesConcentration >= 50
+            ? { color: 'gold', label: t.dashboard.activitySourceModeMixed, hint: t.dashboard.activitySourceModeMixedHint }
+            : { color: 'green', label: t.dashboard.activitySourceModeDistributed, hint: t.dashboard.activitySourceModeDistributedHint };
+      const activityActionHint =
+        logHeat.incidents15 >= 3 && hottestRecentIssue
+          ? t.dashboard.activityActionHottest
+          : topSourceShare >= 50 && topSource
+            ? t.dashboard.activityActionSource
+          : logHeat.incidents60 >= 5
+            ? t.dashboard.activityActionRecent
+            : t.dashboard.activityActionLatest;
 
-    return {
+      return {
       total: logs.length,
       issues15: logHeat.incidents15,
       issues60: logHeat.incidents60,
@@ -785,7 +781,7 @@ const Dashboard: React.FC = () => {
   }, [t.dashboard.selfTestRan]);
 
   const handleExportDiagnostics = useCallback(() => {
-    window.open('http://127.0.0.1:3210/api/support/diagnostics', '_blank');
+    window.open(buildApiUrl('/api/support/diagnostics'), '_blank');
     void message.success(t.dashboard.diagnosticsExportStarted);
   }, [t.dashboard.diagnosticsExportStarted]);
 
@@ -1894,7 +1890,7 @@ const Dashboard: React.FC = () => {
             <Space wrap>
               {runtimes.map((runtime) => (
                 <Tag key={runtime.key} color={runtime.available ? 'green' : 'default'}>
-                  {`${runtime.name}: ${runtime.available ? t.dashboard.runtimeReady : t.dashboard.runtimeMissing}`}
+                  {`${runtime.label ?? runtime.name ?? runtime.key}: ${runtime.available ? t.dashboard.runtimeReady : t.dashboard.runtimeMissing}`}
                 </Tag>
               ))}
             </Space>
@@ -2559,8 +2555,8 @@ const Dashboard: React.FC = () => {
                       key="download"
                       type="link"
                       icon={<DownloadOutlined />}
-                      onClick={() => window.open(`http://127.0.0.1:3210/api/backups/export/${encodeURIComponent(backup.filename)}`, '_blank')}
-                    >
+                      onClick={() => window.open(buildApiUrl(`/api/backups/export/${encodeURIComponent(backup.filename)}`), '_blank')}
+                      >
                       {t.dashboard.downloadBackup}
                     </Button>,
                   ]}

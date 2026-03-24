@@ -1,9 +1,26 @@
-function getBaseUrl(): string {
+export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
 
   return 'http://127.0.0.1:3210';
+}
+
+export function buildApiUrl(path: string): string {
+  return `${getApiBaseUrl()}${path}`;
+}
+
+export function getWebSocketBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.host) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+  }
+
+  return 'ws://127.0.0.1:3210';
+}
+
+export function buildWebSocketUrl(path: string): string {
+  return `${getWebSocketBaseUrl()}${path}`;
 }
 
 export interface ApiSuccess<T> {
@@ -25,7 +42,7 @@ async function request<T>(
   body?: unknown,
 ): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${getBaseUrl()}${path}`, {
+    const res = await fetch(buildApiUrl(path), {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: body !== undefined ? JSON.stringify(body) : undefined,
