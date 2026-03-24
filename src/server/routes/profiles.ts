@@ -251,11 +251,13 @@ router.get('/profiles/:id/export', async (req: Request, res: Response) => {
       return;
     }
 
-    const tmpPath = path.join(os.tmpdir(), `profile-${id}-${Date.now()}.zip`);
+    // Sanitize the id before using it in a filesystem path or filename
+    const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100);
+    const tmpPath = path.join(os.tmpdir(), `profile-${safeId}-${Date.now()}.zip`);
     await profileManager.exportProfile(id, tmpPath);
 
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="profile-${id}.zip"`);
+    res.setHeader('Content-Disposition', `attachment; filename="profile-${safeId}.zip"`);
     res.sendFile(tmpPath, (err) => {
       if (err) {
         logger.error('Export sendFile error', { error: err.message });
