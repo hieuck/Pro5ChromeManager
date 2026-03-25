@@ -1,19 +1,13 @@
-import fs from 'fs/promises';
-import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as ProxyChain from 'proxy-chain';
-import { encrypt, decrypt } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import { ProxyConfig } from '../shared/types';
 import { dataPath } from '../utils/dataPaths';
 
 // Specialized Services
-import { proxyParser } from './proxy/ProxyParser';
-import { proxyTester } from './proxy/ProxyTester';
-
-interface StoredProxy extends Omit<ProxyConfig, 'password'> {
-  password?: string; // encrypted
-}
+import { proxyParser } from '../features/proxies/proxyParser';
+import { proxyTester } from '../features/proxies/proxyTester';
+import { loadStoredProxies, persistStoredProxies } from '../features/proxies/storage';
 
 export interface ProxyBuildResult {
   flag: string;
@@ -39,34 +33,13 @@ export class ProxyManager {
   }
 
   async initialize(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.proxiesPath, 'utf-8');
-      const stored = JSON.parse(raw) as StoredProxy[];
-      for (const item of stored) {
-        const proxy: ProxyConfig = {
-          ...item,
-          password: item.password ? decrypt(item.password) : undefined,
-        };
-        this.proxies.set(proxy.id, proxy);
-      }
-      logger.info('ProxyManager initialized', { count: this.proxies.size });
-    } catch (err) {
-      const isNotFound = err instanceof Error && 'code' in err && (err as any).code === 'ENOENT';
-      if (!isNotFound) {
-        logger.warn('ProxyManager: failed to load proxies.json', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
+    const proxies = await loadStoredProxies(this.proxiesPath);
+    this.proxies = new Map(proxies.map((proxy) => [proxy.id, proxy]));
+    logger.info('ProxyManager initialized', { count: this.proxies.size });
   }
 
   private async persist(): Promise<void> {
-    const stored: StoredProxy[] = Array.from(this.proxies.values()).map((p) => ({
-      ...p,
-      password: p.password ? encrypt(p.password) : undefined,
-    }));
-    await fs.mkdir(path.dirname(this.proxiesPath), { recursive: true });
-    await fs.writeFile(this.proxiesPath, JSON.stringify(stored, null, 2), 'utf-8');
+    await persistStoredProxies(this.proxiesPath, Array.from(this.proxies.values()));
   }
 
   async createProxy(data: Omit<ProxyConfig, 'id'>): Promise<ProxyConfig> {
