@@ -7,8 +7,8 @@ import { IncidentDigest } from './components/IncidentDigest';
 import { ActivityDigest } from './components/ActivityDigest';
 import { SupportPanel } from './components/SupportPanel';
 import { useDashboardState, formatTime } from './useDashboardState';
-import OnboardingWizard from '../../components/OnboardingWizard';
-import { RenderBoundary } from '../../components/RenderBoundary';
+import OnboardingWizard from '../onboarding/components/OnboardingWizard';
+import { RenderBoundary } from '../../shared/components/RenderBoundary';
 
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,

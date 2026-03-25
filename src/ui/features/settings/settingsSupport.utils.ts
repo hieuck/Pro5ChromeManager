@@ -1,4 +1,4 @@
-import type { useTranslation } from '../../hooks/useTranslation';
+import type { useTranslation } from '../../shared/hooks/useTranslation';
 import type {
   IncidentEntry,
   SelfTestResult,

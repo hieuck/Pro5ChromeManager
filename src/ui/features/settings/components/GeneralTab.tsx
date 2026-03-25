@@ -2,7 +2,7 @@ import React from 'react';
 import { Form, Input, InputNumber, Select, Switch, Button, Row, Col, Typography } from 'antd';
 import { SaveOutlined, QuestionCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { supportedLanguages, languageMeta } from '../../../i18n';
-import OnboardingWizard from '../../../components/OnboardingWizard';
+import OnboardingWizard from '../../onboarding/components/OnboardingWizard';
 import type { SettingsState } from '../useSettingsState';
 
 interface GeneralTabProps {

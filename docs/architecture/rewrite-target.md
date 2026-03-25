@@ -33,18 +33,22 @@ src/
     tests/
   ui/
     api/
-    components/
     features/
       <domain>/
         index.ts
         <Feature>Page.tsx
-    hooks/
+        components/
+        hooks/
+    shared/
+      components/
+      hooks/
     i18n/
 ```
 
 ## Naming rules
 
 - Use domain or feature names, not technical buckets, whenever possible.
+- Shared UI primitives should live in `src/ui/shared/*`; domain-owned UI should live under `src/ui/features/<domain>/*`.
 - Primary page components must end with `Page.tsx`.
 - Thin module entrypoints may be named `index.ts` or `index.tsx` only when they export the canonical page component and approved public API.
 - Do not keep duplicate wrapper folders such as `src/ui/pages/*` once `src/ui/features/*` is the canonical home.

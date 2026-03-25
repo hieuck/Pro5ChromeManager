@@ -26,7 +26,7 @@ import {
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '../../api/client';
-import { useTranslation } from '../../hooks/useTranslation';
+import { useTranslation } from '../../shared/hooks/useTranslation';
 
 interface ProxyRecord {
   id: string;

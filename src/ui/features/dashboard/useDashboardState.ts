@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from '../../hooks/useTranslation';
+import { useTranslation } from '../../shared/hooks/useTranslation';
 import { useDashboardData } from './useDashboardData';
 import { useDashboardIncidents } from './useDashboardIncidents';
 import { useDashboardActivity } from './useDashboardActivity';

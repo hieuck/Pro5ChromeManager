@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Select, Space, Button, Tag, Typography, message, Spin } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
-import { apiClient } from '../api/client';
-import { useTranslation } from '../hooks/useTranslation';
+import { apiClient } from '../../../api/client';
+import { useTranslation } from '../../../shared/hooks/useTranslation';
 
 interface Proxy {
   id: string;

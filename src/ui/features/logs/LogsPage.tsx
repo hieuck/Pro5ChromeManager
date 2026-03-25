@@ -8,7 +8,7 @@ import { LogAlerts } from './components/LogAlerts';
 import { LogSourcePanel } from './components/LogSourcePanel';
 import { LogIssuesPanel } from './components/LogIssuesPanel';
 import { LogTable } from './components/LogTable';
-import { RenderBoundary } from '../../components/RenderBoundary';
+import { RenderBoundary } from '../../shared/components/RenderBoundary';
 
 const LogsPage: React.FC = () => {
   const state = useLogsState();

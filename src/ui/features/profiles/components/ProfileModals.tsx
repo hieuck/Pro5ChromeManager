@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Input, Modal, Select, Space, Tag, Typography, Upload } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
-import ProfileForm from '../../../components/ProfileForm';
+import ProfileForm from './ProfileForm';
 import { buildApiUrl } from '../../../api/client';
 import { SHORTCUTS, type ProfileListState, useProfileListState } from '../useProfileListState';
 

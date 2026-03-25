@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Form, message } from 'antd';
 import { apiClient } from '../../api/client';
-import type { useTranslation } from '../../hooks/useTranslation';
+import type { useTranslation } from '../../shared/hooks/useTranslation';
 import type {
   AppConfig,
   BackupEntry,

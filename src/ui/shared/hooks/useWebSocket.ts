@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { buildWebSocketUrl } from '../api/client';
+import { buildWebSocketUrl } from '../../api/client';
 
 export type WsEventType =
   | 'instance:started'

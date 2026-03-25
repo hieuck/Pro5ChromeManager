@@ -6,7 +6,7 @@ import {
   isSupportedLanguage,
   type Language,
   type TranslationKeys,
-} from '../i18n';
+} from '../../i18n';
 
 /**
  * Reads uiLanguage from localStorage (synced from config.uiLanguage).

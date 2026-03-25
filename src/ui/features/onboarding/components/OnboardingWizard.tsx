@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Steps, Button, Space, Select, Typography, Alert, Spin, Input, message } from 'antd';
 import { ChromeOutlined, GlobalOutlined, PlayCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../api/client';
-import { useTranslation } from '../hooks/useTranslation';
-import { finalizeOnboarding, syncOnboardingState } from '../utils/onboarding';
+import { apiClient } from '../../../api/client';
+import { useTranslation } from '../../../shared/hooks/useTranslation';
+import { finalizeOnboarding, syncOnboardingState } from '../../../utils/onboarding';
 
 const { Text, Paragraph } = Typography;
 

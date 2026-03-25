@@ -6,8 +6,8 @@ import {
 import { InboxOutlined } from '@ant-design/icons';
 import type { TabsProps } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { apiClient, buildApiUrl } from '../api/client';
-import { useTranslation } from '../hooks/useTranslation';
+import { apiClient, buildApiUrl } from '../../../api/client';
+import { useTranslation } from '../../../shared/hooks/useTranslation';
 import ProxySelector from './ProxySelector';
 import FingerprintEditor from './FingerprintEditor';
 

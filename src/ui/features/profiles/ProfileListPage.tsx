@@ -4,8 +4,8 @@ import { useProfileListState } from './useProfileListState';
 import { ProfileTable } from './components/ProfileTable';
 import { ProfileToolbar } from './components/ProfileToolbar';
 import { ProfileModals } from './components/ProfileModals';
-import WelcomeScreen from '../../components/WelcomeScreen';
-import OnboardingWizard from '../../components/OnboardingWizard';
+import WelcomeScreen from '../onboarding/components/WelcomeScreen';
+import OnboardingWizard from '../onboarding/components/OnboardingWizard';
 import { Statistic, Row, Col } from 'antd';
 import { PlayCircleOutlined, ReloadOutlined, TagsOutlined, TeamOutlined } from '@ant-design/icons';
 

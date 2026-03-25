@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../../../api/client';
-import { useWebSocket } from '../../../hooks/useWebSocket';
+import { useWebSocket } from '../../../shared/hooks/useWebSocket';
 import { Profile, ProxyOption, RuntimeOption, ExtensionRecord, ExtensionBundle, Instance } from '../types';
 
 export function useProfileListData() {

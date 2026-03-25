@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import { useTranslation } from '../../hooks/useTranslation';
+import { useTranslation } from '../../shared/hooks/useTranslation';
 import { type ParsedLogEntry } from '../../utils/logParsing';
 import {
   buildRepeatedRecentIssues,

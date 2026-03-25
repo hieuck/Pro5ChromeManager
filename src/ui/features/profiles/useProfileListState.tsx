@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from '../../hooks/useTranslation';
+import { useTranslation } from '../../shared/hooks/useTranslation';
 import { parseBulkProfileDrafts } from '../../utils/bulkProfiles';
 import { useProfileListData } from './hooks/useProfileListData';
 import { useProfileListFilters } from './hooks/useProfileListFilters';

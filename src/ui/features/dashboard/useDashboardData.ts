@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../../api/client';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useWebSocket } from '../../shared/hooks/useWebSocket';
 import { DashboardProfile, DashboardProxy, DashboardInstance, SupportStatus, IncidentEntry, FeedbackEntry, BackupEntry, RuntimeEntry, LogEntry } from './types';
 
 export function useDashboardData() {

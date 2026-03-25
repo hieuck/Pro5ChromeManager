@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Steps, Typography, Space, Card } from 'antd';
 import { PlusOutlined, ChromeOutlined, GlobalOutlined } from '@ant-design/icons';
-import { useTranslation } from '../hooks/useTranslation';
+import { useTranslation } from '../../../shared/hooks/useTranslation';
 
 const { Title, Paragraph } = Typography;
 

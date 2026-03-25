@@ -10,7 +10,7 @@ import {
   GlobalOutlined,
 } from '@ant-design/icons';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useTranslation } from './hooks/useTranslation';
+import { useTranslation } from './shared/hooks/useTranslation';
 import { languageMeta, supportedLanguages } from './i18n';
 import ProfileListPage from './features/profiles';
 import ProxiesPage from './features/proxies';
