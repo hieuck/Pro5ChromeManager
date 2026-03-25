@@ -3,10 +3,10 @@ import { Modal, Steps, Button, Space, Select, Typography, Alert, Spin, Input, me
 import { ChromeOutlined, GlobalOutlined, PlayCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { useTranslation } from '../hooks/useTranslation';
 import { finalizeOnboarding, syncOnboardingState } from '../utils/onboarding';
 
 const { Text, Paragraph } = Typography;
-const DEFAULT_PROFILE_NAME = 'Profile đầu tiên';
 
 interface Runtime {
   key: string;
@@ -21,13 +21,15 @@ interface OnboardingWizardProps {
 }
 
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) => {
+  const { t, format } = useTranslation();
   const navigate = useNavigate();
+  const defaultProfileName = t.profile.onboardingDefaultProfileName;
   const [step, setStep] = useState(0);
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
   const [selectedRuntime, setSelectedRuntime] = useState<string | undefined>();
   const [loadingRuntimes, setLoadingRuntimes] = useState(false);
   const [creatingProfile, setCreatingProfile] = useState(false);
-  const [profileName, setProfileName] = useState(DEFAULT_PROFILE_NAME);
+  const [profileName, setProfileName] = useState(defaultProfileName);
   const [createdProfileId, setCreatedProfileId] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const availableRuntimes = runtimes.filter((runtime) => runtime.available);
@@ -41,18 +43,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
     setRuntimes([]);
     setSelectedRuntime(undefined);
     setCreatingProfile(false);
-    setProfileName(DEFAULT_PROFILE_NAME);
+    setProfileName(defaultProfileName);
     setCreatedProfileId(undefined);
     setError(undefined);
 
     void syncOnboardingState({
       status: 'in_progress',
       currentStep: 0,
-      draftProfileName: DEFAULT_PROFILE_NAME,
+      draftProfileName: defaultProfileName,
       lastOpenedAt: new Date().toISOString(),
     });
     void loadRuntimes();
-  }, [open]);
+  }, [open, defaultProfileName]);
 
   useEffect(() => {
     if (!open) return;
@@ -113,7 +115,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
         completedAt: new Date().toISOString(),
       });
     } catch (err) {
-      void message.error(err instanceof Error ? err.message : 'Không thể hoàn tất hướng dẫn thiết lập.');
+      void message.error(err instanceof Error ? err.message : t.profile.onboardingCompleteFailed);
     }
   }
 
@@ -134,28 +136,26 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
   }
 
   const steps = [
-    { title: 'Chọn trình duyệt', icon: <ChromeOutlined /> },
-    { title: 'Tạo profile', icon: <GlobalOutlined /> },
-    { title: 'Hoàn thành', icon: <CheckCircleOutlined /> },
+    { title: t.profile.onboardingChooseBrowserTitle, icon: <ChromeOutlined /> },
+    { title: t.profile.onboardingCreateProfileTitle, icon: <GlobalOutlined /> },
+    { title: t.profile.onboardingCompleteTitle, icon: <CheckCircleOutlined /> },
   ];
 
   function renderStepContent(): React.ReactNode {
     if (step === 0) {
       return (
         <div style={{ padding: '24px 0' }}>
-          <Paragraph>Chọn trình duyệt Chromium để sử dụng. Pro5 hỗ trợ Chrome, Edge, CentBrowser và Chromium.</Paragraph>
+          <Paragraph>{t.profile.onboardingChooseBrowserDescription}</Paragraph>
           {loadingRuntimes ? (
             <Spin />
           ) : availableRuntimes.length === 0 ? (
             <Alert
               type="warning"
-              message="Không tìm thấy trình duyệt nào"
+              message={t.profile.onboardingNoBrowserMessage}
               description={(
                 <Space direction="vertical" size={12}>
-                  <Typography.Text>
-                    Hãy cài đặt Google Chrome hoặc Microsoft Edge, sau đó thêm đường dẫn trong Settings -&gt; Browsers.
-                  </Typography.Text>
-                  <Button onClick={handleOpenRuntimeSettings}>Mở cài đặt</Button>
+                  <Typography.Text>{t.profile.onboardingNoBrowserHint}</Typography.Text>
+                  <Button onClick={handleOpenRuntimeSettings}>{t.profile.onboardingOpenSettings}</Button>
                 </Space>
               )}
             />
@@ -165,7 +165,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
               value={selectedRuntime}
               onChange={setSelectedRuntime}
               options={runtimes.map((runtime) => ({
-                label: `${runtime.label}${runtime.available ? '' : ' (không khả dụng)'}`,
+                label: `${runtime.label}${runtime.available ? '' : ` (${t.profile.onboardingUnavailableRuntime})`}`,
                 value: runtime.key,
                 disabled: !runtime.available,
               }))}
@@ -178,11 +178,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
     if (step === 1) {
       return (
         <div style={{ padding: '24px 0' }}>
-          <Paragraph>Đặt tên cho profile đầu tiên của bạn.</Paragraph>
+          <Paragraph>{t.profile.onboardingProfileNameDescription}</Paragraph>
           <Input
             value={profileName}
             onChange={(event) => setProfileName(event.target.value)}
-            placeholder="Tên profile"
+            placeholder={t.profile.onboardingProfileNamePlaceholder}
           />
           {error ? <Alert type="error" message={error} style={{ marginTop: 12 }} /> : null}
         </div>
@@ -192,11 +192,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
     return (
       <div style={{ padding: '24px 0', textAlign: 'center' }}>
         <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 16 }} />
-        <Paragraph>
-          Profile <Text strong>{profileName}</Text> đã được tạo thành công.
-        </Paragraph>
+        <Paragraph>{format(t.profile.onboardingProfileCreated, { name: profileName })}</Paragraph>
         <Paragraph type="secondary">
-          Nhấn <Text strong>Bắt đầu</Text> để mở danh sách profile và khởi động trình duyệt.
+          <Text strong>{t.profile.onboardingStartAction}</Text>
+          {' '}
+          {t.profile.onboardingStartHint}
         </Paragraph>
       </div>
     );
@@ -206,9 +206,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
     if (step === 0) {
       return (
         <Space>
-          <Button onClick={() => void handleSkip()}>Bỏ qua</Button>
+          <Button onClick={() => void handleSkip()}>{t.profile.onboardingSkip}</Button>
           <Button type="primary" disabled={availableRuntimes.length === 0} onClick={() => setStep(1)}>
-            Tiếp theo
+            {t.profile.onboardingNext}
           </Button>
         </Space>
       );
@@ -216,7 +216,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
     if (step === 1) {
       return (
         <Space>
-          <Button onClick={() => setStep(0)}>Quay lại</Button>
+          <Button onClick={() => setStep(0)}>{t.profile.onboardingBack}</Button>
           <Button
             type="primary"
             loading={creatingProfile}
@@ -224,14 +224,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
             onClick={() => void handleCreateProfile()}
             icon={<PlayCircleOutlined />}
           >
-            Tạo profile
+            {t.profile.onboardingCreateAction}
           </Button>
         </Space>
       );
     }
     return (
       <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => void handleFinish()}>
-        Bắt đầu
+        {t.profile.onboardingStartAction}
       </Button>
     );
   }
@@ -239,7 +239,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
   return (
     <Modal
       open={open}
-      title="Thiết lập ban đầu"
+      title={t.profile.onboardingSetupTitle}
       footer={renderFooter()}
       closable={false}
       width={520}

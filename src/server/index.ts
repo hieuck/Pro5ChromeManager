@@ -136,159 +136,18 @@ app.use('/api', backupRoutes);
 import supportRoutes from './routes/support';
 app.use('/api', supportRoutes);
 
-function getLogTimestamp(line: string): number {
-  try {
-    const parsed = JSON.parse(line) as { timestamp?: unknown };
-    if (typeof parsed.timestamp === 'string') {
-      const timestamp = new Date(parsed.timestamp).getTime();
-      return Number.isNaN(timestamp) ? 0 : timestamp;
-    }
-  } catch {
-    const match = line.match(/^(\S+)\s+\[(\w+)\]\s+(.*)$/);
-    if (match?.[1]) {
-      const timestamp = new Date(match[1]).getTime();
-      return Number.isNaN(timestamp) ? 0 : timestamp;
-    }
-  }
-
-  return 0;
-}
-
-function injectLogSource(line: string, source: string): string {
-  const trimmed = line.trim();
-  if (!trimmed) return '';
-
-  try {
-    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-    return JSON.stringify({
-      ...parsed,
-      source: typeof parsed.source === 'string' && parsed.source.trim() ? parsed.source : source,
-    });
-  } catch {
-    return JSON.stringify({
-      timestamp: null,
-      level: 'info',
-      message: trimmed,
-      source,
-      raw: trimmed,
-    });
-  }
-}
-
-function normalizeLogLevel(value: unknown): OpsLogEntry['level'] {
-  const normalized = typeof value === 'string' ? value.toLowerCase() : '';
-  if (normalized === 'debug') return 'debug';
-  if (normalized === 'error') return 'error';
-  if (normalized === 'warn' || normalized === 'warning') return 'warn';
-  return 'info';
-}
-
-function parseOpsLogEntry(line: string): OpsLogEntry {
-  const trimmed = line.trim();
-  try {
-    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-    const message =
-      typeof parsed.message === 'string' && parsed.message.trim()
-        ? parsed.message
-        : typeof parsed.msg === 'string' && parsed.msg.trim()
-          ? parsed.msg
-          : trimmed;
-
-    return {
-      timestamp: typeof parsed.timestamp === 'string' ? parsed.timestamp : null,
-      level: normalizeLogLevel(parsed.level),
-      message,
-      source: typeof parsed.source === 'string' && parsed.source.trim() ? parsed.source : null,
-      raw: trimmed,
-    };
-  } catch {
-    return {
-      timestamp: null,
-      level: 'info',
-      message: trimmed,
-      source: null,
-      raw: trimmed,
-    };
-  }
-}
-
-async function loadOpsLogEntries(limit: number): Promise<OpsLogEntry[]> {
-  const logDir = dataPath('logs');
-
-  try {
-    const files = await fs.readdir(logDir);
-    const relevantFiles = files.filter((file) =>
-      file === 'electron-main.log' ||
-      file.startsWith('exceptions-') ||
-      file.startsWith('rejections-') ||
-      /^app-\d{4}-\d{2}-\d{2}\.log$/.test(file),
-    );
-
-    const entries: Array<{ entry: OpsLogEntry; timestamp: number }> = [];
-
-    for (const file of relevantFiles) {
-      try {
-        const content = await fs.readFile(path.join(logDir, file), 'utf-8');
-        const lines = content.split(/\r?\n/).filter(Boolean).slice(-200);
-        for (const line of lines) {
-          const normalized = injectLogSource(line, file);
-          if (!normalized) continue;
-          entries.push({
-            entry: parseOpsLogEntry(normalized),
-            timestamp: getLogTimestamp(normalized),
-          });
-        }
-      } catch {
-        // skip unreadable files
-      }
-    }
-
-    return entries
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit)
-      .map((entry) => entry.entry);
-  } catch {
-    return [];
-  }
-}
+import { logManager } from './managers/LogManager';
 
 // Logs endpoint — reads the latest daily-rotated app log file
 app.get('/api/logs', logsRateLimiter, async (_req: Request, res: Response) => {
   try {
-    const entries = await loadOpsLogEntries(200);
+    const entries = await logManager.loadOpsLogEntries(200);
     res.json({ success: true, data: entries });
-    return;
   } catch {
     res.status(500).json({ success: false, error: 'Failed to read logs' });
-    return;
   }
 });
 
-app.get('/api/logs-legacy-disabled', logsRateLimiter, async (_req: Request, res: Response) => {
-  try {
-    const fs = await import('fs/promises');
-    const logDir = dataPath('logs');
-    // Find the most recent app-YYYY-MM-DD.log file
-    let entries: string[] = [];
-    try {
-      const files = await fs.readdir(logDir);
-      const logFiles = files
-        .filter((f) => /^app-\d{4}-\d{2}-\d{2}\.log$/.test(f))
-        .sort()
-        .reverse();
-      if (logFiles.length > 0) {
-        const logPath = path.join(logDir, logFiles[0]);
-        const content = await fs.readFile(logPath, 'utf-8');
-        entries = content.split('\n').filter(Boolean).slice(-200);
-      }
-    } catch {
-      // log dir or files missing — return empty array
-    }
-    res.json({ success: true, data: entries });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to read logs' });
-  }
-});
 
 function resolveUiDir(): string {
   const packagedUiDir = path.join(__dirname, '../ui');

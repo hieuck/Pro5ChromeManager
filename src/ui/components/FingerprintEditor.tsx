@@ -2,6 +2,7 @@ import React from 'react';
 import { Form, Input, InputNumber, Select, Button, Row, Col, Divider } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/client';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface FingerprintConfig {
   userAgent: string;
@@ -27,6 +28,8 @@ interface FingerprintEditorProps {
 }
 
 const FingerprintEditor: React.FC<FingerprintEditorProps> = ({ value, onChange }) => {
+  const { t } = useTranslation();
+
   async function handleRandomize(): Promise<void> {
     const res = await apiClient.post<FingerprintConfig>('/api/profiles/generate-fingerprint');
     if (res.success) onChange?.(res.data);
@@ -43,101 +46,113 @@ const FingerprintEditor: React.FC<FingerprintEditorProps> = ({ value, onChange }
     <div>
       <Row justify="end" style={{ marginBottom: 12 }}>
         <Button icon={<ReloadOutlined />} onClick={() => void handleRandomize()}>
-          Ngẫu nhiên
+          {t.profile.fingerprintRandomize}
         </Button>
       </Row>
 
-      <Divider orientation="left" plain>Trình duyệt</Divider>
+      <Divider orientation="left" plain>{t.profile.fingerprintBrowserSection}</Divider>
       <Row gutter={12}>
         <Col span={24}>
-          <Form.Item label="User Agent">
+          <Form.Item label={t.profile.fingerprintUserAgent}>
             <Input.TextArea
               rows={2}
               value={value.userAgent}
-              onChange={(e) => update({ userAgent: e.target.value })}
+              onChange={(event) => update({ userAgent: event.target.value })}
             />
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item label="Platform">
-            <Input value={value.platform} onChange={(e) => update({ platform: e.target.value })} />
+          <Form.Item label={t.profile.fingerprintPlatform}>
+            <Input value={value.platform} onChange={(event) => update({ platform: event.target.value })} />
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item label="Language">
-            <Input value={value.language} onChange={(e) => update({ language: e.target.value })} />
+          <Form.Item label={t.profile.fingerprintLanguage}>
+            <Input value={value.language} onChange={(event) => update({ language: event.target.value })} />
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item label="Timezone">
-            <Input value={value.timezone} onChange={(e) => update({ timezone: e.target.value })} />
+          <Form.Item label={t.profile.fingerprintTimezone}>
+            <Input value={value.timezone} onChange={(event) => update({ timezone: event.target.value })} />
           </Form.Item>
         </Col>
       </Row>
 
-      <Divider orientation="left" plain>Phần cứng</Divider>
+      <Divider orientation="left" plain>{t.profile.fingerprintHardwareSection}</Divider>
       <Row gutter={12}>
         <Col span={6}>
-          <Form.Item label="CPU cores">
+          <Form.Item label={t.profile.fingerprintCpuCores}>
             <InputNumber
-              min={1} max={64} style={{ width: '100%' }}
+              min={1}
+              max={64}
+              style={{ width: '100%' }}
               value={value.hardwareConcurrency}
-              onChange={(v) => update({ hardwareConcurrency: v ?? 4 })}
+              onChange={(nextValue) => update({ hardwareConcurrency: nextValue ?? 4 })}
             />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item label="RAM (GB)">
+          <Form.Item label={t.profile.fingerprintRam}>
             <InputNumber
-              min={1} max={64} style={{ width: '100%' }}
+              min={1}
+              max={64}
+              style={{ width: '100%' }}
               value={value.deviceMemory}
-              onChange={(v) => update({ deviceMemory: v ?? 8 })}
+              onChange={(nextValue) => update({ deviceMemory: nextValue ?? 8 })}
             />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item label="Màn hình W">
+          <Form.Item label={t.profile.fingerprintScreenWidth}>
             <InputNumber
-              min={800} style={{ width: '100%' }}
+              min={800}
+              style={{ width: '100%' }}
               value={value.screenWidth}
-              onChange={(v) => update({ screenWidth: v ?? 1920 })}
+              onChange={(nextValue) => update({ screenWidth: nextValue ?? 1920 })}
             />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item label="Màn hình H">
+          <Form.Item label={t.profile.fingerprintScreenHeight}>
             <InputNumber
-              min={600} style={{ width: '100%' }}
+              min={600}
+              style={{ width: '100%' }}
               value={value.screenHeight}
-              onChange={(v) => update({ screenHeight: v ?? 1080 })}
+              onChange={(nextValue) => update({ screenHeight: nextValue ?? 1080 })}
             />
           </Form.Item>
         </Col>
       </Row>
 
-      <Divider orientation="left" plain>WebGL</Divider>
+      <Divider orientation="left" plain>{t.profile.fingerprintWebglSection}</Divider>
       <Row gutter={12}>
         <Col span={12}>
-          <Form.Item label="Renderer">
-            <Input value={value.webgl.renderer} onChange={(e) => update({ webgl: { ...value.webgl, renderer: e.target.value } })} />
+          <Form.Item label={t.profile.fingerprintRenderer}>
+            <Input
+              value={value.webgl.renderer}
+              onChange={(event) => update({ webgl: { ...value.webgl, renderer: event.target.value } })}
+            />
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label="Vendor">
-            <Input value={value.webgl.vendor} onChange={(e) => update({ webgl: { ...value.webgl, vendor: e.target.value } })} />
+          <Form.Item label={t.profile.fingerprintVendor}>
+            <Input
+              value={value.webgl.vendor}
+              onChange={(event) => update({ webgl: { ...value.webgl, vendor: event.target.value } })}
+            />
           </Form.Item>
         </Col>
       </Row>
 
-      <Divider orientation="left" plain>Bảo mật</Divider>
-      <Form.Item label="WebRTC Policy">
+      <Divider orientation="left" plain>{t.profile.fingerprintPrivacySection}</Divider>
+      <Form.Item label={t.profile.fingerprintWebrtcPolicy}>
         <Select
           value={value.webrtcPolicy}
-          onChange={(v) => update({ webrtcPolicy: v })}
+          onChange={(nextValue) => update({ webrtcPolicy: nextValue })}
           options={[
-            { label: 'Mặc định', value: 'default' },
-            { label: 'Chặn non-proxied UDP', value: 'disable_non_proxied_udp' },
-            { label: 'Chỉ qua proxy', value: 'proxy_only' },
+            { label: t.profile.fingerprintWebrtcDefault, value: 'default' },
+            { label: t.profile.fingerprintWebrtcDisableUdp, value: 'disable_non_proxied_udp' },
+            { label: t.profile.fingerprintWebrtcProxyOnly, value: 'proxy_only' },
           ]}
         />
       </Form.Item>

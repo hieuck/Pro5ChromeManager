@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
-import vi, { TranslationKeys } from '../i18n/vi';
-import en from '../i18n/en';
-
-type Language = 'vi' | 'en';
-
-const translations: Record<Language, TranslationKeys> = { vi, en };
+import {
+  defaultLanguage,
+  formatMessage,
+  getTranslations,
+  isSupportedLanguage,
+  type Language,
+  type TranslationKeys,
+} from '../i18n';
 
 /**
  * Reads uiLanguage from localStorage (synced from config.uiLanguage).
@@ -12,12 +14,16 @@ const translations: Record<Language, TranslationKeys> = { vi, en };
  */
 function getLanguage(): Language {
   const stored = localStorage.getItem('uiLanguage');
-  if (stored === 'vi' || stored === 'en') return stored;
-  return 'vi';
+  if (isSupportedLanguage(stored)) return stored;
+  return defaultLanguage;
 }
 
-export function useTranslation(): { t: TranslationKeys; lang: Language } {
+export function useTranslation(): {
+  t: TranslationKeys;
+  lang: Language;
+  format: typeof formatMessage;
+} {
   const lang = getLanguage();
-  const t = useMemo(() => translations[lang], [lang]);
-  return { t, lang };
+  const t = useMemo(() => getTranslations(lang), [lang]);
+  return { t, lang, format: formatMessage };
 }

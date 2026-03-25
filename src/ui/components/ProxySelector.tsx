@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Select, Space, Button, Tag, Typography, message, Spin } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/client';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface Proxy {
   id: string;
@@ -22,6 +23,7 @@ interface ProxySelectorProps {
 }
 
 const ProxySelector: React.FC<ProxySelectorProps> = ({ value, onChange }) => {
+  const { t, format } = useTranslation();
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [testing, setTesting] = useState(false);
 
@@ -39,11 +41,9 @@ const ProxySelector: React.FC<ProxySelectorProps> = ({ value, onChange }) => {
     setTesting(true);
     const res = await apiClient.post<{ ip: string }>(`/api/proxies/${value}/test`);
     setTesting(false);
-    if (res.success) {
-      void fetchProxies();
-    } else {
-      void fetchProxies();
-      void message.error(`Test proxy thất bại: ${res.error}`);
+    void fetchProxies();
+    if (!res.success) {
+      void message.error(format(t.profile.proxyTestFailed, { error: res.error }));
     }
   }
 
@@ -53,11 +53,9 @@ const ProxySelector: React.FC<ProxySelectorProps> = ({ value, onChange }) => {
   );
 
   const options = proxies.map((proxy) => {
-    const hasHealthyStatus = proxy.lastCheckStatus === 'healthy';
-    const hasFailingStatus = proxy.lastCheckStatus === 'failing';
-    const checkBadge = hasHealthyStatus
+    const checkBadge = proxy.lastCheckStatus === 'healthy'
       ? ' · OK'
-      : hasFailingStatus
+      : proxy.lastCheckStatus === 'failing'
         ? ' · FAIL'
         : '';
 
@@ -73,9 +71,9 @@ const ProxySelector: React.FC<ProxySelectorProps> = ({ value, onChange }) => {
         <Select
           style={{ flex: 1, minWidth: 240 }}
           allowClear
-          placeholder="Chọn proxy (để trống = không dùng proxy)"
+          placeholder={t.profile.proxySelectorPlaceholder}
           value={value ?? undefined}
-          onChange={(v) => { onChange?.(v ?? null); }}
+          onChange={(nextValue) => { onChange?.(nextValue ?? null); }}
           options={options}
         />
         <Button
@@ -83,28 +81,32 @@ const ProxySelector: React.FC<ProxySelectorProps> = ({ value, onChange }) => {
           icon={testing ? <Spin indicator={<LoadingOutlined />} /> : <CheckCircleOutlined />}
           onClick={() => void handleTest()}
         >
-          Test
+          {t.proxy.test}
         </Button>
       </Space>
       {selectedProxy?.lastCheckStatus === 'healthy' && selectedProxy.lastCheckAt ? (
         <Space direction="vertical" size={0}>
           <Tag color="green" icon={<CheckCircleOutlined />}>
             {selectedProxy.lastCheckTimezone
-              ? `IP: ${selectedProxy.lastCheckIp ?? '—'} · ${selectedProxy.lastCheckTimezone}`
-              : `IP: ${selectedProxy.lastCheckIp ?? '—'}`}
+              ? `${format(t.profile.proxyTestHealthy, { ip: selectedProxy.lastCheckIp ?? '—' })} · ${selectedProxy.lastCheckTimezone}`
+              : format(t.profile.proxyTestHealthy, { ip: selectedProxy.lastCheckIp ?? '—' })}
           </Tag>
           <Typography.Text type="secondary">
-            Kiểm tra gần nhất: {new Date(selectedProxy.lastCheckAt).toLocaleString('vi-VN')}
+            {format(t.profile.proxyLastCheckedAt, {
+              time: new Date(selectedProxy.lastCheckAt).toLocaleString('vi-VN'),
+            })}
           </Typography.Text>
         </Space>
       ) : null}
       {selectedProxy?.lastCheckStatus === 'failing' && selectedProxy.lastCheckAt ? (
         <Space direction="vertical" size={0}>
           <Tag color="red" icon={<CloseCircleOutlined />}>
-            {selectedProxy.lastCheckError ?? 'Proxy không khả dụng'}
+            {selectedProxy.lastCheckError ?? t.profile.proxyTestUnhealthy}
           </Tag>
           <Typography.Text type="secondary">
-            Kiểm tra gần nhất: {new Date(selectedProxy.lastCheckAt).toLocaleString('vi-VN')}
+            {format(t.profile.proxyLastCheckedAt, {
+              time: new Date(selectedProxy.lastCheckAt).toLocaleString('vi-VN'),
+            })}
           </Typography.Text>
         </Space>
       ) : null}

@@ -11,12 +11,14 @@ import {
 } from '@ant-design/icons';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from './hooks/useTranslation';
+import { languageMeta, supportedLanguages } from './i18n';
 import ProfileList from './pages/ProfileList';
 import Proxies from './pages/Proxies';
 import Extensions from './pages/Extensions';
 import Settings from './pages/Settings';
 import Logs from './pages/Logs';
 import Dashboard from './pages/Dashboard';
+import './App.css';
 
 const { Sider, Header, Content } = Layout;
 
@@ -30,7 +32,7 @@ declare global {
 }
 
 const App: React.FC = () => {
-  const { t, lang } = useTranslation();
+  const { t, lang, format } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -47,14 +49,12 @@ const App: React.FC = () => {
       ? 'dashboard'
       : 'profiles';
 
-  // ─── Auto-update notification (Electron only) ─────────────────────────────
-
   useEffect(() => {
-    function onUpdateReady(e: Event): void {
-      const version = (e as CustomEvent<{ version: string }>).detail.version;
+    function onUpdateReady(event: Event): void {
+      const version = (event as CustomEvent<{ version: string }>).detail.version;
       notification.info({
-        message: `Phiên bản mới ${version} sẵn sàng`,
-        description: 'Cập nhật sẽ được áp dụng khi bạn thoát ứng dụng.',
+        message: format(t.common.updateReadyTitle, { version }),
+        description: t.common.updateReadyDescription,
         duration: 0,
         btn: (
           <Button
@@ -62,23 +62,25 @@ const App: React.FC = () => {
             size="small"
             onClick={() => { void window.__pro5__?.installUpdate(); }}
           >
-            Cập nhật ngay
+            {t.common.updateNow}
           </Button>
         ),
       });
     }
+
     window.addEventListener('pro5:update-ready', onUpdateReady);
     return () => window.removeEventListener('pro5:update-ready', onUpdateReady);
-  }, []);
+  }, [format, t.common.updateNow, t.common.updateReadyDescription, t.common.updateReadyTitle]);
 
   function toggleLanguage(): void {
-    const next = lang === 'vi' ? 'en' : 'vi';
+    const currentIndex = supportedLanguages.indexOf(lang);
+    const next = supportedLanguages[(currentIndex + 1) % supportedLanguages.length];
     localStorage.setItem('uiLanguage', next);
     window.location.reload();
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="layout-min-h-100">
       <Sider
         collapsible
         collapsed={collapsed}
@@ -86,20 +88,7 @@ const App: React.FC = () => {
         theme="dark"
         width={200}
       >
-        <div
-          style={{
-            height: 48,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: collapsed ? 12 : 14,
-            padding: '0 8px',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <div className={`sidebar-header ${collapsed ? 'sidebar-header-collapsed' : 'sidebar-header-expanded'}`}>
           {collapsed ? 'P5' : 'Pro5 Chrome'}
         </div>
 
@@ -112,7 +101,7 @@ const App: React.FC = () => {
             { key: 'dashboard', icon: <DashboardOutlined />, label: t.nav.dashboard },
             { key: 'profiles', icon: <UserOutlined />, label: t.nav.profiles },
             { key: 'proxies', icon: <ApiOutlined />, label: t.nav.proxies },
-            { key: 'extensions', icon: <AppstoreOutlined />, label: 'Extensions' },
+            { key: 'extensions', icon: <AppstoreOutlined />, label: t.nav.extensions },
             { key: 'settings', icon: <SettingOutlined />, label: t.nav.settings },
             { key: 'logs', icon: <FileTextOutlined />, label: t.nav.logs },
           ]}
@@ -131,10 +120,9 @@ const App: React.FC = () => {
             borderBottom: '1px solid #f0f0f0',
           }}
         >
-          {/* Language toggle */}
           <Button type="text" icon={<GlobalOutlined />} onClick={toggleLanguage} size="small">
             <Typography.Text style={{ fontSize: 12 }}>
-              {lang === 'vi' ? 'VI' : 'EN'}
+              {languageMeta[lang].shortLabel}
             </Typography.Text>
           </Button>
         </Header>

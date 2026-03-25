@@ -8,117 +8,16 @@ import { createWriteStream } from 'fs';
 import { logger } from '../utils/logger';
 import { configManager } from './ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
-import type { FingerprintConfig } from './FingerprintEngine';
 import { extensionManager } from './ExtensionManager';
-import { bookmarkManager, type BookmarkEntry } from './BookmarkManager';
+import { bookmarkManager } from './BookmarkManager';
 import { sanitizePath } from '../utils/pathSanitizer';
 import { dataPath, resolveAppPath } from '../utils/dataPaths';
-
-// ─── Interfaces ────────────────────────────────────────────────────────────────
-
-export interface ProxyConfig {
-  id: string;
-  type: 'http' | 'https' | 'socks4' | 'socks5';
-  host: string;
-  port: number;
-  username?: string;
-  password?: string;
-  lastCheckAt?: string;
-  lastCheckStatus?: 'healthy' | 'failing';
-  lastCheckIp?: string;
-  lastCheckTimezone?: string | null;
-  lastCheckError?: string;
-}
-
-export interface Profile {
-  id: string;
-  schemaVersion: number;
-  name: string;
-  notes: string;
-  tags: string[];
-  group: string | null;
-  owner: string | null;
-  runtime: string;
-  proxy: ProxyConfig | null;
-  extensionIds: string[];
-  bookmarks: BookmarkEntry[];
-  fingerprint: FingerprintConfig;
-  createdAt: string;
-  updatedAt: string;
-  lastUsedAt: string | null;
-  totalSessions: number;
-}
-
-export interface SearchQuery {
-  name?: string;
-  tags?: string[];
-  group?: string;
-  owner?: string;
-}
+import { Profile, SearchQuery } from '../shared/types';
+import { migrateProfile, repairProfile, CURRENT_SCHEMA_VERSION } from './profile/Migration';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const CURRENT_SCHEMA_VERSION = 1;
 const extractArchive = promisify(execFile);
-
-// ─── Migration ─────────────────────────────────────────────────────────────────
-
-export function migrateProfile(raw: Record<string, unknown>, targetVersion: number): Record<string, unknown> {
-  let profile = { ...raw };
-  const version = typeof profile['schemaVersion'] === 'number' ? profile['schemaVersion'] : 0;
-
-  // v0 → v1: add missing fields
-  if (version < 1 && targetVersion >= 1) {
-    profile = {
-      schemaVersion: 1,
-      notes: '',
-      tags: [],
-      group: null,
-      owner: null,
-      runtime: 'auto',
-      proxy: null,
-      extensionIds: [],
-      bookmarks: [],
-      lastUsedAt: null,
-      totalSessions: 0,
-      ...profile,
-    };
-    profile['schemaVersion'] = 1;
-  }
-
-  // Data repair: ensure name is always a non-empty string
-  if (!profile['name'] || typeof profile['name'] !== 'string') {
-    const id = typeof profile['id'] === 'string' ? profile['id'] : 'unknown';
-    profile['name'] = `Profile ${id.slice(0, 8)}`;
-  }
-
-  // Data repair: ensure tags is always an array (spread may have overwritten default)
-  if (!Array.isArray(profile['tags'])) {
-    profile['tags'] = [];
-  }
-
-  if (!Array.isArray(profile['extensionIds'])) {
-    profile['extensionIds'] = [];
-  }
-
-  if (!Array.isArray(profile['bookmarks'])) {
-    profile['bookmarks'] = [];
-  }
-
-  // Data repair: normalize legacy proxy format { server, username, password, bypass } → null
-  // (current ProxyConfig requires { id, type, host, port })
-  const proxy = profile['proxy'];
-  if (proxy !== null && typeof proxy === 'object') {
-    const p = proxy as Record<string, unknown>;
-    const isLegacyFormat = 'server' in p && !('id' in p);
-    if (isLegacyFormat) {
-      // Legacy proxy with empty server = no proxy
-      profile['proxy'] = null;
-    }
-  }
-
-  return profile;
-}
 
 // ─── ProfileManager ────────────────────────────────────────────────────────────
 
@@ -160,37 +59,18 @@ export class ProfileManager {
 
         // Track whether migration ran or data repair is needed — if so, persist back to disk
         const rawVersion = typeof parsed['schemaVersion'] === 'number' ? parsed['schemaVersion'] : 0;
-        const migrated = migrateProfile(parsed, CURRENT_SCHEMA_VERSION);
-        let needsSave = rawVersion < CURRENT_SCHEMA_VERSION;
+        const migrated = migrateProfile(parsed, CURRENT_SCHEMA_VERSION) as unknown as Profile;
+        
+        const { profile, needsSave: repairNeedsSave } = await repairProfile(migrated);
+        let needsSave = rawVersion < CURRENT_SCHEMA_VERSION || repairNeedsSave;
 
-        // Data repair: fix null/missing totalSessions (can happen even at schemaVersion=1)
-        if (migrated['totalSessions'] === null || migrated['totalSessions'] === undefined) {
-          migrated['totalSessions'] = 0;
-          needsSave = true;
-        }
-
-        // Data repair: generate fingerprint if missing (legacy profiles had no fingerprint field)
-        if (!migrated['fingerprint'] || typeof migrated['fingerprint'] !== 'object') {
-          try {
-            await fingerprintEngine.initialize();
-          } catch { /* already initialized */ }
-          migrated['fingerprint'] = fingerprintEngine.generateFingerprint() as unknown as Record<string, unknown>;
-          needsSave = true;
-          logger.info('ProfileManager: generated missing fingerprint for legacy profile', {
-            id: migrated['id'],
-          });
-        }
-
-        // Data repair: normalize legacy proxy format (already handled in migrateProfile, but
-        // mark needsSave if proxy was in legacy format so the normalized version is persisted)
+        // Mark needsSave if proxy was in legacy format (already normalized to null by migrateProfile)
         const rawProxy = parsed['proxy'];
         if (rawProxy !== null && typeof rawProxy === 'object' && 'server' in (rawProxy as object) && !('id' in (rawProxy as object))) {
           needsSave = true;
         }
 
-        const profile = migrated as unknown as Profile;
-
-        // Track the actual dir name — may be email-based (legacy) or UUID-based (current)
+        // Track the actual dir name
         this.profileDirMap.set(profile.id, entry);
 
         // If dir name doesn't match profile.id, rename it to UUID for consistency
@@ -203,7 +83,7 @@ export class ProfileManager {
             needsSave = true;
             logger.info('ProfileManager: migrated legacy dir name to UUID', { from: entry, to: profile.id });
           } catch (renameErr) {
-            // Keep using old dir name if rename fails (e.g. target already exists)
+            // Keep using old dir name if rename fails
             logger.warn('ProfileManager: could not rename legacy dir', {
               from: entry,
               to: profile.id,
@@ -306,7 +186,7 @@ export class ProfileManager {
       tags: overrides?.tags ?? [...existing.tags],
       extensionIds: overrides?.extensionIds ?? [...existing.extensionIds],
       bookmarks: overrides?.bookmarks ?? [...existing.bookmarks],
-      fingerprint: overrides?.fingerprint ?? JSON.parse(JSON.stringify(existing.fingerprint)) as FingerprintConfig,
+      fingerprint: overrides?.fingerprint ?? JSON.parse(JSON.stringify(existing.fingerprint)),
       proxy: overrides?.proxy ? { ...overrides.proxy } : existing.proxy ? { ...existing.proxy } : null,
       createdAt: now,
       updatedAt: now,
@@ -350,7 +230,7 @@ export class ProfileManager {
 
     await fs.rm(profileDir, { recursive: true, force: true });
     await fs.rm(extDir, { recursive: true, force: true }).catch(() => {
-      // extension dir may not exist — ignore
+      // extension dir may not exist
     });
 
     this.profiles.delete(id);
@@ -399,12 +279,8 @@ export class ProfileManager {
     });
   }
 
-  /**
-   * Import a profile from an existing Chrome user data directory.
-   * Detects Default/ folder, copies into profilesDir, creates profile.json.
-   */
+  /** Import a profile from an existing Chrome user data directory */
   async importProfile(srcDir: string): Promise<Profile> {
-    // Verify srcDir is a real absolute path (no traversal from itself)
     const resolvedSrc = path.resolve(srcDir);
     const defaultDir = path.join(resolvedSrc, 'Default');
     let hasDefault = false;
@@ -428,9 +304,7 @@ export class ProfileManager {
 
     try {
       await fingerprintEngine.initialize();
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
 
     const profile: Profile = {
       id,
@@ -552,9 +426,7 @@ export class ProfileManager {
     }
   }
 
-  /**
-   * Export a profile as a .zip file containing profile.json + Default/
-   */
+  /** Export a profile as a .zip file */
   async exportProfile(id: string, destPath: string): Promise<void> {
     const profile = this.profiles.get(id);
     if (!profile) throw new Error(`Profile not found: ${id}`);
@@ -563,7 +435,6 @@ export class ProfileManager {
     const profileDir = path.join(this.profilesDir, dirName);
     const cookiesPath = path.join(profileDir, 'cookies.json');
     const includeCookies = await fs.access(cookiesPath).then(() => true).catch(() => false);
-    // destPath is always generated by server code (tmpdir or data/), not user input — no traversal risk
 
     await new Promise<void>((resolve, reject) => {
       const output = createWriteStream(destPath);
@@ -573,10 +444,7 @@ export class ProfileManager {
       archive.on('error', reject);
       archive.pipe(output);
 
-      // Add profile.json
       archive.append(JSON.stringify(profile, null, 2), { name: 'profile.json' });
-
-      // Add Default/ directory if it exists
       const defaultDir = path.join(profileDir, 'Default');
       archive.directory(defaultDir, 'Default');
 

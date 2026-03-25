@@ -1,34 +1,26 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn, ChildProcess } from 'child_process';
-import http from 'http';
-import WebSocket from 'ws';
+import { ChildProcess } from 'child_process';
 import { runtimeManager } from './RuntimeManager';
 import { proxyManager } from './ProxyManager';
 import { profileManager } from './ProfileManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import { extensionManager } from './ExtensionManager';
-import { cookieManager, type ManagedCookie } from './CookieManager';
+import { cookieManager } from './CookieManager';
 import { configManager } from './ConfigManager';
 import { usageMetricsManager } from './UsageMetricsManager';
 import { findFreePort } from '../utils/portScanner';
 import { waitForCDP } from '../utils/cdpWaiter';
 import { logger } from '../utils/logger';
 import { wsServer } from '../utils/wsServer';
-import { dataPath, resolveAppPath } from '../utils/dataPaths';
+import { resolveAppPath, dataPath } from '../utils/dataPaths';
+import { Instance } from '../shared/types';
 
-export interface Instance {
-  profileId: string;
-  profileName: string;
-  runtime: string;
-  pid: number;
-  remoteDebuggingPort: number;
-  userDataDir: string;
-  launchMode: 'native' | 'headless';
-  status: 'running' | 'stopped' | 'unreachable' | 'stale';
-  startedAt: string;
-  lastHealthCheckAt: string | null;
-}
+// Specialized Services
+import { buildChromeFlags } from './instance/ChromeFlags';
+import { cdpClient } from './instance/CDPClient';
+import { processManager } from './instance/ProcessManager';
+import { activityLogger } from './instance/ActivityLogger';
 
 interface RunningEntry {
   instance: Instance;
@@ -37,58 +29,8 @@ interface RunningEntry {
 }
 
 const INSTANCES_PATH = dataPath('instances.json');
-const ACTIVITY_LOG_PATH = dataPath('activity.log');
 const HEALTH_CHECK_INTERVAL_MS = 30_000;
 const SIGTERM_WAIT_MS = 3_000;
-
-function buildChromeFlags(opts: {
-  userDataDir: string;
-  remoteDebuggingPort: number;
-  extensionDirs: string[];
-  proxyFlag: string | null;
-  headless: boolean;
-  webrtcPolicy: string;
-}): string[] {
-  const flags: string[] = [
-    `--user-data-dir=${opts.userDataDir}`,
-    `--remote-debugging-port=${opts.remoteDebuggingPort}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-background-networking',
-    '--disable-sync',
-    '--metrics-recording-only',
-    '--disable-default-apps',
-    '--mute-audio',
-    `--webrtc-ip-handling-policy=${opts.webrtcPolicy}`,
-  ];
-  if (opts.extensionDirs.length > 0) {
-    const extensionArg = opts.extensionDirs.join(',');
-    flags.push(`--disable-extensions-except=${extensionArg}`);
-    flags.push(`--load-extension=${extensionArg}`);
-  }
-  if (opts.proxyFlag) flags.push(opts.proxyFlag);
-  if (opts.headless) {
-    flags.push('--headless=new');
-    flags.push('--disable-gpu');
-  }
-  return flags;
-}
-
-function pidExists(pid: number): boolean {
-  try { process.kill(pid, 0); return true; } catch { return false; }
-}
-
-function cdpPing(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const req = http.get(
-      { host: '127.0.0.1', port, path: '/json/version', timeout: 2000 },
-      (res) => { res.resume(); resolve(res.statusCode === 200); },
-    );
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => { req.destroy(); resolve(false); });
-  });
-}
-
 
 export class InstanceManager {
   private running: Map<string, RunningEntry> = new Map();
@@ -112,15 +54,14 @@ export class InstanceManager {
       const raw = await fs.readFile(this.instancesPath, 'utf-8');
       const saved = JSON.parse(raw) as Instance[];
       const reconciled: Instance[] = saved.map((inst) => {
-        if (inst.status === 'running' && !pidExists(inst.pid)) {
+        if (inst.status === 'running' && !processManager.exists(inst.pid)) {
           return { ...inst, status: 'stale' };
         }
         return inst;
       });
       await this.persistInstances(reconciled);
     } catch (err) {
-      const isNotFound =
-        err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT';
+      const isNotFound = err instanceof Error && 'code' in err && (err as any).code === 'ENOENT';
       if (!isNotFound) {
         logger.warn('InstanceManager: failed to load instances.json', {
           error: err instanceof Error ? err.message : String(err),
@@ -163,7 +104,6 @@ export class InstanceManager {
     const profilesDir = resolveAppPath(configManager.get().profilesDir);
     const userDataDir = path.join(profilesDir, profileId);
     const headless = configManager.get().headless;
-    const webrtcPolicy = profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp';
 
     const flags = buildChromeFlags({
       userDataDir,
@@ -171,11 +111,11 @@ export class InstanceManager {
       extensionDirs: [extensionDir, ...managedExtensionDirs],
       proxyFlag,
       headless,
-      webrtcPolicy,
+      webrtcPolicy: profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp',
     });
 
     logger.info('Launching instance', { profileId, executablePath, port: remoteDebuggingPort });
-    const child = spawn(executablePath, flags, { detached: false, stdio: 'ignore' });
+    const child = processManager.spawn(executablePath, flags);
     const pid = child.pid;
 
     if (!pid) {
@@ -186,7 +126,7 @@ export class InstanceManager {
     try {
       await waitForCDP(remoteDebuggingPort, 30_000);
     } catch (err) {
-      child.kill('SIGKILL');
+      processManager.kill(child, 'SIGKILL');
       if (proxyCleanup) proxyCleanup();
       throw new Error(`Browser did not become ready: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -215,7 +155,7 @@ export class InstanceManager {
         entry.instance.status = 'stopped';
         this.running.delete(profileId);
         this.persistCurrentInstances().catch(() => undefined);
-        this.appendActivityLog(profileId, entry.instance.startedAt, stoppedAt).catch(() => undefined);
+        activityLogger.append(profileId, entry.instance.startedAt, stoppedAt).catch(() => undefined);
         wsServer.broadcast({ type: 'instance:stopped', payload: { profileId, status: 'stopped' } });
         logger.info('Instance exited', { profileId });
       }
@@ -234,22 +174,16 @@ export class InstanceManager {
     if (!entry) throw new Error(`No running instance for profile: ${profileId}`);
 
     const { process: child, proxyCleanup } = entry;
-    child.kill('SIGTERM');
+    processManager.kill(child, 'SIGTERM');
 
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        try { child.kill('SIGKILL'); } catch { /* already dead */ }
-        resolve();
-      }, SIGTERM_WAIT_MS);
-      child.once('exit', () => { clearTimeout(timer); resolve(); });
-    });
+    await processManager.waitForExit(child, SIGTERM_WAIT_MS);
 
     if (proxyCleanup) proxyCleanup();
     entry.instance.status = 'stopped';
     const stoppedAt = new Date().toISOString();
     this.running.delete(profileId);
     await this.persistCurrentInstances();
-    await this.appendActivityLog(profileId, entry.instance.startedAt, stoppedAt);
+    await activityLogger.append(profileId, entry.instance.startedAt, stoppedAt);
     wsServer.broadcast({ type: 'instance:stopped', payload: { profileId, status: 'stopped' } });
     logger.info('Instance stopped', { profileId });
   }
@@ -276,7 +210,7 @@ export class InstanceManager {
   private async runHealthChecks(): Promise<void> {
     let changed = false;
     for (const [profileId, entry] of this.running.entries()) {
-      const alive = await cdpPing(entry.instance.remoteDebuggingPort);
+      const alive = await cdpClient.ping(entry.instance.remoteDebuggingPort);
       entry.instance.lastHealthCheckAt = new Date().toISOString();
       if (!alive && entry.instance.status === 'running') {
         entry.instance.status = 'unreachable';
@@ -294,23 +228,21 @@ export class InstanceManager {
 
   private async applySavedCookies(profileId: string, port: number): Promise<void> {
     const cookies = await cookieManager.listCookies(profileId);
-    if (cookies.length === 0) {
-      return;
-    }
+    if (cookies.length === 0) return;
 
     try {
-      const webSocketDebuggerUrl = await this.cdpGetPageWebSocketUrl(port);
+      const webSocketDebuggerUrl = await cdpClient.getPageWebSocketUrl(port);
       if (!webSocketDebuggerUrl) {
         logger.warn('Skipping cookie apply because no page target is available', { profileId, port });
         return;
       }
 
-      await this.cdpSendCommandSequence(webSocketDebuggerUrl, [
+      await cdpClient.sendCommandSequence(webSocketDebuggerUrl, [
         { method: 'Network.enable' },
         {
           method: 'Network.setCookies',
           params: {
-            cookies: cookies.map((cookie) => this.toCDPCookie(cookie)),
+            cookies: cookies.map((cookie) => cdpClient.toCDPCookie(cookie)),
           },
         },
       ]);
@@ -324,72 +256,49 @@ export class InstanceManager {
     }
   }
 
-  async sessionCheck(
-    profileId: string,
-    url: string,
-  ): Promise<{ result: 'logged_in' | 'logged_out' | 'error'; reason?: string }> {
+  async sessionCheck(profileId: string, url: string): Promise<{ result: 'logged_in' | 'logged_out' | 'error'; reason?: string }> {
     const profile = profileManager.getProfile(profileId);
     if (!profile) return { result: 'error', reason: 'profile_not_found' };
 
     let executablePath: string;
-    try {
-      executablePath = await runtimeManager.resolveRuntime(profile.runtime);
-    } catch {
-      return { result: 'error', reason: 'no_runtime' };
-    }
+    try { executablePath = await runtimeManager.resolveRuntime(profile.runtime); }
+    catch { return { result: 'error', reason: 'no_runtime' }; }
 
-    let proxyFlag: string | null = null;
-    let proxyCleanup: (() => void) | null = null;
+    let proxyFlag: string|null = null;
+    let proxyCleanup: (() => void)|null = null;
     if (profile.proxy) {
       try {
         const result = await proxyManager.buildProxyConfig(profile.proxy);
-        proxyFlag = result.flag;
-        proxyCleanup = result.cleanup;
+        proxyFlag = result.flag; proxyCleanup = result.cleanup;
       } catch { /* proceed without proxy */ }
     }
 
-    const extensionDir = await fingerprintEngine.prepareExtension(
-      profileId,
-      profile.fingerprint,
-      this.dataDir,
-      {
-        profileId,
-        profileName: profile.name,
-        profileGroup: profile.group,
-        profileOwner: profile.owner,
-      },
-    );
-    const managedExtensionDirs = await extensionManager.resolveEnabledExtensionPaths(profile.extensionIds);
-
-    const remoteDebuggingPort = await findFreePort();
+    const extDir = await fingerprintEngine.prepareExtension(profileId, profile.fingerprint, this.dataDir, {
+      profileId, profileName: profile.name, profileGroup: profile.group, profileOwner: profile.owner
+    });
+    const managedExtDirs = await extensionManager.resolveEnabledExtensionPaths(profile.extensionIds);
+    const port = await findFreePort();
     const profilesDir = resolveAppPath(configManager.get().profilesDir);
     const userDataDir = path.join(profilesDir, profileId);
     const timeoutMs = configManager.get().sessionCheck.timeoutMs;
 
     const flags = buildChromeFlags({
-      userDataDir,
-      remoteDebuggingPort,
-      extensionDirs: [extensionDir, ...managedExtensionDirs],
-      proxyFlag,
-      headless: true,
-      webrtcPolicy: profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp',
+      userDataDir, remoteDebuggingPort: port, extensionDirs: [extDir, ...managedExtDirs],
+      proxyFlag, headless: true, webrtcPolicy: profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp'
     });
 
-    const child = spawn(executablePath, flags, { detached: false, stdio: 'ignore' });
-    const pid = child.pid;
-
-    if (!pid) {
+    const child = processManager.spawn(executablePath, flags);
+    if (!child.pid) {
       if (proxyCleanup) proxyCleanup();
       return { result: 'error', reason: 'spawn_failed' };
     }
 
     try {
-      await waitForCDP(remoteDebuggingPort, timeoutMs);
-      const finalUrl = await this.cdpGetCurrentUrl(remoteDebuggingPort, timeoutMs);
+      await waitForCDP(port, timeoutMs);
+      const finalUrl = await cdpClient.getCurrentUrl(port, timeoutMs);
       const parsedTarget = new URL(url);
       const parsedFinal = new URL(finalUrl);
-      const isLoggedOut =
-        parsedFinal.hostname !== parsedTarget.hostname ||
+      const isLoggedOut = parsedFinal.hostname !== parsedTarget.hostname ||
         parsedFinal.pathname.toLowerCase().includes('login') ||
         parsedFinal.pathname.toLowerCase().includes('signin') ||
         parsedFinal.pathname.toLowerCase().includes('auth');
@@ -400,32 +309,10 @@ export class InstanceManager {
       await usageMetricsManager.recordSessionCheck('error');
       return { result: 'error', reason: err instanceof Error ? err.message : String(err) };
     } finally {
-      try { child.kill('SIGTERM'); } catch { /* ignore */ }
-      setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* ignore */ } }, 2000);
+      processManager.kill(child, 'SIGTERM');
+      setTimeout(() => processManager.kill(child, 'SIGKILL'), 2000);
       if (proxyCleanup) proxyCleanup();
     }
-  }
-
-  private cdpGetCurrentUrl(port: number, timeoutMs: number): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const deadline = setTimeout(() => reject(new Error('Session check timed out')), timeoutMs);
-      const req = http.get(
-        { host: '127.0.0.1', port, path: '/json/list', timeout: 5000 },
-        (res) => {
-          let data = '';
-          res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-          res.on('end', () => {
-            clearTimeout(deadline);
-            try {
-              const targets = JSON.parse(data) as Array<{ url: string; type: string }>;
-              const page = targets.find((t) => t.type === 'page');
-              resolve(page?.url ?? '');
-            } catch { resolve(''); }
-          });
-        },
-      );
-      req.on('error', () => { clearTimeout(deadline); resolve(''); });
-    });
   }
 
   listInstances(): Instance[] {
@@ -440,17 +327,6 @@ export class InstanceManager {
     return this.running.get(profileId)?.instance.status ?? 'not_running';
   }
 
-  private async appendActivityLog(profileId: string, startedAt: string, stoppedAt: string): Promise<void> {
-    const durationMs = new Date(stoppedAt).getTime() - new Date(startedAt).getTime();
-    const entry = JSON.stringify({ profileId, startedAt, stoppedAt, durationMs }) + '\n';
-    try {
-      await fs.mkdir(path.dirname(ACTIVITY_LOG_PATH), { recursive: true });
-      await fs.appendFile(ACTIVITY_LOG_PATH, entry, 'utf-8');
-    } catch (err) {
-      logger.warn('Failed to write activity log', { error: err instanceof Error ? err.message : String(err) });
-    }
-  }
-
   private async persistCurrentInstances(): Promise<void> {
     await this.persistInstances(Array.from(this.running.values()).map((e) => e.instance));
   }
@@ -458,86 +334,6 @@ export class InstanceManager {
   private async persistInstances(instances: Instance[]): Promise<void> {
     await fs.mkdir(path.dirname(this.instancesPath), { recursive: true });
     await fs.writeFile(this.instancesPath, JSON.stringify(instances, null, 2), 'utf-8');
-  }
-
-  private cdpGetPageWebSocketUrl(port: number): Promise<string | null> {
-    return new Promise((resolve, reject) => {
-      const req = http.get(
-        { host: '127.0.0.1', port, path: '/json/list', timeout: 5000 },
-        (res) => {
-          let data = '';
-          res.setEncoding('utf8');
-          res.on('data', (chunk) => { data += chunk; });
-          res.on('end', () => {
-            try {
-              const targets = JSON.parse(data) as Array<{ type?: string; webSocketDebuggerUrl?: string }>;
-              const page = targets.find((target) => target.type === 'page' && typeof target.webSocketDebuggerUrl === 'string');
-              resolve(page?.webSocketDebuggerUrl ?? null);
-            } catch (err) {
-              reject(err);
-            }
-          });
-        },
-      );
-      req.on('error', reject);
-      req.on('timeout', () => {
-        req.destroy(new Error(`Timed out loading CDP targets from port ${port}`));
-      });
-    });
-  }
-
-  private cdpSendCommandSequence(
-    webSocketDebuggerUrl: string,
-    commands: Array<{ method: string; params?: Record<string, unknown> }>,
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const socket = new WebSocket(webSocketDebuggerUrl);
-      let nextId = 0;
-
-      socket.once('open', () => {
-        for (const command of commands) {
-          nextId += 1;
-          socket.send(JSON.stringify({
-            id: nextId,
-            method: command.method,
-            params: command.params ?? {},
-          }));
-        }
-      });
-
-      socket.on('message', (payload) => {
-        try {
-          const message = JSON.parse(payload.toString()) as { id?: number; error?: { message?: string } };
-          if (message.error) {
-            socket.close();
-            reject(new Error(message.error.message ?? 'CDP command failed'));
-            return;
-          }
-          if (message.id === commands.length) {
-            socket.close();
-            resolve();
-          }
-        } catch (err) {
-          socket.close();
-          reject(err);
-        }
-      });
-
-      socket.once('error', reject);
-    });
-  }
-
-  private toCDPCookie(cookie: ManagedCookie): Record<string, unknown> {
-    return {
-      name: cookie.name,
-      value: cookie.value,
-      domain: cookie.domain,
-      path: cookie.path,
-      secure: cookie.secure,
-      httpOnly: cookie.httpOnly,
-      ...(cookie.expires ? { expires: cookie.expires } : {}),
-      ...(cookie.sameSite ? { sameSite: cookie.sameSite } : {}),
-    };
   }
 }
 

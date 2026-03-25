@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { ProfileManager, migrateProfile } from './ProfileManager';
+import { ProfileManager } from './ProfileManager';
+import { migrateProfile } from './profile/Migration';
+import { Profile } from '../shared/types';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 

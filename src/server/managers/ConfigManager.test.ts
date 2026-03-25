@@ -13,6 +13,7 @@ import {
   DEFAULT_CONFIG,
   migrateConfig,
 } from './ConfigManager';
+import { supportedLanguages } from '../shared/locales';
 
 async function makeTempPath(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'config-test-'));
@@ -33,6 +34,13 @@ describe('ConfigManager', () => {
   // ─── P8: Config Round-Trip ───────────────────────────────────────────────
 
   describe('P8: Config Round-Trip', () => {
+    it('schema accepts every supported UI language from the shared locale registry', () => {
+      for (const language of supportedLanguages) {
+        const parsed = AppConfigSchema.parse({ uiLanguage: language });
+        expect(parsed.uiLanguage).toBe(language);
+      }
+    });
+
     it('parse → serialize → parse lại phải cho kết quả tương đương (default config)', async () => {
       const manager = new ConfigManager(tmpPath);
       await manager.load(); // creates default + saves

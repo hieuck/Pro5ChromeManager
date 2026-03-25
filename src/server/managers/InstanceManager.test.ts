@@ -3,8 +3,8 @@ import net from 'net';
 import { findFreePort } from '../utils/portScanner';
 import { InstanceManager } from './InstanceManager';
 import { profileManager } from './ProfileManager';
+import { Profile, ProxyConfig } from '../shared/types';
 import { runtimeManager } from './RuntimeManager';
-import type { Profile } from './ProfileManager';
 
 async function bindServer(server: net.Server, port: number): Promise<number> {
   return new Promise((resolve, reject) => {

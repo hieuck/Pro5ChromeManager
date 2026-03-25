@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
+import { defaultLanguage, supportedLanguages } from '../shared/locales';
 import { dataPath, resolveAppPath } from '../utils/dataPaths';
 
 // Zod schema for AppConfig
@@ -14,7 +15,7 @@ const CURRENT_CONFIG_VERSION = 1;
 export const AppConfigSchema = z.object({
   configVersion: z.number().int().default(CURRENT_CONFIG_VERSION),
   onboardingCompleted: z.boolean().default(false),
-  uiLanguage: z.enum(['vi', 'en']).default('vi'),
+  uiLanguage: z.enum(supportedLanguages).default(defaultLanguage),
   locale: z.string().default('vi-VN'),
   timezoneId: z.string().default('Asia/Saigon'),
   defaultRuntime: z.string().default('auto'),
@@ -54,7 +55,7 @@ export function migrateConfig(raw: Record<string, unknown>): Record<string, unkn
 export const DEFAULT_CONFIG: AppConfig = {
   configVersion: CURRENT_CONFIG_VERSION,
   onboardingCompleted: false,
-  uiLanguage: 'vi',
+  uiLanguage: defaultLanguage,
   locale: 'vi-VN',
   timezoneId: 'Asia/Saigon',
   defaultRuntime: 'auto',

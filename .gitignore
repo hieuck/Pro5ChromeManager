@@ -40,3 +40,5 @@ desktop.ini
 .env
 .env.local
 .env.*.local
+/tmp
+/data

@@ -25,6 +25,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '../api/client';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface ExtensionRecord {
   id: string;
@@ -53,6 +54,7 @@ const cardStyle: React.CSSProperties = {
 };
 
 const Extensions: React.FC = () => {
+  const { t } = useTranslation();
   const [form] = Form.useForm<CreateExtensionValues>();
   const [extensions, setExtensions] = useState<ExtensionRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,7 @@ const Extensions: React.FC = () => {
 
     form.resetFields();
     setCreateOpen(false);
-    void message.success('Đã thêm extension');
+    void message.success(t.extensions.created);
     void fetchExtensions();
   }
 
@@ -139,21 +141,21 @@ const Extensions: React.FC = () => {
 
   const columns: ColumnsType<ExtensionRecord> = [
     {
-      title: 'Tên',
+      title: t.common.name,
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record) => (
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{name}</Typography.Text>
           <Typography.Text type="secondary">
-            {record.version ? `v${record.version}` : 'Không rõ version'}
+            {record.version ? `v${record.version}` : t.extensions.unknownVersion}
             {record.category ? ` · ${record.category}` : ''}
           </Typography.Text>
         </Space>
       ),
     },
     {
-      title: 'Đường dẫn',
+      title: t.extensions.path,
       key: 'path',
       render: (_, record) => (
         <Space direction="vertical" size={0}>
@@ -163,7 +165,7 @@ const Extensions: React.FC = () => {
       ),
     },
     {
-      title: 'Trạng thái',
+      title: t.common.status,
       key: 'enabled',
       width: 150,
       render: (_, record) => (
@@ -173,12 +175,12 @@ const Extensions: React.FC = () => {
             loading={Boolean(updatingIds[record.id])}
             onChange={(enabled) => { void handleToggle(record, enabled); }}
           />
-          <Badge status={record.enabled ? 'success' : 'default'} text={record.enabled ? 'Bật' : 'Tắt'} />
+          <Badge status={record.enabled ? 'success' : 'default'} text={record.enabled ? t.extensions.enabled : t.extensions.disabled} />
         </Space>
       ),
     },
     {
-      title: 'Mặc định',
+      title: t.extensions.defaultAssignment,
       key: 'defaultForNewProfiles',
       width: 180,
       render: (_, record) => (
@@ -191,21 +193,21 @@ const Extensions: React.FC = () => {
           />
           <Badge
             status={record.defaultForNewProfiles ? 'processing' : 'default'}
-            text={record.defaultForNewProfiles ? 'Profile mới' : 'Tùy chọn'}
+            text={record.defaultForNewProfiles ? t.extensions.defaultForNewProfiles : t.extensions.optional}
           />
         </Space>
       ),
     },
     {
-      title: 'Hành động',
+      title: t.common.actions,
       key: 'actions',
       width: 120,
       render: (_, record) => (
         <Popconfirm
-          title="Xóa extension này?"
+          title={t.extensions.deleteConfirm}
           onConfirm={() => void handleDelete(record.id)}
-          okText="Xóa"
-          cancelText="Hủy"
+          okText={t.common.delete}
+          cancelText={t.common.cancel}
         >
           <Button size="small" danger icon={<DeleteOutlined />} />
         </Popconfirm>
@@ -221,18 +223,17 @@ const Extensions: React.FC = () => {
             <Row gutter={[24, 24]} align="middle">
               <Col flex="auto">
                 <Typography.Title level={3} style={{ marginBottom: 8 }}>
-                  Extension Center
+                  {t.extensions.title}
                 </Typography.Title>
                 <Typography.Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 760 }}>
-                  Quản lý extension cho nhiều profile từ một chỗ. Hồ sơ nào được gán extension sẽ tự nạp khi khởi chạy,
-                  kèm hỗ trợ import từ package hoặc Chrome Web Store.
+                  {t.extensions.subtitle}
                 </Typography.Paragraph>
               </Col>
               <Col>
                 <Space>
                   <Button icon={<ReloadOutlined />} onClick={() => void fetchExtensions()} />
                   <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-                    Thêm extension
+                    {t.extensions.newExtension}
                   </Button>
                 </Space>
               </Col>
@@ -242,17 +243,17 @@ const Extensions: React.FC = () => {
 
         <Col xs={24} sm={12} lg={8}>
           <Card style={cardStyle}>
-            <Statistic title="Tổng extension" value={extensions.length} prefix={<AppstoreOutlined />} />
+            <Statistic title={t.extensions.total} value={extensions.length} prefix={<AppstoreOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
           <Card style={cardStyle}>
-            <Statistic title="Đang bật" value={enabledCount} valueStyle={{ color: '#389e0d' }} />
+            <Statistic title={t.extensions.enabledCount} value={enabledCount} valueStyle={{ color: '#389e0d' }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
           <Card style={cardStyle}>
-            <Statistic title="Mặc định cho profile mới" value={defaultCount} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title={t.extensions.defaultCount} value={defaultCount} valueStyle={{ color: '#1677ff' }} />
           </Card>
         </Col>
       </Row>
@@ -264,39 +265,38 @@ const Extensions: React.FC = () => {
           columns={columns}
           dataSource={extensions}
           pagination={{ pageSize: 10, showSizeChanger: false }}
-          locale={{ emptyText: 'Chưa có extension nào. Hãy thêm một extension từ thư mục, package hoặc Chrome Web Store.' }}
+          locale={{ emptyText: t.extensions.empty }}
         />
       </Card>
 
       <Modal
-        title="Thêm extension"
+        title={t.extensions.newExtension}
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         onOk={() => void handleCreate()}
-        okText="Lưu"
-        cancelText="Hủy"
+        okText={t.common.save}
+        cancelText={t.common.cancel}
         confirmLoading={creating}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="Tên hiển thị">
-            <Input placeholder="Để trống để lấy từ manifest.json" />
+          <Form.Item name="name" label={t.extensions.displayName}>
+            <Input placeholder={t.extensions.displayNamePlaceholder} />
           </Form.Item>
-          <Form.Item name="category" label="Nhóm extension">
-            <Input placeholder="Ví dụ: wallet, automation, ads, social" />
+          <Form.Item name="category" label={t.extensions.category}>
+            <Input placeholder={t.extensions.categoryPlaceholder} />
           </Form.Item>
           <Form.Item name="defaultForNewProfiles" valuePropName="checked">
-            <Checkbox>Gán mặc định cho profile mới</Checkbox>
+            <Checkbox>{t.extensions.defaultCheckbox}</Checkbox>
           </Form.Item>
           <Form.Item
             name="sourcePath"
-            label="Nguồn extension"
-            rules={[{ required: true, message: 'Nhập đường dẫn, Chrome Web Store URL hoặc extension ID' }]}
+            label={t.extensions.source}
+            rules={[{ required: true, message: t.extensions.sourceRequired }]}
           >
-            <Input placeholder="Ví dụ: C:\\Extensions\\MetaMask, C:\\Downloads\\wallet.zip, C:\\Downloads\\wallet.crx hoặc aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" />
+            <Input placeholder={t.extensions.sourcePlaceholder} />
           </Form.Item>
           <Typography.Text type="secondary">
-            Workspace này hỗ trợ thư mục unpacked có `manifest.json`, gói `.zip`, `.crx`, và Chrome Web Store qua URL
-            hoặc extension ID. Với package/store import, app sẽ tự sao chép vào vùng managed để dùng ổn định cho nhiều profile.
+            {t.extensions.sourceHint}
           </Typography.Text>
         </Form>
       </Modal>

@@ -7,6 +7,7 @@ import archiver from 'archiver';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { dataPath } from '../utils/dataPaths';
+import type { SelfTestCheck, IncidentEntry, IncidentCategory, IncidentCategorySummary, IncidentSnapshot } from '../shared/types';
 
 const router = Router();
 
@@ -19,57 +20,9 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-interface SelfTestCheck {
-  key: string;
-  label: string;
-  status: 'pass' | 'warn' | 'fail';
-  detail: string;
-}
 
-interface IncidentEntry {
-  timestamp: string;
-  level: 'warn' | 'error';
-  source: string;
-  message: string;
-  category: IncidentCategory;
-  categoryLabel: string;
-  fingerprint: string;
-}
 
-type IncidentCategory =
-  | 'electron-process'
-  | 'renderer-navigation'
-  | 'startup-readiness'
-  | 'runtime-launch'
-  | 'proxy'
-  | 'extension'
-  | 'cookies'
-  | 'profile-package'
-  | 'onboarding'
-  | 'support'
-  | 'general';
 
-interface IncidentCategorySummary {
-  category: IncidentCategory;
-  label: string;
-  count: number;
-  errorCount: number;
-  warnCount: number;
-  latestAt: string | null;
-}
-
-interface IncidentSnapshot {
-  count: number;
-  incidents: IncidentEntry[];
-  summary: {
-    total: number;
-    errorCount: number;
-    warnCount: number;
-    topCategory: IncidentCategory | null;
-    categories: IncidentCategorySummary[];
-  };
-  timeline: IncidentEntry[];
-}
 
 interface SupportStatusPayload {
   appVersion: string;

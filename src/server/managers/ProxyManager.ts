@@ -1,23 +1,19 @@
 import fs from 'fs/promises';
-import https from 'https';
-import http from 'http';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as ProxyChain from 'proxy-chain';
 import { encrypt, decrypt } from '../utils/crypto';
 import { logger } from '../utils/logger';
-import type { ProxyConfig } from './ProfileManager';
+import { ProxyConfig } from '../shared/types';
 import { dataPath } from '../utils/dataPaths';
 
-export type { ProxyConfig };
-
-// ─── Internal storage shape (password encrypted) ──────────────────────────────
+// Specialized Services
+import { proxyParser } from './proxy/ProxyParser';
+import { proxyTester } from './proxy/ProxyTester';
 
 interface StoredProxy extends Omit<ProxyConfig, 'password'> {
   password?: string; // encrypted
 }
-
-// ─── buildProxyConfig result ──────────────────────────────────────────────────
 
 export interface ProxyBuildResult {
   flag: string;
@@ -32,100 +28,7 @@ export interface ProxyHealthSnapshot {
   lastCheckError?: string;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const PROXIES_PATH = dataPath('proxies.json');
-
-function httpGet(url: string, timeoutMs: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http;
-    const req = mod.get(url, { timeout: timeoutMs }, (res) => {
-      let data = '';
-      res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-      res.on('end', () => resolve(data));
-    });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
-  });
-}
-
-function httpGetViaProxy(targetUrl: string, proxy: ProxyConfig, timeoutMs: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proxyUrl = buildProxyUrl(proxy);
-    const parsed = new URL(targetUrl);
-    const isHttps = parsed.protocol === 'https:';
-
-    if (isHttps) {
-      // Use CONNECT tunnel via proxy
-      const connectOptions: http.RequestOptions = {
-        host: proxy.host,
-        port: proxy.port,
-        method: 'CONNECT',
-        path: `${parsed.hostname}:443`,
-        timeout: timeoutMs,
-      };
-      if (proxy.username) {
-        const auth = Buffer.from(`${proxy.username}:${proxy.password ?? ''}`).toString('base64');
-        connectOptions.headers = { 'Proxy-Authorization': `Basic ${auth}` };
-      }
-
-      const connectReq = http.request(connectOptions);
-      connectReq.on('connect', (_res, socket) => {
-        const tlsOptions = {
-          socket,
-          servername: parsed.hostname,
-        };
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const tls = require('tls') as typeof import('tls');
-        const tlsSocket = tls.connect(tlsOptions, () => {
-          const getReq = `GET ${parsed.pathname}${parsed.search} HTTP/1.1\r\nHost: ${parsed.hostname}\r\nConnection: close\r\n\r\n`;
-          tlsSocket.write(getReq);
-          let data = '';
-          tlsSocket.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-          tlsSocket.on('end', () => {
-            const body = data.split('\r\n\r\n').slice(1).join('\r\n\r\n');
-            resolve(body);
-          });
-          tlsSocket.on('error', reject);
-        });
-        tlsSocket.on('error', reject);
-      });
-      connectReq.on('error', reject);
-      connectReq.on('timeout', () => { connectReq.destroy(); reject(new Error('Proxy connect timed out')); });
-      connectReq.end();
-    } else {
-      // Plain HTTP proxy
-      const options: http.RequestOptions = {
-        host: proxy.host,
-        port: proxy.port,
-        path: targetUrl,
-        timeout: timeoutMs,
-        headers: { Host: parsed.hostname },
-      };
-      if (proxy.username) {
-        const auth = Buffer.from(`${proxy.username}:${proxy.password ?? ''}`).toString('base64');
-        options.headers = { ...options.headers, 'Proxy-Authorization': `Basic ${auth}` };
-      }
-      const req = http.get(options, (res) => {
-        let data = '';
-        res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-        res.on('end', () => resolve(data));
-      });
-      req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
-    }
-    void proxyUrl; // used for SOCKS via proxy-chain path
-  });
-}
-
-function buildProxyUrl(proxy: ProxyConfig): string {
-  const auth = proxy.username
-    ? `${encodeURIComponent(proxy.username)}:${encodeURIComponent(proxy.password ?? '')}@`
-    : '';
-  return `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
-}
-
-// ─── ProxyManager ─────────────────────────────────────────────────────────────
 
 export class ProxyManager {
   private proxies: Map<string, ProxyConfig> = new Map();
@@ -148,8 +51,7 @@ export class ProxyManager {
       }
       logger.info('ProxyManager initialized', { count: this.proxies.size });
     } catch (err) {
-      const isNotFound =
-        err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT';
+      const isNotFound = err instanceof Error && 'code' in err && (err as any).code === 'ENOENT';
       if (!isNotFound) {
         logger.warn('ProxyManager: failed to load proxies.json', {
           error: err instanceof Error ? err.message : String(err),
@@ -166,8 +68,6 @@ export class ProxyManager {
     await fs.mkdir(path.dirname(this.proxiesPath), { recursive: true });
     await fs.writeFile(this.proxiesPath, JSON.stringify(stored, null, 2), 'utf-8');
   }
-
-  // ─── CRUD ──────────────────────────────────────────────────────────────────
 
   async createProxy(data: Omit<ProxyConfig, 'id'>): Promise<ProxyConfig> {
     const proxy: ProxyConfig = { id: uuidv4(), ...data };
@@ -187,8 +87,7 @@ export class ProxyManager {
   }
 
   async deleteProxy(id: string): Promise<void> {
-    if (!this.proxies.has(id)) throw new Error(`Proxy not found: ${id}`);
-    this.proxies.delete(id);
+    if (!this.proxies.delete(id)) throw new Error(`Proxy not found: ${id}`);
     await this.persist();
     logger.info('Proxy deleted', { id });
   }
@@ -201,22 +100,16 @@ export class ProxyManager {
     return Array.from(this.proxies.values());
   }
 
-  // ─── Test proxy ────────────────────────────────────────────────────────────
-
   parseProxyInput(input: string, defaultType: ProxyConfig['type'] = 'http'): Array<Omit<ProxyConfig, 'id'>> {
-    const lines = input
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0 && !line.startsWith('#') && !line.startsWith('//'));
-
-    return lines.map((line) => this.parseProxyLine(line, defaultType));
+    return proxyParser.parseInput(input, defaultType);
   }
 
-  async importProxyList(
-    input: string,
-    defaultType: ProxyConfig['type'] = 'http',
-  ): Promise<{ created: ProxyConfig[]; skipped: number }> {
-    const parsed = this.parseProxyInput(input, defaultType);
+  parseProxyLine(line: string, defaultType: ProxyConfig['type']): Omit<ProxyConfig, 'id'> {
+    return proxyParser.parseLine(line, defaultType);
+  }
+
+  async importProxyList(input: string, defaultType: ProxyConfig['type'] = 'http'): Promise<{ created: ProxyConfig[]; skipped: number }> {
+    const parsed = proxyParser.parseInput(input, defaultType);
     const created: ProxyConfig[] = [];
     let skipped = 0;
 
@@ -227,44 +120,15 @@ export class ProxyManager {
       }
       created.push(await this.createProxy(candidate));
     }
-
     return { created, skipped };
   }
 
   async testProxy(proxy: ProxyConfig): Promise<string> {
-    const isSocks = proxy.type === 'socks4' || proxy.type === 'socks5';
-
-    if (isSocks) {
-      // Use proxy-chain anonymizeProxy to create a local HTTP forwarder for SOCKS
-      const proxyUrl = buildProxyUrl(proxy);
-      const localProxyUrl = await ProxyChain.anonymizeProxy(proxyUrl);
-      try {
-        const localParsed = new URL(localProxyUrl);
-        const localPort = parseInt(localParsed.port, 10);
-        const httpProxy: ProxyConfig = {
-          id: proxy.id,
-          type: 'http',
-          host: '127.0.0.1',
-          port: localPort,
-        };
-        const body = await httpGetViaProxy('https://api.ipify.org?format=json', httpProxy, 10000);
-        const parsed = JSON.parse(body) as { ip: string };
-        return parsed.ip;
-      } finally {
-        await ProxyChain.closeAnonymizedProxy(localProxyUrl, true).catch(() => undefined);
-      }
-    } else {
-      const body = await httpGetViaProxy('https://api.ipify.org?format=json', proxy, 10000);
-      const parsed = JSON.parse(body) as { ip: string };
-      return parsed.ip;
-    }
+    return proxyTester.testProxy(proxy);
   }
 
-  // ─── Detect timezone from IP ───────────────────────────────────────────────
-
   async detectTimezoneFromProxy(ip: string): Promise<string> {
-    const body = await httpGet(`https://ipapi.co/${ip}/timezone`, 5000);
-    return body.trim();
+    return proxyTester.detectTimezone(ip);
   }
 
   async recordTestSnapshot(id: string, snapshot: ProxyHealthSnapshot): Promise<ProxyConfig> {
@@ -283,99 +147,40 @@ export class ProxyManager {
     return updated;
   }
 
-  // ─── Build proxy config for Chrome ────────────────────────────────────────
-
   async buildProxyConfig(proxy: ProxyConfig): Promise<ProxyBuildResult> {
     const { type, host, port, username, password } = proxy;
 
     if (type === 'http' || type === 'https') {
-      return {
-        flag: `--proxy-server=http://${host}:${port}`,
-        cleanup: null,
-      };
+      return { flag: `--proxy-server=http://${host}:${port}`, cleanup: null };
     }
-
     if (type === 'socks4') {
-      return {
-        flag: `--proxy-server=socks4://${host}:${port}`,
-        cleanup: null,
-      };
+      return { flag: `--proxy-server=socks4://${host}:${port}`, cleanup: null };
     }
 
-    // SOCKS5 — if auth required, use proxy-chain local forwarder
     if (username) {
-      const upstreamUrl = buildProxyUrl(proxy);
+      const auth = `${encodeURIComponent(username)}:${encodeURIComponent(password ?? '')}@`;
+      const upstreamUrl = `${type}://${auth}${host}:${port}`;
       const localProxyUrl = await ProxyChain.anonymizeProxy(upstreamUrl);
       const localParsed = new URL(localProxyUrl);
-      const localPort = parseInt(localParsed.port, 10);
-
+      
       const cleanup = (): void => {
         ProxyChain.closeAnonymizedProxy(localProxyUrl, true).catch(() => undefined);
       };
 
       return {
-        flag: `--proxy-server=socks5://127.0.0.1:${localPort}`,
+        flag: `--proxy-server=socks5://127.0.0.1:${localParsed.port}`,
         cleanup,
       };
     }
 
-    // SOCKS5 without auth
-    return {
-      flag: `--proxy-server=socks5://${host}:${port}`,
-      cleanup: null,
-    };
+    return { flag: `--proxy-server=socks5://${host}:${port}`, cleanup: null };
   }
 
   private hasMatchingProxy(candidate: Omit<ProxyConfig, 'id'>): boolean {
-    return this.listProxies().some((proxy) => (
-      proxy.type === candidate.type
-      && proxy.host === candidate.host
-      && proxy.port === candidate.port
-      && (proxy.username ?? '') === (candidate.username ?? '')
-      && (proxy.password ?? '') === (candidate.password ?? '')
+    return Array.from(this.proxies.values()).some((p) => (
+      p.type === candidate.type && p.host === candidate.host && p.port === candidate.port &&
+      (p.username ?? '') === (candidate.username ?? '') && (p.password ?? '') === (candidate.password ?? '')
     ));
-  }
-
-  private parseProxyLine(line: string, defaultType: ProxyConfig['type']): Omit<ProxyConfig, 'id'> {
-    if (line.includes('://')) {
-      const parsed = new URL(line);
-      const type = parsed.protocol.replace(':', '') as ProxyConfig['type'];
-      if (!['http', 'https', 'socks4', 'socks5'].includes(type)) {
-        throw new Error(`Unsupported proxy protocol: ${type}`);
-      }
-
-      const port = Number(parsed.port);
-      if (!Number.isInteger(port) || port < 1 || port > 65535) {
-        throw new Error(`Invalid proxy port in line: ${line}`);
-      }
-
-      return {
-        type,
-        host: parsed.hostname,
-        port,
-        username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
-        password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
-      };
-    }
-
-    const parts = line.split(':');
-    if (parts.length === 2 || parts.length === 4) {
-      const [host, rawPort, username, password] = parts;
-      const port = Number(rawPort);
-      if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
-        throw new Error(`Invalid proxy line: ${line}`);
-      }
-
-      return {
-        type: defaultType,
-        host,
-        port,
-        username,
-        password,
-      };
-    }
-
-    throw new Error(`Unsupported proxy format: ${line}`);
   }
 }
 

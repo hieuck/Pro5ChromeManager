@@ -5,12 +5,7 @@ import archiver from 'archiver';
 import { logger } from '../utils/logger';
 import { configManager } from './ConfigManager';
 import { dataPath, resolveAppPath } from '../utils/dataPaths';
-
-export interface BackupEntry {
-  filename: string;
-  timestamp: string;
-  sizeBytes: number;
-}
+import { BackupEntry } from '../shared/types';
 
 const BACKUPS_DIR = dataPath('backups');
 const MAX_BACKUPS = 7;

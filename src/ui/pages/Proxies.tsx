@@ -60,8 +60,12 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
 };
 
+function getLocaleTag(language: string): string {
+  return language === 'vi' ? 'vi-VN' : 'en-US';
+}
+
 const Proxies: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, lang, format } = useTranslation();
   const [form] = Form.useForm<CreateProxyValues>();
   const [proxies, setProxies] = useState<ProxyRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -128,10 +132,10 @@ const Proxies: React.FC = () => {
       return;
     }
 
-    const summary = t.proxy.importResult
-      .replace('{created}', String(res.data.created.length))
-      .replace('{skipped}', String(res.data.skipped));
-    void message.success(summary);
+    void message.success(format(t.proxy.importResult, {
+      created: res.data.created.length,
+      skipped: res.data.skipped,
+    }));
     setImportText('');
     void fetchProxies();
   }
@@ -188,7 +192,11 @@ const Proxies: React.FC = () => {
       return;
     }
 
-    void message.success(`Đã test ${res.data.total} proxy · OK ${res.data.healthy} · FAIL ${res.data.failing}`);
+    void message.success(format(t.proxy.bulkTestResult, {
+      total: res.data.total,
+      healthy: res.data.healthy,
+      failing: res.data.failing,
+    }));
     void fetchProxies();
   }
 
@@ -223,7 +231,7 @@ const Proxies: React.FC = () => {
       render: (_, record) => (
         record.username
           ? <Badge status="processing" text={record.username} />
-          : <Typography.Text type="secondary">—</Typography.Text>
+          : <Typography.Text type="secondary">{t.proxy.noCredentials}</Typography.Text>
       ),
     },
     {
@@ -231,14 +239,17 @@ const Proxies: React.FC = () => {
       key: 'lastCheck',
       render: (_, record) => {
         if (!record.lastCheckAt || !record.lastCheckStatus) {
-          return <Typography.Text type="secondary">—</Typography.Text>;
+          return <Typography.Text type="secondary">{t.proxy.neverChecked}</Typography.Text>;
         }
 
         const summary = record.lastCheckStatus === 'healthy'
           ? (
             record.lastCheckTimezone
-              ? `${t.proxy.testSuccess.replace('{ip}', record.lastCheckIp ?? '—')} · ${record.lastCheckTimezone}`
-              : t.proxy.testSuccess.replace('{ip}', record.lastCheckIp ?? '—')
+              ? format(t.proxy.testSuccessWithTimezone, {
+                ip: record.lastCheckIp ?? '—',
+                timezone: record.lastCheckTimezone,
+              })
+              : format(t.proxy.testSuccess, { ip: record.lastCheckIp ?? '—' })
           )
           : (record.lastCheckError ?? t.proxy.testFailed);
 
@@ -246,7 +257,7 @@ const Proxies: React.FC = () => {
           <Space direction="vertical" size={0}>
             <Tag color={record.lastCheckStatus === 'healthy' ? 'green' : 'red'}>{summary}</Tag>
             <Typography.Text type="secondary">
-              {new Date(record.lastCheckAt).toLocaleString('vi-VN')}
+              {new Date(record.lastCheckAt).toLocaleString(getLocaleTag(lang))}
             </Typography.Text>
           </Space>
         );
@@ -322,12 +333,12 @@ const Proxies: React.FC = () => {
         </Col>
         <Col xs={24} sm={12} lg={8}>
           <Card style={cardStyle}>
-            <Statistic title="Healthy" value={healthyCount} valueStyle={{ color: '#389e0d' }} />
+            <Statistic title={t.proxy.healthy} value={healthyCount} valueStyle={{ color: '#389e0d' }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
           <Card style={cardStyle}>
-            <Statistic title="Needs check" value={failingCount} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title={t.proxy.needsCheck} value={failingCount} valueStyle={{ color: '#cf1322' }} />
           </Card>
         </Col>
       </Row>
@@ -363,13 +374,15 @@ const Proxies: React.FC = () => {
           <Card style={cardStyle}>
             {selectedIds.length > 0 ? (
               <Space wrap style={{ marginBottom: 12 }}>
-                <Typography.Text type="secondary">Đã chọn {selectedIds.length} proxy</Typography.Text>
+                <Typography.Text type="secondary">
+                  {format(t.proxy.selectedCount, { count: selectedIds.length })}
+                </Typography.Text>
                 <Button
                   type="primary"
                   loading={bulkTesting}
                   onClick={() => void handleBulkTest()}
                 >
-                  Test đã chọn
+                  {t.proxy.testSelected}
                 </Button>
               </Space>
             ) : null}
@@ -419,9 +432,9 @@ const Proxies: React.FC = () => {
             <Input type="number" min={1} max={65535} />
           </Form.Item>
           <Form.Item name="username" label={t.proxy.credentials}>
-            <Input placeholder="username" />
+            <Input placeholder={t.proxy.usernamePlaceholder} />
           </Form.Item>
-          <Form.Item name="password" label="Password">
+          <Form.Item name="password" label={t.proxy.password}>
             <Input.Password />
           </Form.Item>
         </Form>
