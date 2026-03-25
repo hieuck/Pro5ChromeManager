@@ -12,12 +12,12 @@ import {
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from './hooks/useTranslation';
 import { languageMeta, supportedLanguages } from './i18n';
-import ProfileList from './pages/ProfileList';
-import Proxies from './pages/Proxies';
-import Extensions from './pages/Extensions';
-import Settings from './pages/Settings';
-import Logs from './pages/Logs';
-import Dashboard from './pages/Dashboard';
+import ProfileListPage from './pages/ProfileList';
+import ProxiesPage from './pages/Proxies';
+import ExtensionsPage from './pages/Extensions';
+import SettingsPage from './pages/Settings';
+import LogsPage from './pages/Logs';
+import DashboardPage from './pages/Dashboard';
 import './App.css';
 
 const { Sider, Header, Content } = Layout;
@@ -130,12 +130,12 @@ const App: React.FC = () => {
         <Content style={{ background: '#f5f5f5', overflow: 'auto' }}>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/profiles" element={<ProfileList />} />
-            <Route path="/proxies" element={<Proxies />} />
-            <Route path="/extensions" element={<Extensions />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/logs" element={<Logs />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profiles" element={<ProfileListPage />} />
+            <Route path="/proxies" element={<ProxiesPage />} />
+            <Route path="/extensions" element={<ExtensionsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/logs" element={<LogsPage />} />
           </Routes>
         </Content>
       </Layout>

@@ -25,8 +25,8 @@ import {
   ReloadOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../api/client';
-import { useTranslation } from '../hooks/useTranslation';
+import { apiClient } from '../../api/client';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface ProxyRecord {
   id: string;
@@ -64,7 +64,7 @@ function getLocaleTag(language: string): string {
   return language === 'vi' ? 'vi-VN' : 'en-US';
 }
 
-const Proxies: React.FC = () => {
+const ProxiesPage: React.FC = () => {
   const { t, lang, format } = useTranslation();
   const [form] = Form.useForm<CreateProxyValues>();
   const [proxies, setProxies] = useState<ProxyRecord[]>([]);
@@ -443,4 +443,4 @@ const Proxies: React.FC = () => {
   );
 };
 
-export default Proxies;
+export default ProxiesPage;

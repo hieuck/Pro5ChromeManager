@@ -24,8 +24,8 @@ import {
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../api/client';
-import { useTranslation } from '../hooks/useTranslation';
+import { apiClient } from '../../api/client';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface ExtensionRecord {
   id: string;
@@ -53,7 +53,7 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
 };
 
-const Extensions: React.FC = () => {
+const ExtensionsPage: React.FC = () => {
   const { t } = useTranslation();
   const [form] = Form.useForm<CreateExtensionValues>();
   const [extensions, setExtensions] = useState<ExtensionRecord[]>([]);
@@ -304,4 +304,4 @@ const Extensions: React.FC = () => {
   );
 };
 
-export default Extensions;
+export default ExtensionsPage;
