@@ -1,1 +1,1 @@
-export { default } from './LogsPage';
+export { default } from '../../features/logs';

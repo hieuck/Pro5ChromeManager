@@ -1,1 +1,1 @@
-export { default } from '../../pages/Proxies';
+export { default } from './ProxiesPage';

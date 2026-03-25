@@ -59,6 +59,7 @@ src/
 - Feature modules in `src/server/app/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
 - Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing legacy folders directly.
 - `src/server/core/*` owns composition and process lifecycle concerns.
+- `src/ui/pages/*` and `src/server/routes/*` are transitional compatibility layers during the rewrite and should trend toward re-export-only adapters.
 
 ## Migration rules
 

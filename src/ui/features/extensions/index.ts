@@ -1,1 +1,1 @@
-export { default } from '../../pages/Extensions';
+export { default } from './ExtensionsPage';

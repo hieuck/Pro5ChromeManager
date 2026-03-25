@@ -8,7 +8,7 @@ import { cookieManager } from '../../managers/CookieManager';
 import { usageMetricsManager } from '../../managers/UsageMetricsManager';
 import { logger } from '../../utils/logger';
 import { dataPath } from '../../utils/dataPaths';
-import { isNotFoundError, sendError, sendSuccess } from '../shared/http';
+import { isNotFoundError, sendError, sendSuccess } from '../../app/shared/http';
 import {
   BulkCreateProfilesSchema,
   BulkImportProfilesSchema,
