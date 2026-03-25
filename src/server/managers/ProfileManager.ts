@@ -1,10 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
-import archiver from 'archiver';
-import { createWriteStream } from 'fs';
 import { logger } from '../utils/logger';
 import { configManager } from './ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
@@ -12,18 +8,19 @@ import { extensionManager } from './ExtensionManager';
 import { bookmarkManager } from './BookmarkManager';
 import { sanitizePath } from '../utils/pathSanitizer';
 import { dataPath, resolveAppPath } from '../utils/dataPaths';
-import { Profile, SearchQuery } from '../shared/types';
-import { migrateProfile, repairProfile, CURRENT_SCHEMA_VERSION } from './profile/Migration';
-
-// ─── Constants ─────────────────────────────────────────────────────────────────
-
-const extractArchive = promisify(execFile);
-
-// ─── ProfileManager ────────────────────────────────────────────────────────────
+import type { Profile, SearchQuery } from '../shared/types';
+import { CURRENT_SCHEMA_VERSION, migrateProfile } from '../features/profiles/migration';
+import {
+  buildClonedProfile,
+  buildCreatedProfile,
+  buildImportedPackageProfile,
+  buildImportedProfile,
+} from '../features/profiles/records';
+import { createProfileArchive, extractWindowsZipArchive } from '../features/profiles/packageArchive';
+import { copyDirectory, loadProfilesFromDirectory, saveProfileRecord } from '../features/profiles/storage';
 
 export class ProfileManager {
   private profiles: Map<string, Profile> = new Map();
-  /** Maps profileId → actual directory name on disk (may differ from id for legacy profiles) */
   private profileDirMap: Map<string, string> = new Map();
   private profilesDir: string;
   private dataDir: string;
@@ -39,83 +36,17 @@ export class ProfileManager {
     this.listDefaultExtensionIds = listDefaultExtensionIds ?? (() => extensionManager.listDefaultExtensionIds());
   }
 
-  /** Scan profilesDir, load all profiles into memory, run migrations */
   async initialize(): Promise<void> {
-    await fs.mkdir(this.profilesDir, { recursive: true });
-
-    let entries: string[] = [];
-    try {
-      entries = await fs.readdir(this.profilesDir);
-    } catch {
-      logger.warn('ProfileManager: could not read profilesDir', { dir: this.profilesDir });
-      return;
-    }
-
-    for (const entry of entries) {
-      const profileJsonPath = path.join(this.profilesDir, entry, 'profile.json');
-      try {
-        const raw = await fs.readFile(profileJsonPath, 'utf-8');
-        const parsed = JSON.parse(raw) as Record<string, unknown>;
-
-        // Track whether migration ran or data repair is needed — if so, persist back to disk
-        const rawVersion = typeof parsed['schemaVersion'] === 'number' ? parsed['schemaVersion'] : 0;
-        const migrated = migrateProfile(parsed, CURRENT_SCHEMA_VERSION) as unknown as Profile;
-        
-        const { profile, needsSave: repairNeedsSave } = await repairProfile(migrated);
-        let needsSave = rawVersion < CURRENT_SCHEMA_VERSION || repairNeedsSave;
-
-        // Mark needsSave if proxy was in legacy format (already normalized to null by migrateProfile)
-        const rawProxy = parsed['proxy'];
-        if (rawProxy !== null && typeof rawProxy === 'object' && 'server' in (rawProxy as object) && !('id' in (rawProxy as object))) {
-          needsSave = true;
-        }
-
-        // Track the actual dir name
-        this.profileDirMap.set(profile.id, entry);
-
-        // If dir name doesn't match profile.id, rename it to UUID for consistency
-        if (entry !== profile.id) {
-          const oldDir = path.join(this.profilesDir, entry);
-          const newDir = path.join(this.profilesDir, profile.id);
-          try {
-            await fs.rename(oldDir, newDir);
-            this.profileDirMap.set(profile.id, profile.id);
-            needsSave = true;
-            logger.info('ProfileManager: migrated legacy dir name to UUID', { from: entry, to: profile.id });
-          } catch (renameErr) {
-            // Keep using old dir name if rename fails
-            logger.warn('ProfileManager: could not rename legacy dir', {
-              from: entry,
-              to: profile.id,
-              error: renameErr instanceof Error ? renameErr.message : String(renameErr),
-            });
-          }
-        }
-
-        this.profiles.set(profile.id, profile);
-
-        // Persist any repairs back to disk
-        if (needsSave) {
-          await this.saveProfile(profile).catch((saveErr) => {
-            logger.warn('ProfileManager: could not persist repaired profile', {
-              id: profile.id,
-              error: saveErr instanceof Error ? saveErr.message : String(saveErr),
-            });
-          });
-        }
-      } catch (err) {
-        logger.warn('ProfileManager: failed to load profile', {
-          entry,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-
+    const loadedState = await loadProfilesFromDirectory(this.profilesDir);
+    this.profiles = loadedState.profiles;
+    this.profileDirMap = loadedState.profileDirMap;
     logger.info('ProfileManager initialized', { count: this.profiles.size });
   }
 
-  /** Create a new profile */
-  async createProfile(name: string, options?: Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'schemaVersion'>>): Promise<Profile> {
+  async createProfile(
+    name: string,
+    options?: Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'schemaVersion'>>,
+  ): Promise<Profile> {
     const id = uuidv4();
     const now = new Date().toISOString();
     const profileDir = sanitizePath(this.profilesDir, id);
@@ -123,37 +54,22 @@ export class ProfileManager {
     await fs.mkdir(profileDir, { recursive: true });
     await fs.mkdir(path.join(profileDir, 'Default'), { recursive: true });
 
-    // Ensure fingerprint engine is ready
     if (!options?.fingerprint) {
       try {
         await fingerprintEngine.initialize();
       } catch {
-        // already initialized or fallback
+        // fallback generation still works
       }
     }
 
-    const fingerprint = options?.fingerprint ?? fingerprintEngine.generateFingerprint();
-
-    const extensionIds = options?.extensionIds ?? this.listDefaultExtensionIds();
-
-    const profile: Profile = {
+    const profile = buildCreatedProfile({
       id,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
       name,
-      notes: options?.notes ?? '',
-      tags: options?.tags ?? [],
-      group: options?.group ?? null,
-      owner: options?.owner ?? null,
-      runtime: options?.runtime ?? 'auto',
-      proxy: options?.proxy ?? null,
-      extensionIds,
-      bookmarks: options?.bookmarks ?? [],
-      fingerprint,
-      createdAt: now,
-      updatedAt: now,
-      lastUsedAt: null,
-      totalSessions: 0,
-    };
+      now,
+      fingerprint: options?.fingerprint ?? fingerprintEngine.generateFingerprint(),
+      extensionIds: options?.extensionIds ?? this.listDefaultExtensionIds(),
+      options,
+    });
 
     this.profileDirMap.set(id, id);
     await this.saveProfile(profile);
@@ -162,37 +78,28 @@ export class ProfileManager {
     return profile;
   }
 
-  /** Clone an existing profile into a new profile with fresh usage metadata */
   async cloneProfile(
     id: string,
     overrides?: Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'schemaVersion' | 'lastUsedAt' | 'totalSessions'>>,
   ): Promise<Profile> {
     const existing = this.profiles.get(id);
-    if (!existing) throw new Error(`Profile not found: ${id}`);
+    if (!existing) {
+      throw new Error(`Profile not found: ${id}`);
+    }
 
     const cloneId = uuidv4();
     const now = new Date().toISOString();
     const sourceDir = sanitizePath(this.profilesDir, id);
     const cloneDir = sanitizePath(this.profilesDir, cloneId);
 
-    await this.copyDir(sourceDir, cloneDir);
+    await copyDirectory(sourceDir, cloneDir);
 
-    const clone: Profile = {
-      ...JSON.parse(JSON.stringify(existing)) as Profile,
-      ...overrides,
-      id: cloneId,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-      name: overrides?.name?.trim() || `${existing.name} Copy`,
-      tags: overrides?.tags ?? [...existing.tags],
-      extensionIds: overrides?.extensionIds ?? [...existing.extensionIds],
-      bookmarks: overrides?.bookmarks ?? [...existing.bookmarks],
-      fingerprint: overrides?.fingerprint ?? JSON.parse(JSON.stringify(existing.fingerprint)),
-      proxy: overrides?.proxy ? { ...overrides.proxy } : existing.proxy ? { ...existing.proxy } : null,
-      createdAt: now,
-      updatedAt: now,
-      lastUsedAt: null,
-      totalSessions: 0,
-    };
+    const clone = buildClonedProfile({
+      cloneId,
+      now,
+      existing,
+      overrides,
+    });
 
     this.profileDirMap.set(cloneId, cloneId);
     await this.saveProfile(clone);
@@ -201,10 +108,11 @@ export class ProfileManager {
     return clone;
   }
 
-  /** Update profile fields */
   async updateProfile(id: string, partial: Partial<Omit<Profile, 'id' | 'createdAt' | 'schemaVersion'>>): Promise<Profile> {
     const existing = this.profiles.get(id);
-    if (!existing) throw new Error(`Profile not found: ${id}`);
+    if (!existing) {
+      throw new Error(`Profile not found: ${id}`);
+    }
 
     const updated: Profile = {
       ...existing,
@@ -220,25 +128,23 @@ export class ProfileManager {
     return updated;
   }
 
-  /** Delete profile directory and extension dir */
   async deleteProfile(id: string): Promise<void> {
-    if (!this.profiles.has(id)) throw new Error(`Profile not found: ${id}`);
+    if (!this.profiles.has(id)) {
+      throw new Error(`Profile not found: ${id}`);
+    }
 
     const dirName = this.profileDirMap.get(id) ?? id;
     const profileDir = path.join(this.profilesDir, dirName);
     const extDir = sanitizePath(path.join(this.dataDir, 'extensions'), id);
 
     await fs.rm(profileDir, { recursive: true, force: true });
-    await fs.rm(extDir, { recursive: true, force: true }).catch(() => {
-      // extension dir may not exist
-    });
+    await fs.rm(extDir, { recursive: true, force: true }).catch(() => undefined);
 
     this.profiles.delete(id);
     this.profileDirMap.delete(id);
     logger.info('Profile deleted', { id });
   }
 
-  /** Get a single profile by ID */
   getProfile(id: string): Profile | undefined {
     return this.profiles.get(id);
   }
@@ -253,77 +159,57 @@ export class ProfileManager {
     return sanitizePath(this.profilesDir, dirName);
   }
 
-  /** List all profiles */
   listProfiles(): Profile[] {
     return Array.from(this.profiles.values());
   }
 
-  /** Search/filter profiles */
   searchProfiles(query: SearchQuery): Profile[] {
-    return Array.from(this.profiles.values()).filter((p) => {
-      if (query.name) {
-        const q = query.name.toLowerCase();
-        if (!p.name.toLowerCase().includes(q)) return false;
+    return Array.from(this.profiles.values()).filter((profile) => {
+      if (query.name && !profile.name.toLowerCase().includes(query.name.toLowerCase())) {
+        return false;
       }
       if (query.tags && query.tags.length > 0) {
-        const hasTag = query.tags.some((t) => p.tags.includes(t));
-        if (!hasTag) return false;
+        const hasTag = query.tags.some((tag) => profile.tags.includes(tag));
+        if (!hasTag) {
+          return false;
+        }
       }
-      if (query.group !== undefined) {
-        if (p.group !== query.group) return false;
+      if (query.group !== undefined && profile.group !== query.group) {
+        return false;
       }
-      if (query.owner !== undefined) {
-        if (p.owner !== query.owner) return false;
+      if (query.owner !== undefined && profile.owner !== query.owner) {
+        return false;
       }
       return true;
     });
   }
 
-  /** Import a profile from an existing Chrome user data directory */
   async importProfile(srcDir: string): Promise<Profile> {
     const resolvedSrc = path.resolve(srcDir);
     const defaultDir = path.join(resolvedSrc, 'Default');
-    let hasDefault = false;
-    try {
-      await fs.access(defaultDir);
-      hasDefault = true;
-    } catch {
-      hasDefault = false;
-    }
+    const hasDefault = await fs.access(defaultDir).then(() => true).catch(() => false);
 
     const id = uuidv4();
     const destDir = sanitizePath(this.profilesDir, id);
     await fs.mkdir(destDir, { recursive: true });
 
     if (hasDefault) {
-      await this.copyDir(defaultDir, path.join(destDir, 'Default'));
+      await copyDirectory(defaultDir, path.join(destDir, 'Default'));
     }
-
-    const name = path.basename(resolvedSrc);
-    const now = new Date().toISOString();
 
     try {
       await fingerprintEngine.initialize();
-    } catch { /* ignore */ }
+    } catch {
+      // fallback generation still works
+    }
 
-    const profile: Profile = {
+    const profile = buildImportedProfile({
       id,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-      name,
-      notes: '',
-      tags: [],
-      group: null,
-      owner: null,
-      runtime: 'auto',
-      proxy: null,
-      extensionIds: [],
+      name: path.basename(resolvedSrc),
+      now: new Date().toISOString(),
       bookmarks: await bookmarkManager.readBookmarks(destDir),
       fingerprint: fingerprintEngine.generateFingerprint(),
-      createdAt: now,
-      updatedAt: now,
-      lastUsedAt: null,
-      totalSessions: 0,
-    };
+    });
 
     this.profileDirMap.set(id, id);
     await this.saveProfile(profile);
@@ -352,29 +238,27 @@ export class ProfileManager {
     await fs.mkdir(tempExtractDir, { recursive: true });
 
     try {
-      await extractArchive('powershell.exe', [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        `Expand-Archive -LiteralPath '${resolvedPackagePath.replace(/'/g, "''")}' -DestinationPath '${tempExtractDir.replace(/'/g, "''")}' -Force`,
-      ]);
+      await extractWindowsZipArchive(resolvedPackagePath, tempExtractDir);
 
       const rawProfile = await fs.readFile(path.join(tempExtractDir, 'profile.json'), 'utf-8').catch(() => null);
       if (!rawProfile) {
         throw new Error('profile.json not found in package');
       }
 
-      const parsedProfile = JSON.parse(rawProfile) as Record<string, unknown>;
-      const migratedProfile = migrateProfile(parsedProfile, CURRENT_SCHEMA_VERSION) as unknown as Profile;
+      const migratedProfile = migrateProfile(
+        JSON.parse(rawProfile) as Record<string, unknown>,
+        CURRENT_SCHEMA_VERSION,
+      ) as unknown as Profile;
       const importedId = uuidv4();
-      const now = new Date().toISOString();
       const importedDir = sanitizePath(this.profilesDir, importedId);
+      const now = new Date().toISOString();
+
       await fs.mkdir(importedDir, { recursive: true });
 
-      const defaultDir = path.join(tempExtractDir, 'Default');
-      const hasDefaultDir = await fs.stat(defaultDir).then((stat) => stat.isDirectory()).catch(() => false);
+      const packagedDefaultDir = path.join(tempExtractDir, 'Default');
+      const hasDefaultDir = await fs.stat(packagedDefaultDir).then((stat) => stat.isDirectory()).catch(() => false);
       if (hasDefaultDir) {
-        await this.copyDir(defaultDir, path.join(importedDir, 'Default'));
+        await copyDirectory(packagedDefaultDir, path.join(importedDir, 'Default'));
       } else {
         await fs.mkdir(path.join(importedDir, 'Default'), { recursive: true });
       }
@@ -390,25 +274,13 @@ export class ProfileManager {
         importedBookmarks = await bookmarkManager.readBookmarks(importedDir);
       }
 
-      const profile: Profile = {
-        ...migratedProfile,
-        id: importedId,
-        schemaVersion: CURRENT_SCHEMA_VERSION,
-        name: migratedProfile.name?.trim() || `Imported ${importedId.slice(0, 8)}`,
-        notes: migratedProfile.notes ?? '',
-        tags: migratedProfile.tags ?? [],
-        group: migratedProfile.group ?? null,
-        owner: migratedProfile.owner ?? null,
-        runtime: migratedProfile.runtime ?? 'auto',
-        proxy: migratedProfile.proxy ?? null,
-        extensionIds: migratedProfile.extensionIds ?? [],
-        bookmarks: importedBookmarks,
-        fingerprint: migratedProfile.fingerprint ?? fingerprintEngine.generateFingerprint(),
-        createdAt: now,
-        updatedAt: now,
-        lastUsedAt: null,
-        totalSessions: 0,
-      };
+      const profile = buildImportedPackageProfile({
+        importedId,
+        now,
+        migratedProfile,
+        importedBookmarks,
+        fallbackFingerprint: fingerprintEngine.generateFingerprint(),
+      });
 
       this.profileDirMap.set(importedId, importedId);
       await this.saveProfile(profile);
@@ -419,49 +291,33 @@ export class ProfileManager {
         packagePath: resolvedPackagePath,
       });
       return profile;
-    } catch (err) {
-      throw new Error(`Failed to import profile package: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (error) {
+      throw new Error(`Failed to import profile package: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       await fs.rm(tempExtractDir, { recursive: true, force: true }).catch(() => undefined);
     }
   }
 
-  /** Export a profile as a .zip file */
   async exportProfile(id: string, destPath: string): Promise<void> {
     const profile = this.profiles.get(id);
-    if (!profile) throw new Error(`Profile not found: ${id}`);
+    if (!profile) {
+      throw new Error(`Profile not found: ${id}`);
+    }
 
     const dirName = this.profileDirMap.get(id) ?? id;
-    const profileDir = path.join(this.profilesDir, dirName);
-    const cookiesPath = path.join(profileDir, 'cookies.json');
-    const includeCookies = await fs.access(cookiesPath).then(() => true).catch(() => false);
-
-    await new Promise<void>((resolve, reject) => {
-      const output = createWriteStream(destPath);
-      const archive = archiver('zip', { zlib: { level: 6 } });
-
-      output.on('close', resolve);
-      archive.on('error', reject);
-      archive.pipe(output);
-
-      archive.append(JSON.stringify(profile, null, 2), { name: 'profile.json' });
-      const defaultDir = path.join(profileDir, 'Default');
-      archive.directory(defaultDir, 'Default');
-
-      if (includeCookies) {
-        archive.file(cookiesPath, { name: 'cookies.json' });
-      }
-
-      archive.finalize().catch(reject);
+    await createProfileArchive({
+      profile,
+      profileDir: path.join(this.profilesDir, dirName),
+      destPath,
     });
-
     logger.info('Profile exported', { id, destPath });
   }
 
-  /** Update lastUsedAt and increment totalSessions */
   async updateLastUsed(id: string): Promise<void> {
     const profile = this.profiles.get(id);
-    if (!profile) throw new Error(`Profile not found: ${id}`);
+    if (!profile) {
+      throw new Error(`Profile not found: ${id}`);
+    }
 
     const updated: Profile = {
       ...profile,
@@ -474,29 +330,12 @@ export class ProfileManager {
     this.profiles.set(id, updated);
   }
 
-  // ─── Private helpers ──────────────────────────────────────────────────────────
-
   private async saveProfile(profile: Profile): Promise<void> {
-    const dirName = this.profileDirMap.get(profile.id) ?? profile.id;
-    const profileDir = path.join(this.profilesDir, dirName);
-    await fs.mkdir(profileDir, { recursive: true });
-    const profilePath = path.join(profileDir, 'profile.json');
-    await fs.writeFile(profilePath, JSON.stringify(profile, null, 2), 'utf-8');
-    await bookmarkManager.syncBookmarks(profileDir, profile.bookmarks ?? []);
-  }
-
-  private async copyDir(src: string, dest: string): Promise<void> {
-    await fs.mkdir(dest, { recursive: true });
-    const entries = await fs.readdir(src, { withFileTypes: true });
-    for (const entry of entries) {
-      const srcPath = path.join(src, entry.name);
-      const destPath = path.join(dest, entry.name);
-      if (entry.isDirectory()) {
-        await this.copyDir(srcPath, destPath);
-      } else {
-        await fs.copyFile(srcPath, destPath);
-      }
-    }
+    await saveProfileRecord({
+      profilesDir: this.profilesDir,
+      profileDirMap: this.profileDirMap,
+      profile,
+    });
   }
 }
 
