@@ -1,1 +1,1 @@
-export { default } from '../../routes/backups.routes';
+export { default } from './router';

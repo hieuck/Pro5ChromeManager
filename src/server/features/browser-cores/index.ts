@@ -1,1 +1,1 @@
-export { default } from '../../routes/browserCores.routes';
+export { default } from './router';

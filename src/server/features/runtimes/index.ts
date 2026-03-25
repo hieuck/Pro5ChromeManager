@@ -1,1 +1,1 @@
-export { default } from '../../routes/runtimes.routes';
+export { default } from './router';

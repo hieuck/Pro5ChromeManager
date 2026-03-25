@@ -1,1 +1,1 @@
-export { default } from '../../routes/proxies.routes';
+export { default } from './router';

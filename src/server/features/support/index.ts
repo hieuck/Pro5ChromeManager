@@ -1,1 +1,1 @@
-export { default } from '../../routes/support.routes';
+export { default } from './router';

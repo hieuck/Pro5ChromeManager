@@ -1,1 +1,1 @@
-export { default } from '../../routes/instances.routes';
+export { default } from './router';

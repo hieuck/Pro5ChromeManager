@@ -23,6 +23,9 @@ src/
     features/
       <domain>/
         index.ts
+        router.ts
+        contracts.ts
+        helpers.ts
     app/
     managers/
     routes/
@@ -54,12 +57,12 @@ src/
 - Thin module entrypoints may be named `index.tsx` only when they export the canonical page component and approved public API.
 - Avoid duplicate wrapper files like `src/ui/pages/Logs.tsx` when a feature folder already exists.
 - Shared helpers should be named by purpose, not `utils`, unless the folder already gives enough context.
-- Route adapters in `src/server/routes` should stay thin and delegate to `src/server/app/<domain>`.
+- Route adapters in `src/server/routes` should stay thin and delegate to `src/server/features/<domain>`.
 - Route adapter files in `src/server/routes` must end with `.routes.ts`.
-- Feature modules in `src/server/app/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
+- Feature modules in `src/server/features/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
 - Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing legacy folders directly.
 - `src/server/core/*` owns composition and process lifecycle concerns.
-- `src/ui/pages/*` and `src/server/routes/*` are transitional compatibility layers during the rewrite and should trend toward re-export-only adapters.
+- `src/ui/pages/*`, `src/server/routes/*`, and `src/server/app/*` are transitional compatibility layers during the rewrite and should trend toward re-export-only adapters.
 
 ## Migration rules
 
@@ -71,6 +74,6 @@ src/
 ## Current migration priorities
 
 1. Normalize UI page module structure and naming.
-2. Move remaining large server routes into `src/server/app/<domain>`.
+2. Move remaining server route implementations into `src/server/features/<domain>`.
 3. Replace generic cross-cutting files with domain-specific modules.
 4. Revisit test structure after architecture boundaries are stable.
