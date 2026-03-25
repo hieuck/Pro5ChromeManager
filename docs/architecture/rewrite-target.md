@@ -2,7 +2,7 @@
 
 ## Why this exists
 
-The repository currently mixes multiple structure styles at the same time:
+The repository rewrite was needed because the old codebase mixed multiple structure styles at the same time:
 
 - route-by-type and feature-by-folder on the server
 - page wrapper files and page folders in the UI
@@ -27,7 +27,6 @@ src/
         router.ts
         contracts.ts
         helpers.ts
-    app/
     managers/
     routes/
     utils/
@@ -38,32 +37,24 @@ src/
     features/
       <domain>/
         index.ts
+        <Feature>Page.tsx
     hooks/
     i18n/
-    pages/
-      <Feature>/
-        <Feature>Page.tsx
-        index.tsx
-        components/
-        hooks/
-        services/
-        state/
-        types.ts
 ```
 
 ## Naming rules
 
 - Use domain or feature names, not technical buckets, whenever possible.
 - Primary page components must end with `Page.tsx`.
-- Thin module entrypoints may be named `index.tsx` only when they export the canonical page component and approved public API.
-- Avoid duplicate wrapper files like `src/ui/pages/Logs.tsx` when a feature folder already exists.
+- Thin module entrypoints may be named `index.ts` or `index.tsx` only when they export the canonical page component and approved public API.
+- Do not keep duplicate wrapper folders such as `src/ui/pages/*` once `src/ui/features/*` is the canonical home.
 - Shared helpers should be named by purpose, not `utils`, unless the folder already gives enough context.
 - Route adapters in `src/server/routes` should stay thin and delegate to `src/server/features/<domain>`.
 - Route adapter files in `src/server/routes` must end with `.routes.ts`.
 - Feature modules in `src/server/features/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
 - Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing legacy folders directly.
 - `src/server/core/*` owns composition and process lifecycle concerns.
-- `src/ui/pages/*`, `src/server/routes/*`, and `src/server/app/*` are transitional compatibility layers during the rewrite and should trend toward re-export-only adapters.
+- `src/server/routes/*` is the only remaining compatibility layer and should stay thin.
 
 ## Migration rules
 
@@ -74,8 +65,6 @@ src/
 
 ## Current migration priorities
 
-1. Normalize UI page module structure and naming.
-2. Move remaining server route implementations into `src/server/features/<domain>`.
-3. Move server composition helpers out of `src/server/app/*` into `src/server/core/*`.
-4. Shrink compatibility layers in `src/ui/pages/*`, `src/server/routes/*`, and `src/server/app/*`.
-5. Revisit test structure after architecture boundaries are stable.
+1. Keep `src/server/routes/*` thin and avoid moving implementation back out of `features/*`.
+2. Reduce oversized managers by pushing domain-specific behavior closer to `features/*` and focused helpers.
+3. Revisit test structure after architecture boundaries are stable.

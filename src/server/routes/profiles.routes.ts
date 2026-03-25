@@ -1,1 +1,1 @@
-export { default } from '../app/profiles';
+export { default } from '../features/profiles';
