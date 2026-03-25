@@ -4,50 +4,67 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useTranslation } from '../../hooks/useTranslation';
 import { type ParsedLogEntry } from '../../utils/logParsing';
+import {
+  buildRepeatedRecentIssues,
+  buildRepeatedRecentSources,
+  buildSourceOptions,
+  buildVisibleSources,
+  calculateIssueStreak,
+  calculateVisibleIssueTrend,
+  countLogLevels,
+  countRecentIssues,
+  filterIssueEntries,
+  filterLogEntries,
+  findLatestIssue,
+  getRecentIssueBreakdown,
+  getDefaultLogsViewState,
+  isWithinLastMinutes,
+  parseStoredLogsViewState,
+  sortLogEntries,
+  type LogsFilter,
+  type LogsSortOrder,
+  type RepeatedRecentIssueSummary,
+  type RepeatedRecentSourceSummary,
+  type SourceOption,
+  type StoredLogsViewState,
+  type VisibleSourceSummary,
+} from './logsState.utils';
 
 const LOGS_VIEW_STORAGE_KEY = 'pro5.logs.view';
 
-export interface StoredLogsViewState {
-  filter: 'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error';
-  query: string;
-  sourceFilter: string;
-  recentWindowOnly: boolean;
-  sortOrder: 'newest' | 'oldest';
-}
-
 export interface LogsRouteState {
   presetQuery?: string;
-  presetFilter?: 'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error';
+  presetFilter?: LogsFilter;
   presetSourceFilter?: string;
   presetRecentWindowOnly?: boolean;
-  presetSortOrder?: 'newest' | 'oldest';
+  presetSortOrder?: LogsSortOrder;
 }
 
 export interface LogsState {
   t: ReturnType<typeof useTranslation>['t'];
   entries: ParsedLogEntry[];
   loading: boolean;
-  filter: 'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error';
+  filter: LogsFilter;
   query: string;
   sourceFilter: string;
   autoRefresh: boolean;
   recentWindowOnly: boolean;
-  sortOrder: 'newest' | 'oldest';
+  sortOrder: LogsSortOrder;
   lastRefreshedAt: string | null;
   
   // Setters
-  setFilter: (v: 'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error') => void;
+  setFilter: (v: LogsFilter) => void;
   setQuery: (v: string) => void;
   setSourceFilter: (v: string) => void;
   setAutoRefresh: (v: boolean) => void;
   setRecentWindowOnly: (v: boolean | ((prev: boolean) => boolean)) => void;
-  setSortOrder: (v: 'newest' | 'oldest') => void;
+  setSortOrder: (v: LogsSortOrder) => void;
   
   // Derived
   filteredEntries: ParsedLogEntry[];
   matchedEntries: ParsedLogEntry[];
   issueEntries: ParsedLogEntry[];
-  sourceOptions: { label: string; value: string }[];
+  sourceOptions: SourceOption[];
   counts: { debug: number; info: number; warn: number; error: number };
   filteredCounts: { debug: number; info: number; warn: number; error: number };
   visibleIssueRatio: number;
@@ -59,8 +76,8 @@ export interface LogsState {
   recentIssueBreakdown: { error: number; warn: number };
   visibleIssueTrend: { last15m: number; last60m: number };
   visibleTrendStatus: { tone: 'info' | 'warning' | 'error'; label: string };
-  visibleSources: Array<{ count: number; source: string; latestEntry: ParsedLogEntry }>;
-  visibleTopSource: { count: number; source: string; latestEntry: ParsedLogEntry } | null;
+  visibleSources: VisibleSourceSummary[];
+  visibleTopSource: VisibleSourceSummary | null;
   visibleTopSourceShare: number;
   visibleTopSourceFreshness: string;
   visibleTopSourceTimestamp: string;
@@ -69,10 +86,10 @@ export interface LogsState {
   visibleSourceMode: { label: string; hint: string };
   visibleSourceActionHint: string;
   visibleSourceActionButtonLabel: string;
-  repeatedRecentIssues: Array<{ count: number; level: 'warn' | 'error'; message: string }>;
-  repeatedRecentIssue: { count: number; level: 'warn' | 'error'; message: string } | null;
-  repeatedRecentSources: Array<{ count: number; level: 'warn' | 'error'; source: string; latestEntry: ParsedLogEntry }>;
-  hottestRecentSource: { count: number; level: 'warn' | 'error'; source: string; latestEntry: ParsedLogEntry } | null;
+  repeatedRecentIssues: RepeatedRecentIssueSummary[];
+  repeatedRecentIssue: RepeatedRecentIssueSummary | null;
+  repeatedRecentSources: RepeatedRecentSourceSummary[];
+  hottestRecentSource: RepeatedRecentSourceSummary | null;
   activeFilterTags: Array<{ key: string; label: string; onClose: () => void }>;
   
   // Handlers
@@ -95,11 +112,11 @@ export interface LogsState {
   handleCopyRecentIssueSources: () => Promise<void>;
   handleFocusVisibleSource: (src: string) => void;
   handleOpenVisibleSourceLatest: (entry: ParsedLogEntry | null | undefined) => void;
-  handleCopyVisibleSourceLatest: (source: any) => Promise<void>;
+  handleCopyVisibleSourceLatest: (source: VisibleSourceSummary | null | undefined) => Promise<void>;
   handleCopyVisibleTopSourceSummary: () => Promise<void>;
-  handleCopyVisibleSourceDigest: (source: any) => Promise<void>;
+  handleCopyVisibleSourceDigest: (source: VisibleSourceSummary | null | undefined) => Promise<void>;
   handleCopyVisibleSources: () => Promise<void>;
-  handleCopyRecentIssueSourceDigest: (source: any) => Promise<void>;
+  handleCopyRecentIssueSourceDigest: (source: RepeatedRecentSourceSummary | null | undefined) => Promise<void>;
   handleRunSelfTest: () => Promise<void>;
   handleExportVisibleLogs: () => void;
   handleResetFilters: () => void;
@@ -117,12 +134,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function isWithinLastMinutes(value: string | null, minutes: number): boolean {
-  if (!value) return false;
-  const diffMs = Date.now() - new Date(value).getTime();
-  return diffMs >= 0 && diffMs <= minutes * 60_000;
-}
-
 export const useLogsState = (): LogsState => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -130,32 +141,19 @@ export const useLogsState = (): LogsState => {
 
   const initialViewState = useMemo<StoredLogsViewState>(() => {
     if (typeof window === 'undefined') {
-      return { filter: 'all', query: '', sourceFilter: '', recentWindowOnly: false, sortOrder: 'newest' };
+      return getDefaultLogsViewState();
     }
-    try {
-      const rawValue = window.localStorage.getItem(LOGS_VIEW_STORAGE_KEY);
-      if (!rawValue) return { filter: 'all', query: '', sourceFilter: '', recentWindowOnly: false, sortOrder: 'newest' };
-      const parsed = JSON.parse(rawValue) as Partial<StoredLogsViewState>;
-      return {
-        filter: (['issues', 'debug', 'info', 'warn', 'error'] as const).includes(parsed.filter as any) ? (parsed.filter as any) : 'all',
-        query: typeof parsed.query === 'string' ? parsed.query : '',
-        sourceFilter: typeof parsed.sourceFilter === 'string' ? parsed.sourceFilter : '',
-        recentWindowOnly: Boolean(parsed.recentWindowOnly),
-        sortOrder: parsed.sortOrder === 'oldest' ? 'oldest' : 'newest',
-      };
-    } catch {
-      return { filter: 'all', query: '', sourceFilter: '', recentWindowOnly: false, sortOrder: 'newest' };
-    }
+    return parseStoredLogsViewState(window.localStorage.getItem(LOGS_VIEW_STORAGE_KEY));
   }, []);
 
   const [entries, setEntries] = useState<ParsedLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error'>(initialViewState.filter);
+  const [filter, setFilter] = useState<LogsFilter>(initialViewState.filter);
   const [query, setQuery] = useState(initialViewState.query);
   const [sourceFilter, setSourceFilter] = useState(initialViewState.sourceFilter);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [recentWindowOnly, setRecentWindowOnly] = useState(initialViewState.recentWindowOnly);
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(initialViewState.sortOrder);
+  const [sortOrder, setSortOrder] = useState<LogsSortOrder>(initialViewState.sortOrder);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
 
   const formatTimestamp = useCallback((value: string | null): string => {
@@ -224,58 +222,31 @@ export const useLogsState = (): LogsState => {
   }, [filter, query, recentWindowOnly, sortOrder, sourceFilter]);
 
   const matchedEntries = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return entries.filter((entry) => {
-      const levelMatches = filter === 'all'
-        || (filter === 'issues' ? entry.level === 'warn' || entry.level === 'error' : entry.level === filter);
-      const windowMatches = !recentWindowOnly || isWithinLastMinutes(entry.timestamp, 60);
-      const queryMatches = !normalizedQuery || entry.raw.toLowerCase().includes(normalizedQuery);
-      const effectiveSource = entry.source ?? 'unknown';
-      const sourceMatches = !sourceFilter || effectiveSource === sourceFilter;
-      return levelMatches && windowMatches && queryMatches && sourceMatches;
-    });
+    return filterLogEntries(entries, { filter, query, sourceFilter, recentWindowOnly });
   }, [entries, filter, query, recentWindowOnly, sourceFilter]);
 
   const filteredEntries = useMemo(
-    () => (sortOrder === 'oldest' ? matchedEntries.slice().reverse() : matchedEntries),
+    () => sortLogEntries(matchedEntries, sortOrder),
     [matchedEntries, sortOrder],
   );
 
   const sourceOptions = useMemo(
-    () => Array.from(new Set(entries.map((entry) => entry.source ?? 'unknown')))
-      .sort((left, right) => left.localeCompare(right))
-      .map((source) => ({ label: source, value: source })),
+    () => buildSourceOptions(entries),
     [entries],
   );
 
-  const counts = useMemo(() => ({
-    debug: entries.filter((entry) => entry.level === 'debug').length,
-    info: entries.filter((entry) => entry.level === 'info').length,
-    warn: entries.filter((entry) => entry.level === 'warn').length,
-    error: entries.filter((entry) => entry.level === 'error').length,
-  }), [entries]);
+  const counts = useMemo(() => countLogLevels(entries), [entries]);
 
-  const filteredCounts = useMemo(() => ({
-    debug: filteredEntries.filter((entry) => entry.level === 'debug').length,
-    info: filteredEntries.filter((entry) => entry.level === 'info').length,
-    warn: filteredEntries.filter((entry) => entry.level === 'warn').length,
-    error: filteredEntries.filter((entry) => entry.level === 'error').length,
-  }), [filteredEntries]);
+  const filteredCounts = useMemo(() => countLogLevels(filteredEntries), [filteredEntries]);
 
   const visibleIssueRatio = useMemo(() => {
     if (!filteredEntries.length) return 0;
     return Math.round(((filteredCounts.error + filteredCounts.warn) / filteredEntries.length) * 100);
   }, [filteredCounts.error, filteredCounts.warn, filteredEntries.length]);
 
-  const latestIssue = useMemo(
-    () => entries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
-    [entries],
-  );
+  const latestIssue = useMemo(() => findLatestIssue(entries), [entries]);
 
-  const latestVisibleIssue = useMemo(
-    () => matchedEntries.find((entry) => entry.level === 'warn' || entry.level === 'error') ?? null,
-    [matchedEntries],
-  );
+  const latestVisibleIssue = useMemo(() => findLatestIssue(matchedEntries), [matchedEntries]);
 
   const getLogLevelLabel = useCallback((level: ParsedLogEntry['level'] | 'all' | 'issues') => {
     switch (level) {
@@ -302,14 +273,7 @@ export const useLogsState = (): LogsState => {
       : emptyLabel
   ), [formatMaybeValue, getLogLevelLabel, t.logs.unknownValue, t.settings.noneValue]);
 
-  const issueStreak = useMemo(() => {
-    let streak = 0;
-    for (const entry of entries) {
-      if (entry.level === 'warn' || entry.level === 'error') { streak += 1; continue; }
-      break;
-    }
-    return streak;
-  }, [entries]);
+  const issueStreak = useMemo(() => calculateIssueStreak(entries), [entries]);
 
   const handleCopySingleLog = useCallback(async (raw: string) => {
     try {
@@ -325,30 +289,18 @@ export const useLogsState = (): LogsState => {
     } catch { void message.error(t.logs.copyFailed); }
   }, [filteredEntries, t.logs]);
 
-  const issueEntries = useMemo(
-    () => matchedEntries.filter((entry) => entry.level === 'warn' || entry.level === 'error'),
-    [matchedEntries],
-  );
+  const issueEntries = useMemo(() => filterIssueEntries(matchedEntries), [matchedEntries]);
 
-  const recentIssueCount = useMemo(
-    () => entries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60)).length,
-    [entries],
-  );
+  const recentIssueCount = useMemo(() => countRecentIssues(entries, 60), [entries]);
 
-  const recentIssueBreakdown = useMemo(() => ({
-    error: entries.filter((entry) => entry.level === 'error' && isWithinLastMinutes(entry.timestamp, 60)).length,
-    warn: entries.filter((entry) => entry.level === 'warn' && isWithinLastMinutes(entry.timestamp, 60)).length,
-  }), [entries]);
+  const recentIssueBreakdown = useMemo(() => getRecentIssueBreakdown(entries), [entries]);
 
   const recentIssueEntries = useMemo(
-    () => entries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60)),
+    () => filterIssueEntries(entries).filter((entry) => isWithinLastMinutes(entry.timestamp, 60)),
     [entries],
   );
 
-  const visibleIssueTrend = useMemo(() => ({
-    last15m: matchedEntries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 15)).length,
-    last60m: matchedEntries.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 60)).length,
-  }), [matchedEntries]);
+  const visibleIssueTrend = useMemo(() => calculateVisibleIssueTrend(matchedEntries), [matchedEntries]);
 
   const visibleTrendStatus = useMemo(() => {
     if (visibleIssueTrend.last15m >= 3) return { tone: 'error' as const, label: t.logs.visibleTrendHot };
@@ -356,20 +308,7 @@ export const useLogsState = (): LogsState => {
     return { tone: 'info' as const, label: t.logs.visibleTrendCalm };
   }, [t.logs, visibleIssueTrend]);
 
-  const visibleSources = useMemo(() => {
-    const countsBySource = new Map<string, { count: number; source: string; latestEntry: ParsedLogEntry }>();
-    for (const entry of matchedEntries) {
-      const sourceKey = entry.source ?? 'unknown';
-      const current = countsBySource.get(sourceKey);
-      if (current) {
-        current.count += 1;
-        if ((entry.timestamp ?? '') > (current.latestEntry.timestamp ?? '')) current.latestEntry = entry;
-        continue;
-      }
-      countsBySource.set(sourceKey, { count: 1, source: sourceKey, latestEntry: entry });
-    }
-    return Array.from(countsBySource.values()).sort((left, right) => right.count - left.count).slice(0, 3);
-  }, [matchedEntries]);
+  const visibleSources = useMemo(() => buildVisibleSources(matchedEntries), [matchedEntries]);
 
   const visibleTopSource = visibleSources[0] ?? null;
 
@@ -424,37 +363,17 @@ export const useLogsState = (): LogsState => {
     return t.logs.visibleSourceActionButtonMonitor;
   }, [t.logs, visibleSourceMode.label, visibleTopSource, visibleTopSourceShare]);
 
-  const repeatedRecentIssues = useMemo(() => {
-    const countsByMessage = new Map<string, { count: number; level: 'warn' | 'error'; message: string }>();
-    for (const entry of recentIssueEntries) {
-      const current = countsByMessage.get(entry.message);
-      if (current) {
-        current.count += 1;
-        if (entry.level === 'error') current.level = 'error';
-        continue;
-      }
-      countsByMessage.set(entry.message, { count: 1, level: entry.level as 'warn' | 'error', message: entry.message });
-    }
-    return Array.from(countsByMessage.values()).filter((e) => e.count > 1).sort((a, b) => b.count - a.count).slice(0, 3);
-  }, [recentIssueEntries]);
+  const repeatedRecentIssues = useMemo(
+    () => buildRepeatedRecentIssues(recentIssueEntries),
+    [recentIssueEntries],
+  );
 
   const repeatedRecentIssue = repeatedRecentIssues[0] ?? null;
 
-  const repeatedRecentSources = useMemo(() => {
-    const countsBySource = new Map<string, { count: number; level: 'warn' | 'error'; source: string; latestEntry: ParsedLogEntry }>();
-    for (const entry of recentIssueEntries) {
-      if (!entry.source) continue;
-      const current = countsBySource.get(entry.source);
-      if (current) {
-        current.count += 1;
-        if (entry.level === 'error') current.level = 'error';
-        if ((entry.timestamp ?? '') > (current.latestEntry.timestamp ?? '')) current.latestEntry = entry;
-        continue;
-      }
-      countsBySource.set(entry.source, { count: 1, level: entry.level as 'warn' | 'error', source: entry.source, latestEntry: entry });
-    }
-    return Array.from(countsBySource.values()).sort((a, b) => b.count - a.count).slice(0, 3);
-  }, [recentIssueEntries]);
+  const repeatedRecentSources = useMemo(
+    () => buildRepeatedRecentSources(recentIssueEntries),
+    [recentIssueEntries],
+  );
 
   const hottestRecentSource = repeatedRecentSources[0] ?? null;
 
@@ -606,7 +525,7 @@ export const useLogsState = (): LogsState => {
     void message.success(t.logs.openVisibleSourceLatestApplied);
   }, [t.logs]);
 
-  const handleCopyVisibleSourceLatest = useCallback(async (source: any) => {
+  const handleCopyVisibleSourceLatest = useCallback(async (source: VisibleSourceSummary | null | undefined) => {
     if (!source?.latestEntry) { void message.error(t.logs.visibleSourceLatestUnavailable); return; }
     const entry = source.latestEntry;
     const lines = [
@@ -648,7 +567,7 @@ export const useLogsState = (): LogsState => {
     } catch { void message.error(t.logs.copyFailed); }
   }, [getLogLevelLabel, t.logs, visibleSourceActionHint, visibleSourceMode.label, visibleTopSource, visibleTopSourceShare, visibleTopSourceTimestamp, visibleTopSourceTrend, visibleTopSourcesConcentration]);
 
-  const handleCopyVisibleSourceDigest = useCallback(async (source: any) => {
+  const handleCopyVisibleSourceDigest = useCallback(async (source: VisibleSourceSummary | null | undefined) => {
     if (!source) { void message.error(t.logs.visibleSourceDigestUnavailable); return; }
     const lines = [
       t.logs.visibleSourceDigestTitle,
@@ -689,7 +608,7 @@ export const useLogsState = (): LogsState => {
     } catch { void message.error(t.logs.copyFailed); }
   }, [getLogLevelLabel, t.logs, visibleSourceMode, visibleSources, visibleTopSourceShare, visibleTopSourcesConcentration]);
 
-  const handleCopyRecentIssueSourceDigest = useCallback(async (source: any) => {
+  const handleCopyRecentIssueSourceDigest = useCallback(async (source: RepeatedRecentSourceSummary | null | undefined) => {
     if (!source) { void message.error(t.logs.recentIssueSourceDigestUnavailable); return; }
     const lines = [
       t.logs.recentIssueSourceDigestTitle,
