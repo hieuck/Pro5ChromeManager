@@ -56,6 +56,8 @@ src/
 - Avoid duplicate wrapper files like `src/ui/pages/Logs.tsx` when a feature folder already exists.
 - Shared helpers should be named by purpose, not `utils`, unless the folder already gives enough context.
 - Route adapters in `src/server/routes` should stay thin and delegate to `src/server/app/<domain>`.
+- Route adapter files in `src/server/routes` must end with `.routes.ts`.
+- Feature modules in `src/server/app/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
 
 ## Migration rules
 
