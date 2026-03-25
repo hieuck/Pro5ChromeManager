@@ -1,14 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { dataPath, resolveAppPath } from '../utils/dataPaths';
+import { dataPath } from '../utils/dataPaths';
 import { logger } from '../utils/logger';
 import { ManagedExtension, ExtensionBundle } from '../shared/types';
 
 // Specialized Services
-import { sourceResolver, ResolvedSourceInput } from './extension/SourceResolver';
-import { downloader } from './extension/Downloader';
-import { extractor } from './extension/Extractor';
+import { sourceResolver, ResolvedSourceInput } from '../features/extensions/sourceResolver';
+import { downloader } from '../features/extensions/downloader';
+import { extractor } from '../features/extensions/extractor';
+import { loadManagedExtensions, persistManagedExtensions } from '../features/extensions/storage';
 
 const EXTENSIONS_PATH = dataPath('extensions.json');
 
@@ -21,22 +22,9 @@ export class ExtensionManager {
   }
 
   async initialize(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.extensionsPath, 'utf-8');
-      const parsed = JSON.parse(raw) as ManagedExtension[];
-      this.extensions = new Map(parsed.map((extension) => [extension.id, {
-        ...extension,
-        category: extension.category ?? null,
-        defaultForNewProfiles: extension.defaultForNewProfiles ?? false,
-      }]));
-    } catch (err) {
-      const isNotFound = err instanceof Error && 'code' in err && (err as any).code === 'ENOENT';
-      if (!isNotFound) {
-        logger.warn('ExtensionManager: failed to load extensions.json', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      this.extensions = new Map();
+    const parsed = await loadManagedExtensions(this.extensionsPath);
+    this.extensions = new Map(parsed.map((extension) => [extension.id, extension]));
+    if (parsed.length === 0) {
       await this.persist();
     }
 
@@ -240,8 +228,7 @@ export class ExtensionManager {
   }
 
   private async persist(): Promise<void> {
-    await fs.mkdir(path.dirname(this.extensionsPath), { recursive: true });
-    await fs.writeFile(this.extensionsPath, JSON.stringify(this.listExtensions(), null, 2), 'utf-8');
+    await persistManagedExtensions(this.extensionsPath, this.listExtensions());
   }
 }
 
