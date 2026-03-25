@@ -19,6 +19,7 @@ src/
   shared/
   server/
     core/
+      http.ts
       server/
     features/
       <domain>/
@@ -75,5 +76,6 @@ src/
 
 1. Normalize UI page module structure and naming.
 2. Move remaining server route implementations into `src/server/features/<domain>`.
-3. Replace generic cross-cutting files with domain-specific modules.
-4. Revisit test structure after architecture boundaries are stable.
+3. Move server composition helpers out of `src/server/app/*` into `src/server/core/*`.
+4. Shrink compatibility layers in `src/ui/pages/*`, `src/server/routes/*`, and `src/server/app/*`.
+5. Revisit test structure after architecture boundaries are stable.
