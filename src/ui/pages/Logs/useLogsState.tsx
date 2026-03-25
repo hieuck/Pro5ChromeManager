@@ -46,6 +46,7 @@ export interface LogsState {
   // Derived
   filteredEntries: ParsedLogEntry[];
   matchedEntries: ParsedLogEntry[];
+  issueEntries: ParsedLogEntry[];
   sourceOptions: { label: string; value: string }[];
   counts: { debug: number; info: number; warn: number; error: number };
   filteredCounts: { debug: number; info: number; warn: number; error: number };
@@ -785,7 +786,7 @@ export const useLogsState = (): LogsState => {
   return {
     t, entries, loading, filter, query, sourceFilter, autoRefresh, recentWindowOnly, sortOrder, lastRefreshedAt,
     setFilter, setQuery, setSourceFilter, setAutoRefresh, setRecentWindowOnly, setSortOrder,
-    filteredEntries, matchedEntries, sourceOptions, counts, filteredCounts, visibleIssueRatio,
+    filteredEntries, matchedEntries, issueEntries, sourceOptions, counts, filteredCounts, visibleIssueRatio,
     latestIssue, latestVisibleIssue, issueStreak, recentIssueCount, recentIssueEntries, recentIssueBreakdown,
     visibleIssueTrend, visibleTrendStatus, visibleSources, visibleTopSource, visibleTopSourceShare,
     visibleTopSourceFreshness, visibleTopSourceTimestamp, visibleTopSourceTrend, visibleTopSourcesConcentration,

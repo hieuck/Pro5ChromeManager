@@ -1,57 +1,40 @@
 import React from 'react';
+import { Alert, Button, Card, Col, Row, Space, Typography } from 'antd';
+import { ApiOutlined, CopyOutlined, DownloadOutlined, ReloadOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { StatsOverview } from './components/StatsOverview';
 import { ProfileQuickActions } from './components/ProfileQuickActions';
 import { IncidentDigest } from './components/IncidentDigest';
 import { ActivityDigest } from './components/ActivityDigest';
 import { SupportPanel } from './components/SupportPanel';
-
-import { useDashboardState, formatTime, summarizeIssueMessage } from './useDashboardState';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, Empty, Form, Input, List, Progress, Row, Select, Space, Statistic, Tag, Typography, message } from 'antd';
-import { ApiOutlined, ArrowRightOutlined, CopyOutlined, DownloadOutlined, PlayCircleOutlined, ReloadOutlined, SettingOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { apiClient, buildApiUrl } from '../api/client';
-import { useTranslation } from '../hooks/useTranslation';
-import { useWebSocket } from '../hooks/useWebSocket';
-import OnboardingWizard from '../components/OnboardingWizard';
-
-import { DashboardProfile, DashboardProxy, DashboardInstance, SupportStatus, IncidentEntry, SelfTestCheck, SelfTestResult, FeedbackEntry, BackupEntry, RuntimeEntry, LogEntry, SetupChecklistItem, NextStepAction } from './types';
+import { useDashboardState, formatTime } from './useDashboardState';
+import OnboardingWizard from '../../components/OnboardingWizard';
+import { RenderBoundary } from '../../components/RenderBoundary';
 
 const cardStyle: React.CSSProperties = {
   borderRadius: 16,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
 };
 
-function formatTime(value?: string | null): string {
-  if (!value) return '—';
-  return new Date(value).toLocaleString('vi-VN');
-}
-
-function minutesSince(value?: string | null): number | null {
-  if (!value) return null;
-  const diffMs = Date.now() - new Date(value).getTime();
-  if (diffMs < 0) return 0;
-  return Math.round(diffMs / 60_000);
-}
-
-function isWithinLastMinutes(value?: string | null, minutes = 60): boolean {
-  if (!value) return false;
-  const diffMs = Date.now() - new Date(value).getTime();
-  return diffMs >= 0 && diffMs <= minutes * 60_000;
-}
-
-function summarizeIssueMessage(message: string, maxLength = 44): string {
-  const normalized = message.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
-}
-
 const Dashboard: React.FC = () => {
   const state = useDashboardState();
-  const { navigate, profiles, proxies, instances, support, incidents, selfTest, feedbackEntries, backups, runtimes, logs, loading, startingProfileId, startingAllReady, stoppingProfileId, stoppingAllRunning, retestingProfileId, retestingAll, runningSelfTest, submittingFeedback, creatingBackup, copyingSummary, copyingIncidentDigest, copyingActivityDigest, copyingLatestIncident, copyingTopIncidentSource, copyingTopIncidentSources, copyingTopSourceLatestIncident, copyingLatestActivity, copyingTopActivityIssues, copyingTopActivitySourceLatest, copyingTopActivitySources, onboardingOpen, feedbackForm, getFeedbackCategoryLabel, getFeedbackSentimentLabel, getOnboardingStatusLabel, getIncidentLevelLabel, getLogLevelLabel, getSelfTestStatusLabel, formatMaybeValue, formatIncidentSummary, formatActivitySummary, loadDashboard, runningProfiles, healthyProxies, availableRuntimes, profilesNeedingAttention, recentProfiles, activeProfiles, launchReadyProfiles, failingProxyIds, logHeat, topRecentIssues, incidentDigest, activityDigest, handleStartProfile, handleStopProfile, handleStartAllReadyProfiles, handleStopAllRunningProfiles, handleRetestProxy, handleRetestAllFailingProxies, handleRunSelfTest, handleExportDiagnostics, handleCopySupportSummary, handleOpenCreateProfile, handleOpenLogEntry, handleOpenActivitySource, handleOpenTopActivitySourceLatest, handleOpenIncidentInLogs, handleOpenIncidentSource, handleOpenTopIncidentSource, handleOpenLatestIncident, handleOpenTopSourceLatestIncident, handleOpenRecentLogs, handleIncidentSuggestedAction, incidentSuggestedActionLabel, handleOpenHottestIssueLogs, handleCopyHottestIssue, handleCopyIncidentDigest, handleCopyLatestIncident, handleCopyTopIncidentSource, handleCopyTopIncidentSources, handleCopyTopSourceLatestIncident, handleCopyActivityDigest, handleCopyLatestActivity, handleCopyTopActivityIssues, handleCopyTopActivitySourceLatest, handleCopyTopActivitySources, handleOpenLatestActivity, handleActivitySuggestedAction, activitySuggestedActionLabel, handleOpenActivityIssue, handleCreateBackup, handleOpenOnboarding, handleSubmitFeedback, setupChecklist, nextStep, readinessPercent, readinessStatus } = state;
+  const {
+    t,
+    navigate,
+    profiles,
+    support,
+    loading,
+    copyingSummary,
+    creatingBackup,
+    onboardingOpen,
+    setOnboardingOpen,
+    loadDashboard,
+    handleExportDiagnostics,
+    handleCopySupportSummary,
+    handleOpenCreateProfile,
+    handleCreateBackup,
+    handleOpenOnboarding,
+    nextStep,
+  } = state;
 
   return (
     <div style={{ padding: 24 }}>
@@ -123,13 +106,13 @@ const Dashboard: React.FC = () => {
             type="warning"
             showIcon
             message={t.dashboard.opsWarnings}
-            description={
+            description={(
               <Space direction="vertical" size={2}>
                 {support.warnings.map((warning) => (
                   <Typography.Text key={warning}>{warning}</Typography.Text>
                 ))}
               </Space>
-            }
+            )}
           />
         ) : null}
 
@@ -153,11 +136,21 @@ const Dashboard: React.FC = () => {
           </Card>
         ) : null}
 
-                <StatsOverview state={state} t={t} />
-        <ProfileQuickActions state={state} t={t} />
-        <IncidentDigest state={state} t={t} />
-        <ActivityDigest state={state} t={t} />
-        <SupportPanel state={state} t={t} />
+        <RenderBoundary title="Health overview">
+          <StatsOverview state={state} t={t} />
+        </RenderBoundary>
+        <RenderBoundary title="Profile quick actions">
+          <ProfileQuickActions state={state} t={t} />
+        </RenderBoundary>
+        <RenderBoundary title="Incident digest">
+          <IncidentDigest state={state} t={t} />
+        </RenderBoundary>
+        <RenderBoundary title="Activity digest">
+          <ActivityDigest state={state} t={t} />
+        </RenderBoundary>
+        <RenderBoundary title="Support panel">
+          <SupportPanel state={state} t={t} />
+        </RenderBoundary>
 
         <OnboardingWizard
           open={onboardingOpen}

@@ -9,7 +9,7 @@ export const LogStatsRow: React.FC<{ state: LogsState }> = ({ state }) => {
     <Row gutter={[16, 16]}>
       <Col xs={24} md={6}>
         <Card hoverable onClick={() => setFilter('debug')}>
-          <Statistic title={t.logs.filterDebug} value={counts.debug} />
+          <Statistic title="Debug" value={counts.debug} />
         </Card>
       </Col>
       <Col xs={24} md={6}>

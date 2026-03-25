@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useDashboardData } from './useDashboardData';
@@ -14,16 +14,17 @@ export { formatTime, minutesSince, isWithinLastMinutes, summarizeIssueMessage } 
 export function useDashboardState() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  
+
   // 1. Core Data & State
   const data = useDashboardData();
   const { 
     profiles, proxies, instances, support, incidents, 
-    logs, runtimes, loadDashboard 
+    logs, runtimes, loading, loadDashboard 
   } = data;
 
   // 2. Initial derived data for other hooks
   const availableRuntimes = useMemo(() => runtimes.filter((r) => r.available), [runtimes]);
+  const runningProfiles = useMemo(() => profiles.filter((p) => instances[p.id]?.status === 'running').length, [instances, profiles]);
   const healthyProxies = useMemo(() => proxies.filter((p) => p.lastCheckStatus === 'healthy').length, [proxies]);
   const activeProfiles = useMemo(() => profiles.filter((p) => instances[p.id]?.status === 'running').sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, 5), [instances, profiles]);
   const launchReadyProfiles = useMemo(() => profiles.filter((p) => (instances[p.id]?.status ?? 'stopped') !== 'running' && p.proxy?.lastCheckStatus !== 'failing').sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, 5), [instances, profiles]);
@@ -72,7 +73,9 @@ export function useDashboardState() {
   const formatIncidentSummary = useCallback((entry?: IncidentEntry | null) => (entry ? `${getIncidentLevelLabel(entry.level)} @ ${formatTime(entry.timestamp)}` : t.settings.noneValue), [getIncidentLevelLabel, t.settings.noneValue]);
   const formatActivitySummary = useCallback((entry?: LogEntry | null) => (entry ? `${getLogLevelLabel(entry.level)} @ ${formatTime(entry.timestamp)}` : t.settings.noneValue), [getLogLevelLabel, t.settings.noneValue]);
 
-  // 4. Common navigation helpers
+  // 4. Actions and common navigation helpers
+  const actions = useDashboardActions(loadDashboard, t, launchReadyProfiles, activeProfiles, failingProxyIds);
+
   const handleOpenLogEntry = useCallback((entry: LogEntry) => {
     navigate('/logs', {
       state: {
@@ -89,11 +92,24 @@ export function useDashboardState() {
       return;
     }
     navigate('/profiles', { state: { openCreate: true } });
-  }, [availableRuntimes.length, navigate]);
+  }, [actions, availableRuntimes.length, navigate]);
 
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    if (actions.onboardingOpen) {
+      return;
+    }
+    if (profiles.length > 0) {
+      return;
+    }
+    if (support?.onboardingCompleted === false) {
+      actions.setOnboardingOpen(true);
+    }
+  }, [actions, loading, profiles.length, support?.onboardingCompleted]);
 
   // 5. Hooks orchestration
-  const actions = useDashboardActions(loadDashboard, t, launchReadyProfiles, activeProfiles, failingProxyIds);
   const setup = useDashboardSetup(
     availableRuntimes, runtimes, profiles, healthyProxies, proxies, 
     failingProxyIds, launchReadyProfiles, activeProfiles, support, t, 
@@ -133,3 +149,5 @@ export function useDashboardState() {
     handleOpenLogEntry
   };
 }
+
+export type DashboardState = ReturnType<typeof useDashboardState>;

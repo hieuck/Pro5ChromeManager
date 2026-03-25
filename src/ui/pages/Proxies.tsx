@@ -435,7 +435,7 @@ const Proxies: React.FC = () => {
             <Input placeholder={t.proxy.usernamePlaceholder} />
           </Form.Item>
           <Form.Item name="password" label={t.proxy.password}>
-            <Input.Password />
+            <Input.Password aria-label="Password" />
           </Form.Item>
         </Form>
       </Modal>

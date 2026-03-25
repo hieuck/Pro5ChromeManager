@@ -1,5 +1,5 @@
 export const extensions = {
-  title: 'Trung tâm extension',
+  title: 'Extension Center',
   subtitle: 'Quản lý extension cho nhiều profile từ một nơi. Extension được gắn sẽ tự nạp khi khởi chạy, đồng thời hỗ trợ import từ package cục bộ hoặc Chrome Web Store.',
   newExtension: 'Thêm extension',
   total: 'Tổng extension',

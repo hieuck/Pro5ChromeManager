@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, Input, Modal, Select, Space, Tag, Typography, Upload } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import ProfileForm from '../../../components/ProfileForm';
@@ -10,6 +10,8 @@ interface ProfileModalsProps {
 }
 
 export const ProfileModals: React.FC<ProfileModalsProps> = ({ state }) => {
+  const [bundleSelectOpen, setBundleSelectOpen] = useState(false);
+  const [extensionSelectOpen, setExtensionSelectOpen] = useState(false);
   const {
     t,
     drawerOpen,
@@ -151,7 +153,11 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({ state }) => {
       <Modal
         title="Gán extension cho nhiều profile"
         open={bulkExtensionsOpen}
-        onCancel={() => setBulkExtensionsOpen(false)}
+        onCancel={() => {
+          setBundleSelectOpen(false);
+          setExtensionSelectOpen(false);
+          setBulkExtensionsOpen(false);
+        }}
         onOk={() => void handleBulkApplyExtensions()}
         okText="Áp dụng"
         cancelText="Hủy"
@@ -164,7 +170,17 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({ state }) => {
           <Select
             mode="multiple"
             value={bulkExtensionCategories}
-            onChange={setBulkExtensionCategories}
+            open={bundleSelectOpen}
+            onDropdownVisibleChange={(open) => {
+              setBundleSelectOpen(open);
+              if (open) {
+                setExtensionSelectOpen(false);
+              }
+            }}
+            onChange={(value) => {
+              setBulkExtensionCategories(value);
+              setBundleSelectOpen(false);
+            }}
             placeholder="Chọn bundle extension theo use case"
             className="w-full"
             options={extensionBundles.map((bundle) => ({
@@ -175,7 +191,17 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({ state }) => {
           <Select
             mode="multiple"
             value={bulkExtensionIds}
-            onChange={setBulkExtensionIds}
+            open={extensionSelectOpen}
+            onDropdownVisibleChange={(open) => {
+              setExtensionSelectOpen(open);
+              if (open) {
+                setBundleSelectOpen(false);
+              }
+            }}
+            onChange={(value) => {
+              setBulkExtensionIds(value);
+              setExtensionSelectOpen(false);
+            }}
             placeholder="Chọn extension bổ sung cho batch"
             className="w-full"
             options={enabledExtensions.map((extension) => ({

@@ -8,6 +8,7 @@ import { LogAlerts } from './components/LogAlerts';
 import { LogSourcePanel } from './components/LogSourcePanel';
 import { LogIssuesPanel } from './components/LogIssuesPanel';
 import { LogTable } from './components/LogTable';
+import { RenderBoundary } from '../../components/RenderBoundary';
 
 const LogsPage: React.FC = () => {
   const state = useLogsState();
@@ -17,20 +18,34 @@ const LogsPage: React.FC = () => {
       <Space direction="vertical" size={20} className="w-full">
         <Card>
           <Space direction="vertical" size={12} className="w-full">
-            <LogHeader state={state} />
-            <LogFilters state={state} />
+            <RenderBoundary title={state.t.logs.title}>
+              <LogHeader state={state} />
+            </RenderBoundary>
+            <RenderBoundary title="Log filters">
+              <LogFilters state={state} />
+            </RenderBoundary>
           </Space>
         </Card>
 
-        <LogStatsRow state={state} />
-        
-        <LogAlerts state={state} />
-        
-        <LogSourcePanel state={state} />
-        
-        <LogIssuesPanel state={state} />
-        
-        <LogTable state={state} />
+        <RenderBoundary title="Log stats">
+          <LogStatsRow state={state} />
+        </RenderBoundary>
+
+        <RenderBoundary title="Log alerts">
+          <LogAlerts state={state} />
+        </RenderBoundary>
+
+        <RenderBoundary title="Log sources">
+          <LogSourcePanel state={state} />
+        </RenderBoundary>
+
+        <RenderBoundary title="Log issues">
+          <LogIssuesPanel state={state} />
+        </RenderBoundary>
+
+        <RenderBoundary title="Log table">
+          <LogTable state={state} />
+        </RenderBoundary>
       </Space>
     </div>
   );
