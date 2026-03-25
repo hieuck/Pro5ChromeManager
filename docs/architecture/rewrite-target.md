@@ -41,6 +41,7 @@ src/
     shared/
       components/
       hooks/
+      utils/
     i18n/
 ```
 
@@ -48,6 +49,7 @@ src/
 
 - Use domain or feature names, not technical buckets, whenever possible.
 - Shared UI primitives should live in `src/ui/shared/*`; domain-owned UI should live under `src/ui/features/<domain>/*`.
+- Shared UI helpers should live in `src/ui/shared/utils/*`; feature-local helpers should stay inside their owning feature module.
 - Primary page components must end with `Page.tsx`.
 - Thin module entrypoints may be named `index.ts` or `index.tsx` only when they export the canonical page component and approved public API.
 - Do not keep duplicate wrapper folders such as `src/ui/pages/*` once `src/ui/features/*` is the canonical home.

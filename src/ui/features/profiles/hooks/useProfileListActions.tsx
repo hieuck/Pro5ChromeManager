@@ -1,9 +1,9 @@
 import React, { useCallback } from 'react';
 import { Modal, message } from 'antd';
 import { apiClient, buildApiUrl } from '../../../api/client';
-import { finalizeOnboarding } from '../../../utils/onboarding';
-import { mergeBulkExtensionSelection } from '../../../utils/bulkExtensionSelection';
-import { parseBulkProfileDrafts } from '../../../utils/bulkProfiles';
+import { finalizeOnboarding } from '../../onboarding/onboardingState';
+import { mergeBulkExtensionSelection } from '../../../shared/utils/bulkExtensionSelection';
+import { parseBulkProfileDrafts } from '../../../shared/utils/bulkProfiles';
 import { Profile, ProxyOption, RuntimeOption, ExtensionRecord, ExtensionBundle, BulkCreateResponse, Instance } from '../types';
 import { useProfileListData } from './useProfileListData';
 import { useProfileListFilters } from './useProfileListFilters';

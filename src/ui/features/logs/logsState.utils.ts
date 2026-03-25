@@ -1,4 +1,4 @@
-import type { ParsedLogEntry } from '../../utils/logParsing';
+import type { ParsedLogEntry } from './logParsing';
 
 export type LogsFilter = 'all' | 'issues' | 'debug' | 'info' | 'warn' | 'error';
 export type LogsSortOrder = 'newest' | 'oldest';

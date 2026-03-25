@@ -3,7 +3,7 @@ import { message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useTranslation } from '../../shared/hooks/useTranslation';
-import { type ParsedLogEntry } from '../../utils/logParsing';
+import { type ParsedLogEntry } from './logParsing';
 import {
   buildRepeatedRecentIssues,
   buildRepeatedRecentSources,

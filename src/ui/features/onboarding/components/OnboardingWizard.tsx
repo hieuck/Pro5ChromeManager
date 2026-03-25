@@ -4,7 +4,7 @@ import { ChromeOutlined, GlobalOutlined, PlayCircleOutlined, CheckCircleOutlined
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import { useTranslation } from '../../../shared/hooks/useTranslation';
-import { finalizeOnboarding, syncOnboardingState } from '../../../utils/onboarding';
+import { finalizeOnboarding, syncOnboardingState } from '../onboardingState';
 
 const { Text, Paragraph } = Typography;
 

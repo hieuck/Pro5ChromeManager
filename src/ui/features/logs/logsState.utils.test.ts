@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ParsedLogEntry } from '../../utils/logParsing';
+import type { ParsedLogEntry } from './logParsing';
 import {
   buildRepeatedRecentIssues,
   buildRepeatedRecentSources,
