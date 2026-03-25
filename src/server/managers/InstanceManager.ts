@@ -2,10 +2,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import http from 'http';
+import WebSocket from 'ws';
 import { runtimeManager } from './RuntimeManager';
 import { proxyManager } from './ProxyManager';
 import { profileManager } from './ProfileManager';
 import { fingerprintEngine } from './FingerprintEngine';
+import { extensionManager } from './ExtensionManager';
+import { cookieManager, type ManagedCookie } from './CookieManager';
 import { configManager } from './ConfigManager';
 import { usageMetricsManager } from './UsageMetricsManager';
 import { findFreePort } from '../utils/portScanner';
@@ -41,7 +44,7 @@ const SIGTERM_WAIT_MS = 3_000;
 function buildChromeFlags(opts: {
   userDataDir: string;
   remoteDebuggingPort: number;
-  extensionDir: string;
+  extensionDirs: string[];
   proxyFlag: string | null;
   headless: boolean;
   webrtcPolicy: string;
@@ -49,7 +52,6 @@ function buildChromeFlags(opts: {
   const flags: string[] = [
     `--user-data-dir=${opts.userDataDir}`,
     `--remote-debugging-port=${opts.remoteDebuggingPort}`,
-    `--load-extension=${opts.extensionDir}`,
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-background-networking',
@@ -59,6 +61,11 @@ function buildChromeFlags(opts: {
     '--mute-audio',
     `--webrtc-ip-handling-policy=${opts.webrtcPolicy}`,
   ];
+  if (opts.extensionDirs.length > 0) {
+    const extensionArg = opts.extensionDirs.join(',');
+    flags.push(`--disable-extensions-except=${extensionArg}`);
+    flags.push(`--load-extension=${extensionArg}`);
+  }
   if (opts.proxyFlag) flags.push(opts.proxyFlag);
   if (opts.headless) {
     flags.push('--headless=new');
@@ -140,8 +147,17 @@ export class InstanceManager {
     }
 
     const extensionDir = await fingerprintEngine.prepareExtension(
-      profileId, profile.fingerprint, this.dataDir,
+      profileId,
+      profile.fingerprint,
+      this.dataDir,
+      {
+        profileId,
+        profileName: profile.name,
+        profileGroup: profile.group,
+        profileOwner: profile.owner,
+      },
     );
+    const managedExtensionDirs = await extensionManager.resolveEnabledExtensionPaths(profile.extensionIds);
 
     const remoteDebuggingPort = await findFreePort();
     const profilesDir = resolveAppPath(configManager.get().profilesDir);
@@ -150,7 +166,12 @@ export class InstanceManager {
     const webrtcPolicy = profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp';
 
     const flags = buildChromeFlags({
-      userDataDir, remoteDebuggingPort, extensionDir, proxyFlag, headless, webrtcPolicy,
+      userDataDir,
+      remoteDebuggingPort,
+      extensionDirs: [extensionDir, ...managedExtensionDirs],
+      proxyFlag,
+      headless,
+      webrtcPolicy,
     });
 
     logger.info('Launching instance', { profileId, executablePath, port: remoteDebuggingPort });
@@ -169,6 +190,8 @@ export class InstanceManager {
       if (proxyCleanup) proxyCleanup();
       throw new Error(`Browser did not become ready: ${err instanceof Error ? err.message : String(err)}`);
     }
+
+    await this.applySavedCookies(profileId, remoteDebuggingPort);
 
     const instance: Instance = {
       profileId,
@@ -269,6 +292,38 @@ export class InstanceManager {
     if (changed) await this.persistCurrentInstances();
   }
 
+  private async applySavedCookies(profileId: string, port: number): Promise<void> {
+    const cookies = await cookieManager.listCookies(profileId);
+    if (cookies.length === 0) {
+      return;
+    }
+
+    try {
+      const webSocketDebuggerUrl = await this.cdpGetPageWebSocketUrl(port);
+      if (!webSocketDebuggerUrl) {
+        logger.warn('Skipping cookie apply because no page target is available', { profileId, port });
+        return;
+      }
+
+      await this.cdpSendCommandSequence(webSocketDebuggerUrl, [
+        { method: 'Network.enable' },
+        {
+          method: 'Network.setCookies',
+          params: {
+            cookies: cookies.map((cookie) => this.toCDPCookie(cookie)),
+          },
+        },
+      ]);
+
+      logger.info('Applied saved cookies to launched instance', { profileId, count: cookies.length });
+    } catch (err) {
+      logger.warn('Failed to apply saved cookies to launched instance', {
+        profileId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   async sessionCheck(
     profileId: string,
     url: string,
@@ -294,8 +349,17 @@ export class InstanceManager {
     }
 
     const extensionDir = await fingerprintEngine.prepareExtension(
-      profileId, profile.fingerprint, this.dataDir,
+      profileId,
+      profile.fingerprint,
+      this.dataDir,
+      {
+        profileId,
+        profileName: profile.name,
+        profileGroup: profile.group,
+        profileOwner: profile.owner,
+      },
     );
+    const managedExtensionDirs = await extensionManager.resolveEnabledExtensionPaths(profile.extensionIds);
 
     const remoteDebuggingPort = await findFreePort();
     const profilesDir = resolveAppPath(configManager.get().profilesDir);
@@ -305,7 +369,7 @@ export class InstanceManager {
     const flags = buildChromeFlags({
       userDataDir,
       remoteDebuggingPort,
-      extensionDir,
+      extensionDirs: [extensionDir, ...managedExtensionDirs],
       proxyFlag,
       headless: true,
       webrtcPolicy: profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp',
@@ -394,6 +458,86 @@ export class InstanceManager {
   private async persistInstances(instances: Instance[]): Promise<void> {
     await fs.mkdir(path.dirname(this.instancesPath), { recursive: true });
     await fs.writeFile(this.instancesPath, JSON.stringify(instances, null, 2), 'utf-8');
+  }
+
+  private cdpGetPageWebSocketUrl(port: number): Promise<string | null> {
+    return new Promise((resolve, reject) => {
+      const req = http.get(
+        { host: '127.0.0.1', port, path: '/json/list', timeout: 5000 },
+        (res) => {
+          let data = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            try {
+              const targets = JSON.parse(data) as Array<{ type?: string; webSocketDebuggerUrl?: string }>;
+              const page = targets.find((target) => target.type === 'page' && typeof target.webSocketDebuggerUrl === 'string');
+              resolve(page?.webSocketDebuggerUrl ?? null);
+            } catch (err) {
+              reject(err);
+            }
+          });
+        },
+      );
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy(new Error(`Timed out loading CDP targets from port ${port}`));
+      });
+    });
+  }
+
+  private cdpSendCommandSequence(
+    webSocketDebuggerUrl: string,
+    commands: Array<{ method: string; params?: Record<string, unknown> }>,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const socket = new WebSocket(webSocketDebuggerUrl);
+      let nextId = 0;
+
+      socket.once('open', () => {
+        for (const command of commands) {
+          nextId += 1;
+          socket.send(JSON.stringify({
+            id: nextId,
+            method: command.method,
+            params: command.params ?? {},
+          }));
+        }
+      });
+
+      socket.on('message', (payload) => {
+        try {
+          const message = JSON.parse(payload.toString()) as { id?: number; error?: { message?: string } };
+          if (message.error) {
+            socket.close();
+            reject(new Error(message.error.message ?? 'CDP command failed'));
+            return;
+          }
+          if (message.id === commands.length) {
+            socket.close();
+            resolve();
+          }
+        } catch (err) {
+          socket.close();
+          reject(err);
+        }
+      });
+
+      socket.once('error', reject);
+    });
+  }
+
+  private toCDPCookie(cookie: ManagedCookie): Record<string, unknown> {
+    return {
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path: cookie.path,
+      secure: cookie.secure,
+      httpOnly: cookie.httpOnly,
+      ...(cookie.expires ? { expires: cookie.expires } : {}),
+      ...(cookie.sameSite ? { sameSite: cookie.sameSite } : {}),
+    };
   }
 }
 

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "session",
+    "value": "portable-1774418735797-578",
+    "domain": ".example.com",
+    "path": "/",
+    "expires": null,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  }
+]

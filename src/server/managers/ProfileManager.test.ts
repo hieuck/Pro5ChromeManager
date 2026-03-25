@@ -16,6 +16,16 @@ async function makeManager(profilesDir: string, dataDir: string): Promise<Profil
   return mgr;
 }
 
+async function makeManagerWithDefaults(
+  profilesDir: string,
+  dataDir: string,
+  extensionIds: string[],
+): Promise<ProfileManager> {
+  const mgr = new ProfileManager(profilesDir, dataDir, () => extensionIds);
+  await mgr.initialize();
+  return mgr;
+}
+
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('migrateProfile', () => {
@@ -29,6 +39,7 @@ describe('migrateProfile', () => {
     expect(migrated['owner']).toBeNull();
     expect(migrated['runtime']).toBe('auto');
     expect(migrated['proxy']).toBeNull();
+    expect(migrated['extensionIds']).toEqual([]);
     expect(migrated['lastUsedAt']).toBeNull();
     expect(migrated['totalSessions']).toBe(0);
   });
@@ -44,6 +55,7 @@ describe('migrateProfile', () => {
       owner: 'alice',
       runtime: 'chrome',
       proxy: null,
+      extensionIds: [],
       lastUsedAt: null,
       totalSessions: 5,
     };
@@ -290,6 +302,70 @@ describe('ProfileManager — CRUD operations', () => {
     const mgr = await makeManager(tmpDir, dataDir);
     await expect(mgr.deleteProfile('non-existent')).rejects.toThrow('not found');
   });
+
+  it('auto-attaches default extensions to newly created profiles', async () => {
+    const mgr = await makeManagerWithDefaults(tmpDir, dataDir, ['default-extension-id']);
+    const profile = await mgr.createProfile('Auto Extension Profile');
+
+    expect(profile.extensionIds).toEqual(['default-extension-id']);
+  });
+
+  it('imports an exported profile package with metadata and cookies restored', async () => {
+    if (process.platform !== 'win32') {
+      return;
+    }
+
+    const mgr = await makeManager(tmpDir, dataDir);
+    const original = await mgr.createProfile('Portable Profile', {
+      notes: 'ready to move',
+      tags: ['portable', 'ops'],
+      group: 'ops',
+      owner: 'alice',
+      runtime: 'chrome',
+      bookmarks: [
+        { name: 'Example', url: 'https://example.com', folder: 'Warmup' },
+      ],
+    });
+
+    const originalDir = path.join(tmpDir, original.id);
+    await fs.writeFile(
+      path.join(originalDir, 'cookies.json'),
+      JSON.stringify([
+        {
+          name: 'session',
+          value: 'abc123',
+          domain: '.example.com',
+          path: '/',
+          expires: null,
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax',
+        },
+      ], null, 2),
+      'utf-8',
+    );
+
+    const archivePath = path.join(dataDir, 'portable-profile.zip');
+    await mgr.exportProfile(original.id, archivePath);
+
+    const imported = await mgr.importProfilePackage(archivePath);
+    const importedDir = path.join(tmpDir, imported.id);
+    const importedCookies = JSON.parse(await fs.readFile(path.join(importedDir, 'cookies.json'), 'utf-8')) as Array<{ name: string; value: string }>;
+
+    expect(imported.id).not.toBe(original.id);
+    expect(imported.name).toBe('Portable Profile');
+    expect(imported.notes).toBe('ready to move');
+    expect(imported.tags).toEqual(['portable', 'ops']);
+    expect(imported.group).toBe('ops');
+    expect(imported.owner).toBe('alice');
+    expect(imported.runtime).toBe('chrome');
+    expect(imported.totalSessions).toBe(0);
+    expect(imported.lastUsedAt).toBeNull();
+    expect(imported.bookmarks).toEqual([
+      { name: 'Example', url: 'https://example.com', folder: 'Warmup' },
+    ]);
+    expect(importedCookies[0]).toMatchObject({ name: 'session', value: 'abc123' });
+  });
 });
 
 describe('ProfileManager — migration v0→v1 on load', () => {
@@ -353,6 +429,7 @@ describe('ProfileManager — migration v0→v1 on load', () => {
     expect(loaded!.tags).toEqual([]);
     expect(loaded!.group).toBeNull();
     expect(loaded!.owner).toBeNull();
+    expect(loaded!.extensionIds).toEqual([]);
     expect(loaded!.lastUsedAt).toBeNull();
     expect(loaded!.totalSessions).toBe(0);
     expect(loaded!.name).toBe('Legacy Profile');

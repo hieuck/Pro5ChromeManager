@@ -6,9 +6,9 @@
     "auditLog": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\logs\\.00c6cbab4b3636ecb6273b359aa9bf438827ab30-audit.json",
     "files": [
         {
-            "date": 1774356359764,
-            "name": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\logs\\rejections-2026-03-24.log",
-            "hash": "9c63397718aa27188cf43bef734d37d92c5c12c768c36fa68bcf39c344d535ba"
+            "date": 1774418706960,
+            "name": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\logs\\rejections-2026-03-25.log",
+            "hash": "e96cc7d5f3da6b1148c7082d270a16899eaf5c4f6344b48e77d27cb050b3ca12"
         }
     ],
     "hashType": "sha256"

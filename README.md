@@ -39,6 +39,23 @@ npm run dev:ui       # UI     → http://localhost:5173
 npm run dev:electron
 ```
 
+### 1 click từ repo Windows
+
+Sau khi đã chạy `npm install` một lần, có thể double-click:
+
+`Launch Pro5 Chrome Manager.cmd`
+
+Launcher này sẽ:
+- tự kiểm tra build output còn thiếu hay đã cũ
+- tự chạy build lại khi cần
+- tự mở desktop app
+
+Nếu thích dùng terminal, có thể chạy:
+
+```bash
+npm run launch:desktop
+```
+
 ## Build & Đóng gói
 
 ```bash
@@ -51,6 +68,22 @@ npm run package:electron
 # Tạo bản dev test không cần signing/installer — output: dist/electron/win-unpacked/
 npm run package:electron:dev
 ```
+
+## Browser Fork Lane
+
+Project này đang có lane riêng để tiến lên `Pro5 Chromium`, tức browser fork thật thay vì chỉ quản lý profile bên ngoài.
+
+Các lệnh groundwork:
+
+```bash
+npm run browser-fork:doctor
+npm run browser-fork:bootstrap
+npm run browser-fork:gn
+```
+
+Tài liệu kiến trúc và patch plan:
+
+- `docs/browser-fork.md`
 
 ## Release
 

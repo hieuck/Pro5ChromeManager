@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Typography, notification } from 'antd';
 import {
   ApiOutlined,
+  AppstoreOutlined,
   DashboardOutlined,
   UserOutlined,
   SettingOutlined,
@@ -12,6 +13,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { useTranslation } from './hooks/useTranslation';
 import ProfileList from './pages/ProfileList';
 import Proxies from './pages/Proxies';
+import Extensions from './pages/Extensions';
 import Settings from './pages/Settings';
 import Logs from './pages/Logs';
 import Dashboard from './pages/Dashboard';
@@ -37,6 +39,8 @@ const App: React.FC = () => {
     ? 'settings'
     : location.pathname.startsWith('/proxies')
       ? 'proxies'
+    : location.pathname.startsWith('/extensions')
+      ? 'extensions'
     : location.pathname.startsWith('/logs')
       ? 'logs'
     : location.pathname.startsWith('/dashboard')
@@ -108,6 +112,7 @@ const App: React.FC = () => {
             { key: 'dashboard', icon: <DashboardOutlined />, label: t.nav.dashboard },
             { key: 'profiles', icon: <UserOutlined />, label: t.nav.profiles },
             { key: 'proxies', icon: <ApiOutlined />, label: t.nav.proxies },
+            { key: 'extensions', icon: <AppstoreOutlined />, label: 'Extensions' },
             { key: 'settings', icon: <SettingOutlined />, label: t.nav.settings },
             { key: 'logs', icon: <FileTextOutlined />, label: t.nav.logs },
           ]}
@@ -140,6 +145,7 @@ const App: React.FC = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profiles" element={<ProfileList />} />
             <Route path="/proxies" element={<Proxies />} />
+            <Route path="/extensions" element={<Extensions />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/logs" element={<Logs />} />
           </Routes>

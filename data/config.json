@@ -1,4 +1,6 @@
 {
+  "configVersion": 1,
+  "onboardingCompleted": false,
   "uiLanguage": "vi",
   "locale": "vi-VN",
   "timezoneId": "Asia/Saigon",
@@ -11,26 +13,18 @@
     "port": 3210
   },
   "sessionCheck": {
-    "enabledByDefault": true,
+    "enabledByDefault": false,
     "headless": true,
-    "timeoutMs": 20000
+    "timeoutMs": 30000
   },
   "runtimes": {
-    "centbrowser": {
-      "label": "CentBrowser",
-      "executablePath": "G:\\Program Files\\CentBrowser\\chrome.exe"
-    },
     "chrome": {
       "label": "Google Chrome",
       "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     },
-    "msedge": {
-      "label": "Microsoft Edge",
-      "executablePath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
-    },
-    "chromium": {
-      "label": "Chromium",
-      "executablePath": "C:\\Program Files\\Chromium\\Application\\chrome.exe"
+    "core-pro5-chromium": {
+      "label": "Pro5 Chromium 127.0.0-preview",
+      "executablePath": "C:\\Users\\hieut\\AppData\\Local\\Temp\\pro5-browser-core-manager-zdHKdK\\browser-cores\\installed\\7510c601-5c60-4850-9079-66477dab424b\\runtime\\pro5-chromium.exe"
     }
   }
 }

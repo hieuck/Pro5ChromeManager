@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "profileCreates": 1,
-  "profileImports": 0,
+  "profileCreates": 18,
+  "profileImports": 1,
   "profileLaunches": 0,
   "sessionChecks": 0,
   "sessionCheckLoggedIn": 0,
   "sessionCheckLoggedOut": 0,
   "sessionCheckErrors": 0,
-  "lastProfileCreatedAt": "2026-03-24T12:46:04.926Z",
-  "lastProfileImportedAt": null,
+  "lastProfileCreatedAt": "2026-03-25T06:05:35.836Z",
+  "lastProfileImportedAt": "2026-03-25T06:05:38.033Z",
   "lastProfileLaunchAt": null,
   "lastSessionCheckAt": null
 }

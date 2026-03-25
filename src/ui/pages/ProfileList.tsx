@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Col,
   Empty,
   Input,
@@ -16,13 +17,17 @@ import {
   Tag,
   Tooltip,
   Typography,
+  Upload,
   message,
 } from 'antd';
+import type { UploadFile } from 'antd/es/upload/interface';
 import type { InputRef } from 'antd';
 import {
   CopyOutlined,
   DeleteOutlined,
   ExportOutlined,
+  ImportOutlined,
+  InboxOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   QuestionCircleOutlined,
@@ -43,6 +48,8 @@ import WelcomeScreen from '../components/WelcomeScreen';
 import { useTranslation } from '../hooks/useTranslation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { finalizeOnboarding } from '../utils/onboarding';
+import { mergeBulkExtensionSelection } from '../utils/bulkExtensionSelection';
+import { parseBulkProfileDrafts } from '../utils/bulkProfiles';
 
 interface Profile {
   id: string;
@@ -55,10 +62,26 @@ interface Profile {
   proxyId?: string;
   runtime?: string;
   runtimeKey?: string;
+  extensionIds: string[];
   status: 'stopped' | 'running' | 'unreachable' | 'stale';
   lastUsedAt?: string | null;
   totalSessions: number;
   schemaVersion: number;
+}
+
+interface ExtensionRecord {
+  id: string;
+  name: string;
+  version: string | null;
+  enabled: boolean;
+  category?: string | null;
+}
+
+interface ExtensionBundle {
+  key: string;
+  label: string;
+  extensionIds: string[];
+  extensionCount: number;
 }
 
 interface ProxyOption {
@@ -78,6 +101,23 @@ interface Instance {
   profileId: string;
   status: 'running' | 'unreachable' | 'stopped';
   port?: number;
+}
+
+interface RuntimeOption {
+  key: string;
+  available: boolean;
+  label?: string;
+  name?: string;
+}
+
+interface BulkCreateResponse {
+  total: number;
+  profiles: Profile[];
+}
+
+interface BulkUpdateResponse {
+  total: number;
+  profiles: Profile[];
 }
 
 const STATUS_BADGE: Record<string, 'success' | 'processing' | 'error' | 'default'> = {
@@ -107,6 +147,9 @@ const ProfileList: React.FC = () => {
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [proxies, setProxies] = useState<ProxyOption[]>([]);
+  const [runtimes, setRuntimes] = useState<RuntimeOption[]>([]);
+  const [extensions, setExtensions] = useState<ExtensionRecord[]>([]);
+  const [extensionBundles, setExtensionBundles] = useState<ExtensionBundle[]>([]);
   const [instances, setInstances] = useState<Record<string, Instance>>({});
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -119,6 +162,27 @@ const ProfileList: React.FC = () => {
   const [filterProxyHealth, setFilterProxyHealth] = useState<string | undefined>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
+  const [bulkCreateOpen, setBulkCreateOpen] = useState(false);
+  const [bulkCreateText, setBulkCreateText] = useState('');
+  const [bulkCreateRuntime, setBulkCreateRuntime] = useState<string>('auto');
+  const [bulkCreateProxyId, setBulkCreateProxyId] = useState<string | undefined>();
+  const [bulkCreating, setBulkCreating] = useState(false);
+  const [importPackagesOpen, setImportPackagesOpen] = useState(false);
+  const [importPackageFiles, setImportPackageFiles] = useState<UploadFile[]>([]);
+  const [importingPackages, setImportingPackages] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditGroup, setBulkEditGroup] = useState('');
+  const [bulkEditClearGroup, setBulkEditClearGroup] = useState(false);
+  const [bulkEditOwner, setBulkEditOwner] = useState('');
+  const [bulkEditClearOwner, setBulkEditClearOwner] = useState(false);
+  const [bulkEditRuntime, setBulkEditRuntime] = useState<string | undefined>();
+  const [bulkEditAddTags, setBulkEditAddTags] = useState<string[]>([]);
+  const [bulkEditRemoveTags, setBulkEditRemoveTags] = useState<string[]>([]);
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkExtensionsOpen, setBulkExtensionsOpen] = useState(false);
+  const [bulkExtensionIds, setBulkExtensionIds] = useState<string[]>([]);
+  const [bulkExtensionCategories, setBulkExtensionCategories] = useState<string[]>([]);
+  const [bulkApplyingExtensions, setBulkApplyingExtensions] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -168,12 +232,39 @@ const ProfileList: React.FC = () => {
     }
   }, []);
 
+  const fetchExtensions = useCallback(async () => {
+    const [extensionRes, bundleRes] = await Promise.all([
+      apiClient.get<ExtensionRecord[]>('/api/extensions'),
+      apiClient.get<ExtensionBundle[]>('/api/extensions/bundles'),
+    ]);
+
+    if (extensionRes.success) {
+      setExtensions(extensionRes.data);
+    }
+
+    if (bundleRes.success) {
+      setExtensionBundles(bundleRes.data);
+    }
+  }, []);
+
+  const fetchRuntimes = useCallback(async (): Promise<RuntimeOption[]> => {
+    const res = await apiClient.get<RuntimeOption[]>('/api/runtimes');
+    if (!res.success) {
+      return [];
+    }
+
+    setRuntimes(res.data);
+    return res.data;
+  }, []);
+
   useEffect(() => {
     void fetchProfiles();
     void fetchProxies();
     void fetchInstances();
     void fetchConfig();
-  }, [fetchConfig, fetchInstances, fetchProfiles, fetchProxies]);
+    void fetchRuntimes();
+    void fetchExtensions();
+  }, [fetchConfig, fetchExtensions, fetchInstances, fetchProfiles, fetchProxies, fetchRuntimes]);
 
   useEffect(() => {
     const state = location.state as { openCreate?: boolean } | null;
@@ -181,10 +272,20 @@ const ProfileList: React.FC = () => {
       return;
     }
 
-    setEditingId(undefined);
-    setDrawerOpen(true);
-    navigate(location.pathname, { replace: true, state: null });
-  }, [location.pathname, location.state, navigate]);
+    void (async () => {
+      const runtimeList = await fetchRuntimes();
+      const hasAvailableRuntime = runtimeList.some((runtime) => runtime.available);
+      if (!hasAvailableRuntime) {
+        void message.info(t.dashboard.runtimeActionHint);
+        setWizardOpen(true);
+      } else {
+        setEditingId(undefined);
+        setDrawerOpen(true);
+      }
+
+      navigate(location.pathname, { replace: true, state: null });
+    })();
+  }, [fetchRuntimes, location.pathname, location.state, navigate, t.dashboard.runtimeActionHint]);
 
   useWebSocket((event) => {
     if (
@@ -359,6 +460,188 @@ const ProfileList: React.FC = () => {
     setSelectedIds([]);
   }
 
+  function openBulkCreate(): void {
+    setBulkCreateText('');
+    setBulkCreateRuntime('auto');
+    setBulkCreateProxyId(undefined);
+    setBulkCreateOpen(true);
+  }
+
+  function openImportPackages(): void {
+    setImportPackageFiles([]);
+    setImportPackagesOpen(true);
+  }
+
+  function openBulkEdit(): void {
+    setBulkEditGroup('');
+    setBulkEditClearGroup(false);
+    setBulkEditOwner('');
+    setBulkEditClearOwner(false);
+    setBulkEditRuntime(undefined);
+    setBulkEditAddTags([]);
+    setBulkEditRemoveTags([]);
+    setBulkEditOpen(true);
+  }
+
+  function openBulkExtensions(): void {
+    setBulkExtensionIds([]);
+    setBulkExtensionCategories([]);
+    setBulkExtensionsOpen(true);
+  }
+
+  async function handleBulkCreateProfiles(): Promise<void> {
+    const entries = parseBulkProfileDrafts(bulkCreateText);
+    if (entries.length === 0) {
+      void message.warning('Hãy nhập ít nhất một dòng profile hợp lệ');
+      return;
+    }
+
+    setBulkCreating(true);
+    const res = await apiClient.post<BulkCreateResponse>('/api/profiles/bulk-create', {
+      entries,
+      runtime: bulkCreateRuntime,
+      proxyId: bulkCreateProxyId,
+    });
+    setBulkCreating(false);
+
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+
+    void message.success(`Đã tạo ${res.data.total} hồ sơ`);
+    setBulkCreateOpen(false);
+    setBulkCreateText('');
+    setBulkCreateRuntime('auto');
+    setBulkCreateProxyId(undefined);
+    void fetchProfiles();
+  }
+
+  async function handleImportProfilePackages(): Promise<void> {
+    const filesToImport = importPackageFiles
+      .map((file) => (
+        file.originFileObj
+        ?? (typeof File !== 'undefined' && file instanceof File ? file : null)
+      ))
+      .filter((file): file is File => Boolean(file));
+
+    if (filesToImport.length === 0) {
+      void message.warning('Hãy chọn ít nhất một gói profile `.zip` để import');
+      return;
+    }
+
+    setImportingPackages(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const file of filesToImport) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const response = await fetch(buildApiUrl('/api/profiles/import-package'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Pro5-File-Name': encodeURIComponent(file.name),
+          },
+          body: buffer,
+        });
+        const json = await response.json() as { success: boolean; error?: string };
+        if (json.success) {
+          successCount += 1;
+        } else {
+          failCount += 1;
+        }
+      } catch {
+        failCount += 1;
+      }
+    }
+
+    setImportingPackages(false);
+
+    if (successCount > 0) {
+      void message.success(`Đã import ${successCount} gói profile`);
+      setImportPackagesOpen(false);
+      setImportPackageFiles([]);
+      void fetchProfiles();
+    }
+
+    if (failCount > 0) {
+      void message.warning(`${failCount} gói profile import thất bại`);
+    }
+  }
+
+  async function handleBulkEditProfiles(): Promise<void> {
+    const payload: Record<string, unknown> = {};
+    if (bulkEditGroup.trim()) {
+      payload['group'] = bulkEditGroup.trim();
+    }
+    if (bulkEditOwner.trim()) {
+      payload['owner'] = bulkEditOwner.trim();
+    }
+    if (bulkEditRuntime) {
+      payload['runtime'] = bulkEditRuntime;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      void message.warning('Hãy nhập ít nhất một thay đổi để áp dụng');
+      return;
+    }
+
+    setBulkEditing(true);
+    const results = await Promise.all(selectedIds.map(async (id) => apiClient.put(`/api/profiles/${id}`, payload)));
+    setBulkEditing(false);
+    const failed = results.find((result) => !result.success);
+    if (failed) {
+      void message.error(failed.error);
+      return;
+    }
+
+    void message.success(`Đã cập nhật ${selectedIds.length} hồ sơ`);
+    setBulkEditOpen(false);
+    setSelectedIds([]);
+    void fetchProfiles();
+  }
+
+  async function handleBulkApplyExtensions(): Promise<void> {
+    if (bulkExtensionIds.length === 0 && bulkExtensionCategories.length === 0) {
+      void message.warning('Hãy chọn ít nhất một extension hoặc bundle để áp dụng');
+      return;
+    }
+
+    const selectedProfiles = selectedIds
+      .map((id) => profiles.find((profile) => profile.id === id))
+      .filter((profile): profile is Profile => Boolean(profile));
+
+    if (selectedProfiles.length === 0) {
+      void message.warning('Không tìm thấy hồ sơ nào để cập nhật');
+      return;
+    }
+
+    setBulkApplyingExtensions(true);
+    const results = await Promise.all(selectedProfiles.map(async (profile) => apiClient.put(`/api/profiles/${profile.id}`, {
+      extensionIds: mergeBulkExtensionSelection({
+        currentExtensionIds: profile.extensionIds ?? [],
+        selectedExtensionIds: bulkExtensionIds,
+        selectedCategories: bulkExtensionCategories,
+        bundles: extensionBundles,
+      }),
+    })));
+    setBulkApplyingExtensions(false);
+
+    const failed = results.find((result) => !result.success);
+    if (failed) {
+      void message.error(failed.error);
+      return;
+    }
+
+    void message.success(`Đã gán extension cho ${selectedProfiles.length} hồ sơ`);
+    setBulkExtensionsOpen(false);
+    setBulkExtensionIds([]);
+    setBulkExtensionCategories([]);
+    setSelectedIds([]);
+    void fetchProfiles();
+  }
+
   async function handleBulkAssignProxy(): Promise<void> {
     if (!selectedIds.length || bulkProxySelection === undefined) {
       return;
@@ -425,8 +708,18 @@ const ProfileList: React.FC = () => {
   }
 
   function openCreate(): void {
-    setEditingId(undefined);
-    setDrawerOpen(true);
+    void (async () => {
+      const runtimeList = await fetchRuntimes();
+      const hasAvailableRuntime = runtimeList.some((runtime) => runtime.available);
+      if (!hasAvailableRuntime) {
+        void message.info(t.dashboard.runtimeActionHint);
+        setWizardOpen(true);
+        return;
+      }
+
+      setEditingId(undefined);
+      setDrawerOpen(true);
+    })();
   }
 
   function openEdit(id: string): void {
@@ -479,6 +772,8 @@ const ProfileList: React.FC = () => {
   const showingResults = t.common.showingResults
     .replace('{filtered}', String(filtered.length))
     .replace('{total}', String(profiles.length));
+  const bulkCreateEntries = parseBulkProfileDrafts(bulkCreateText);
+  const enabledExtensions = extensions.filter((extension) => extension.enabled);
   const proxyMap = new Map(proxies.map((proxy) => [proxy.id, proxy]));
 
   useEffect(() => {
@@ -557,6 +852,7 @@ const ProfileList: React.FC = () => {
             setOnboardingCompleted(true);
             setWizardOpen(false);
             void fetchProfiles();
+            void fetchRuntimes();
           }}
         />
       </>
@@ -724,6 +1020,12 @@ const ProfileList: React.FC = () => {
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                   {t.profile.newProfile} (Ctrl+N)
                 </Button>
+                <Button style={{ marginLeft: 8 }} icon={<ImportOutlined />} onClick={openImportPackages}>
+                  Import package
+                </Button>
+                <Button style={{ marginLeft: 8 }} onClick={openBulkCreate}>
+                  Tạo hàng loạt
+                </Button>
               </Col>
             </Row>
           </Card>
@@ -872,6 +1174,12 @@ const ProfileList: React.FC = () => {
                 >
                   Áp dụng proxy
                 </Button>
+                <Button size="small" onClick={openBulkExtensions}>
+                  Gán extension
+                </Button>
+                <Button size="small" onClick={openBulkEdit}>
+                  Sửa metadata
+                </Button>
                 <Button size="small" icon={<RedoOutlined />} onClick={() => void handleBulkRestart()}>
                   Restart đã chọn
                 </Button>
@@ -934,6 +1242,123 @@ const ProfileList: React.FC = () => {
       />
 
       <Modal
+        title="Import profile package"
+        open={importPackagesOpen}
+        onCancel={() => setImportPackagesOpen(false)}
+        onOk={() => void handleImportProfilePackages()}
+        okText={importPackageFiles.length > 0 ? `Import ${importPackageFiles.length}` : 'Import'}
+        cancelText="Hủy"
+        confirmLoading={importingPackages}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            Chọn các gói profile đã export từ Pro5 ở dạng <Typography.Text code>.zip</Typography.Text>.
+            Hệ thống sẽ tạo profile mới với metadata, bookmarks, cookie jar và user data đi kèm.
+          </Typography.Paragraph>
+          <Upload.Dragger
+            multiple
+            accept=".zip"
+            fileList={importPackageFiles}
+            beforeUpload={() => false}
+            onChange={({ fileList }) => {
+              setImportPackageFiles(fileList);
+            }}
+            onRemove={(file) => {
+              setImportPackageFiles((current) => current.filter((item) => item.uid !== file.uid));
+            }}
+          >
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined />
+            </p>
+            <p className="ant-upload-text">Kéo thả hoặc chọn gói profile để import</p>
+            <p className="ant-upload-hint">Có thể chọn nhiều file trong một lượt để tạo nhiều profile mới.</p>
+          </Upload.Dragger>
+        </Space>
+      </Modal>
+
+      <Modal
+        title="Sửa metadata hàng loạt"
+        open={bulkEditOpen}
+        onCancel={() => setBulkEditOpen(false)}
+        onOk={() => void handleBulkEditProfiles()}
+        okText="Áp dụng"
+        cancelText="Hủy"
+        confirmLoading={bulkEditing}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            Các trường để trống sẽ được giữ nguyên cho {selectedIds.length} hồ sơ đã chọn.
+          </Typography.Text>
+          <Input
+            value={bulkEditGroup}
+            onChange={(event) => setBulkEditGroup(event.target.value)}
+            placeholder="Nhóm mới"
+          />
+          <Input
+            value={bulkEditOwner}
+            onChange={(event) => setBulkEditOwner(event.target.value)}
+            placeholder="Owner mới"
+          />
+          <Select
+            value={bulkEditRuntime}
+            onChange={setBulkEditRuntime}
+            placeholder="Đổi runtime cho cả batch"
+            allowClear
+            style={{ width: '100%' }}
+            options={[
+              { label: 'Tự động', value: 'auto' },
+              ...runtimes.map((runtime) => ({
+                label: `${runtime.label ?? runtime.name ?? runtime.key}${runtime.available ? '' : ' (không khả dụng)'}`,
+                value: runtime.key,
+                disabled: !runtime.available,
+              })),
+            ]}
+          />
+        </Space>
+      </Modal>
+
+      <Modal
+        title="Gán extension cho nhiều profile"
+        open={bulkExtensionsOpen}
+        onCancel={() => setBulkExtensionsOpen(false)}
+        onOk={() => void handleBulkApplyExtensions()}
+        okText="Áp dụng"
+        cancelText="Hủy"
+        confirmLoading={bulkApplyingExtensions}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            Bundle và extension sẽ được thêm vào stack hiện có của {selectedIds.length} hồ sơ đã chọn.
+          </Typography.Text>
+          <Select
+            mode="multiple"
+            value={bulkExtensionCategories}
+            onChange={setBulkExtensionCategories}
+            placeholder="Chọn bundle extension theo use case"
+            style={{ width: '100%' }}
+            options={extensionBundles.map((bundle) => ({
+              label: `${bundle.label} · ${bundle.extensionCount} extension`,
+              value: bundle.key,
+            }))}
+          />
+          <Select
+            mode="multiple"
+            value={bulkExtensionIds}
+            onChange={setBulkExtensionIds}
+            placeholder="Chọn extension bổ sung cho batch"
+            style={{ width: '100%' }}
+            options={enabledExtensions.map((extension) => ({
+              label: `${extension.name}${extension.version ? ` · v${extension.version}` : ''}`,
+              value: extension.id,
+            }))}
+          />
+          <Typography.Text type="secondary">
+            Không ghi đè stack cũ. Hệ thống sẽ tự gộp thêm extension mới và loại bỏ id trùng.
+          </Typography.Text>
+        </Space>
+      </Modal>
+
+      <Modal
         title="Phím tắt"
         open={shortcutsOpen}
         onCancel={() => setShortcutsOpen(false)}
@@ -952,6 +1377,59 @@ const ProfileList: React.FC = () => {
             ))}
           </tbody>
         </table>
+      </Modal>
+
+      <Modal
+        title="Tạo profile hàng loạt"
+        open={bulkCreateOpen}
+        onCancel={() => setBulkCreateOpen(false)}
+        onOk={() => void handleBulkCreateProfiles()}
+        okText={bulkCreateEntries.length > 0 ? `Tạo ${bulkCreateEntries.length}` : 'Tạo'}
+        cancelText="Hủy"
+        confirmLoading={bulkCreating}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            Mỗi dòng là một profile. Định dạng:
+            {' '}
+            <Typography.Text code>name | group | owner | tag1,tag2 | notes</Typography.Text>
+          </Typography.Paragraph>
+          <Input.TextArea
+            value={bulkCreateText}
+            onChange={(event) => setBulkCreateText(event.target.value)}
+            rows={8}
+            placeholder={[
+              'Facebook Warm 01 | Growth | owner-a | warm,fb | Main account',
+              'Facebook Warm 02 | Growth | owner-a | warm,fb | Backup account',
+              'TikTok Shop 01',
+            ].join('\n')}
+          />
+          <Select
+            value={bulkCreateRuntime}
+            onChange={setBulkCreateRuntime}
+            style={{ width: '100%' }}
+            options={[
+              { label: 'Tự động', value: 'auto' },
+              ...runtimes.map((runtime) => ({
+                label: `${runtime.label ?? runtime.name ?? runtime.key}${runtime.available ? '' : ' (không khả dụng)'}`,
+                value: runtime.key,
+                disabled: !runtime.available,
+              })),
+            ]}
+          />
+          <Select
+            value={bulkCreateProxyId}
+            onChange={setBulkCreateProxyId}
+            placeholder="Gắn một proxy chung cho cả batch (tùy chọn)"
+            allowClear
+            style={{ width: '100%' }}
+            options={proxies.map((proxy) => ({
+              label: `[${proxy.type.toUpperCase()}] ${proxy.label?.trim() ? `${proxy.label} — ` : ''}${proxy.host}:${proxy.port}`,
+              value: proxy.id,
+            }))}
+          />
+          <Typography.Text type="secondary">Preview hợp lệ: {bulkCreateEntries.length} profile</Typography.Text>
+        </Space>
       </Modal>
     </div>
   );

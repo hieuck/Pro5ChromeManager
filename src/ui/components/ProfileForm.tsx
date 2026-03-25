@@ -38,9 +38,43 @@ interface Profile {
   group: string | null;
   runtime: string;
   proxy: { id: string } | null;
+  extensionIds: string[];
+  bookmarks: ProfileBookmark[];
   fingerprint: FingerprintConfig;
   lastUsedAt: string | null;
   totalSessions: number;
+}
+
+interface ExtensionRecord {
+  id: string;
+  name: string;
+  version: string | null;
+  enabled: boolean;
+  category?: string | null;
+}
+
+interface ExtensionBundle {
+  key: string;
+  label: string;
+  extensionIds: string[];
+  extensionCount: number;
+}
+
+interface ProfileCookie {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  expires: number | null;
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: 'Strict' | 'Lax' | 'None' | null;
+}
+
+interface ProfileBookmark {
+  name: string;
+  url: string;
+  folder: string | null;
 }
 
 interface ActivitySession {
@@ -73,10 +107,17 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
   const [fingerprint, setFingerprint] = useState<FingerprintConfig | undefined>();
   const [proxyId, setProxyId] = useState<string | null>(null);
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
+  const [extensions, setExtensions] = useState<ExtensionRecord[]>([]);
+  const [extensionBundles, setExtensionBundles] = useState<ExtensionBundle[]>([]);
   const [activity, setActivity] = useState<ActivitySession[]>([]);
   const [activeTab, setActiveTab] = useState('general');
   const [importFiles, setImportFiles] = useState<UploadFile[]>([]);
   const [importing, setImporting] = useState(false);
+  const [cookieText, setCookieText] = useState('[]');
+  const [cookieCount, setCookieCount] = useState(0);
+  const [cookiesLoading, setCookiesLoading] = useState(false);
+  const [cookiesSaving, setCookiesSaving] = useState(false);
+  const [bookmarkText, setBookmarkText] = useState('[]');
 
   const isEdit = !!profileId;
 
@@ -89,6 +130,12 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
 
     void apiClient.get<Runtime[]>('/api/runtimes').then((res) => {
       if (res.success) setRuntimes(res.data);
+    });
+    void apiClient.get<ExtensionRecord[]>('/api/extensions').then((res) => {
+      if (res.success) setExtensions(res.data);
+    });
+    void apiClient.get<ExtensionBundle[]>('/api/extensions/bundles').then((res) => {
+      if (res.success) setExtensionBundles(res.data);
     });
 
     if (isEdit && profileId) {
@@ -103,7 +150,10 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
           tags: p.tags,
           group: p.group ?? undefined,
           runtime: p.runtime,
+          extensionIds: p.extensionIds ?? [],
+          extensionCategories: [],
         });
+        setBookmarkText(JSON.stringify(p.bookmarks ?? [], null, 2));
         setFingerprint(p.fingerprint);
         setProxyId(p.proxy?.id ?? null);
       });
@@ -111,11 +161,24 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
       void apiClient.get<ActivitySession[]>(`/api/profiles/${profileId}/activity`).then((res) => {
         if (res.success) setActivity(res.data);
       });
+      setCookiesLoading(true);
+      void apiClient.get<{ count: number; cookies: ProfileCookie[] }>(`/api/profiles/${profileId}/cookies`).then((res) => {
+        setCookiesLoading(false);
+        if (!res.success) {
+          return;
+        }
+        setCookieCount(res.data.count);
+        setCookieText(JSON.stringify(res.data.cookies, null, 2));
+      });
     } else {
       form.resetFields();
+      form.setFieldValue('extensionCategories', []);
       setFingerprint(undefined);
       setProxyId(null);
       setActivity([]);
+      setBookmarkText('[]');
+      setCookieText('[]');
+      setCookieCount(0);
     }
   }, [open, profileId, isEdit, form]);
 
@@ -129,6 +192,17 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
       return;
     }
 
+    let parsedBookmarks: ProfileBookmark[];
+    try {
+      parsedBookmarks = JSON.parse(bookmarkText || '[]') as ProfileBookmark[];
+      if (!Array.isArray(parsedBookmarks)) {
+        throw new Error('Bookmarks must be an array');
+      }
+    } catch {
+      void message.error('Bookmark JSON không hợp lệ');
+      return;
+    }
+
     setSaving(true);
     const payload = {
       name: values.name,
@@ -137,6 +211,9 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
       group: values.group ?? null,
       runtime: values.runtime ?? 'auto',
       proxyId,
+      extensionIds: form.getFieldValue('extensionIds') ?? [],
+      extensionCategories: form.getFieldValue('extensionCategories') ?? [],
+      bookmarks: parsedBookmarks,
       fingerprint,
     };
 
@@ -179,6 +256,83 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
     if (successCount > 0) void message.success(`Đã import ${successCount} profile`);
     if (failCount > 0) void message.warning(`${failCount} file thất bại`);
     if (successCount > 0) { setImportFiles([]); onSaved(); }
+  }
+
+  function applyBundleSelection(selectedCategories: string[]): void {
+    const selectedIds = new Set<string>(form.getFieldValue('extensionIds') ?? []);
+
+    for (const category of selectedCategories) {
+      const bundle = extensionBundles.find((item) => item.key === category);
+      if (!bundle) {
+        continue;
+      }
+      for (const extensionId of bundle.extensionIds) {
+        selectedIds.add(extensionId);
+      }
+    }
+
+    form.setFieldValue('extensionCategories', selectedCategories);
+    form.setFieldValue('extensionIds', Array.from(selectedIds));
+  }
+
+  async function handleImportCookies(): Promise<void> {
+    if (!profileId) {
+      void message.warning('Hãy lưu hồ sơ trước khi import cookie.');
+      return;
+    }
+
+    let parsed: ProfileCookie[];
+    try {
+      parsed = JSON.parse(cookieText) as ProfileCookie[];
+    } catch {
+      void message.error('Cookie JSON không hợp lệ');
+      return;
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      void message.warning('Hãy nhập ít nhất một cookie hợp lệ');
+      return;
+    }
+
+    setCookiesSaving(true);
+    const res = await apiClient.post<{ count: number; cookies: ProfileCookie[] }>(`/api/profiles/${profileId}/cookies/import`, {
+      cookies: parsed,
+    });
+    setCookiesSaving(false);
+
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+
+    setCookieCount(res.data.count);
+    setCookieText(JSON.stringify(res.data.cookies, null, 2));
+    void message.success(`Đã import ${res.data.count} cookie`);
+  }
+
+  async function handleClearCookies(): Promise<void> {
+    if (!profileId) {
+      return;
+    }
+
+    setCookiesSaving(true);
+    const res = await apiClient.delete(`/api/profiles/${profileId}/cookies`);
+    setCookiesSaving(false);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+
+    setCookieText('[]');
+    setCookieCount(0);
+    void message.success('Đã xóa cookie jar của hồ sơ');
+  }
+
+  function handleExportCookies(): void {
+    if (!profileId) {
+      return;
+    }
+    window.open(buildApiUrl(`/api/profiles/${profileId}/cookies/export`), '_blank');
   }
 
   // ─── Tabs ────────────────────────────────────────────────────────────────────
@@ -230,6 +384,39 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
       ),
     },
     {
+      key: 'extensions',
+      label: 'Tiện ích',
+      children: (
+        <Form form={form} layout="vertical">
+          <Form.Item name="extensionCategories" label="Bundle theo use case">
+            <Select
+              mode="multiple"
+              placeholder="Chọn nhóm extension để gắn nhanh theo use case"
+              options={extensionBundles.map((bundle) => ({
+                label: `${bundle.label} · ${bundle.extensionCount} extension`,
+                value: bundle.key,
+              }))}
+              onChange={applyBundleSelection}
+            />
+          </Form.Item>
+          <Form.Item name="extensionIds" label="Extensions gắn với hồ sơ">
+            <Select
+              mode="multiple"
+              placeholder="Chọn extension sẽ nạp cùng profile"
+              options={extensions.map((extension) => ({
+                label: `${extension.name}${extension.version ? ` · v${extension.version}` : ''}${extension.enabled ? '' : ' (đã tắt)'}`,
+                value: extension.id,
+                disabled: !extension.enabled,
+              }))}
+            />
+          </Form.Item>
+          <Typography.Text type="secondary">
+            Bundle sẽ tự thêm cả nhóm extension theo category. Danh sách bên dưới vẫn cho phép bạn tinh chỉnh từng extension cụ thể trước khi lưu.
+          </Typography.Text>
+        </Form>
+      ),
+    },
+    {
       key: 'fingerprint',
       label: 'Dấu vân tay',
       children: (
@@ -237,33 +424,82 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
       ),
     },
     {
+      key: 'bookmarks',
+      label: 'Bookmarks',
+      children: (
+        <div style={{ paddingTop: 8 }}>
+          <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            Quản lý bookmarks dưới dạng JSON. Khi lưu hồ sơ, app sẽ đồng bộ thẳng vào file bookmark của Chromium profile.
+          </Typography.Text>
+          <Input.TextArea
+            rows={12}
+            value={bookmarkText}
+            onChange={(event) => setBookmarkText(event.target.value)}
+            placeholder={'[\n  {"name":"Google","url":"https://www.google.com","folder":"Daily"},\n  {"name":"Docs","url":"https://docs.example.com","folder":null}\n]'}
+          />
+        </div>
+      ),
+    },
+    {
       key: 'activity',
       label: 'Hoạt động',
       children: (
-        <Table
-          size="small"
-          dataSource={activity}
-          rowKey={(r) => r.startedAt}
-          pagination={{ pageSize: 10 }}
-          locale={{ emptyText: 'Chưa có phiên nào' }}
-          columns={[
-            {
-              title: 'Bắt đầu',
-              dataIndex: 'startedAt',
-              render: (v: string) => new Date(v).toLocaleString('vi-VN'),
-            },
-            {
-              title: 'Kết thúc',
-              dataIndex: 'stoppedAt',
-              render: (v?: string) => v ? new Date(v).toLocaleString('vi-VN') : '—',
-            },
-            {
-              title: 'Thời gian',
-              dataIndex: 'durationMs',
-              render: (v?: number) => v ? `${Math.round(v / 1000)}s` : '—',
-            },
-          ]}
-        />
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Table
+            size="small"
+            dataSource={activity}
+            rowKey={(r) => r.startedAt}
+            pagination={{ pageSize: 10 }}
+            locale={{ emptyText: 'Chưa có phiên nào' }}
+            columns={[
+              {
+                title: 'Bắt đầu',
+                dataIndex: 'startedAt',
+                render: (v: string) => new Date(v).toLocaleString('vi-VN'),
+              },
+              {
+                title: 'Kết thúc',
+                dataIndex: 'stoppedAt',
+                render: (v?: string) => v ? new Date(v).toLocaleString('vi-VN') : '—',
+              },
+              {
+                title: 'Thời gian',
+                dataIndex: 'durationMs',
+                render: (v?: number) => v ? `${Math.round(v / 1000)}s` : '—',
+              },
+            ]}
+          />
+          {isEdit ? (
+            <div>
+              <Typography.Title level={5} style={{ marginBottom: 8 }}>
+                Cookies
+              </Typography.Title>
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                Import hoặc export cookie JSON cho hồ sơ này. Cookie đã lưu sẽ được tự bơm vào browser khi profile khởi chạy.
+              </Typography.Text>
+              <Typography.Text style={{ display: 'block', marginBottom: 12 }}>
+                Cookie hiện có: <strong>{cookieCount}</strong>
+              </Typography.Text>
+              <Input.TextArea
+                rows={12}
+                value={cookieText}
+                onChange={(event) => setCookieText(event.target.value)}
+                placeholder='[{"name":"session","value":"abc","domain":".example.com","path":"/"}]'
+              />
+              <Space style={{ marginTop: 12 }}>
+                <Button loading={cookiesSaving} type="primary" onClick={() => void handleImportCookies()}>
+                  Import cookies
+                </Button>
+                <Button loading={cookiesSaving || cookiesLoading} onClick={handleExportCookies} disabled={cookieCount === 0}>
+                  Export JSON
+                </Button>
+                <Button danger loading={cookiesSaving} onClick={() => void handleClearCookies()} disabled={cookieCount === 0}>
+                  Xóa cookies
+                </Button>
+              </Space>
+            </div>
+          ) : null}
+        </Space>
       ),
     },
     ...(!isEdit ? [{
@@ -305,7 +541,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
   return (
     <Drawer
       title={isEdit ? 'Chỉnh sửa hồ sơ' : 'Tạo hồ sơ mới'}
-      width={600}
+      width={760}
       open={open}
       onClose={onClose}
       destroyOnClose
@@ -323,7 +559,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ open, profileId, onClose, onS
           <Spin size="large" />
         </div>
       ) : (
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="small" tabBarGutter={8} />
       )}
     </Drawer>
   );

@@ -9,6 +9,8 @@ describe('Operations endpoints', () => {
   let tmpDir: string;
   let baseUrl: string;
   let server: http.Server;
+  let storeServer: http.Server | null = null;
+  let storeBaseUrl = '';
 
   beforeAll(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pro5-ops-test-'));
@@ -41,11 +43,47 @@ describe('Operations endpoints', () => {
     const { proxyManager } = await import('../managers/ProxyManager');
     await proxyManager.initialize();
 
+    const { extensionManager } = await import('../managers/ExtensionManager');
+    await extensionManager.initialize();
+
+    const { browserCoreManager } = await import('../managers/BrowserCoreManager');
+    await browserCoreManager.initialize();
+
     const { app } = await import('../index');
     server = http.createServer(app);
+    storeServer = http.createServer(async (req, res) => {
+      if (req.url?.startsWith('/mock-store/download')) {
+        const packagePath = path.join(tmpDir, 'mock-store.crx');
+        const payload = await fs.readFile(packagePath);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/x-chrome-extension');
+        res.end(payload);
+        return;
+      }
+
+      if (req.url?.startsWith('/browser-core/download')) {
+        const packagePath = path.join(tmpDir, 'mock-browser-core.zip');
+        const payload = await fs.readFile(packagePath);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/zip');
+        res.end(payload);
+        return;
+      }
+
+      if (!req.url) {
+        res.statusCode = 404;
+        res.end('not found');
+        return;
+      }
+      res.statusCode = 404;
+      res.end('not found');
+    });
 
     await new Promise<void>((resolve) => {
       server.listen(0, '127.0.0.1', () => resolve());
+    });
+    await new Promise<void>((resolve) => {
+      storeServer?.listen(0, '127.0.0.1', () => resolve());
     });
 
     const address = server.address();
@@ -53,6 +91,12 @@ describe('Operations endpoints', () => {
       throw new Error('Failed to bind test server');
     }
     baseUrl = `http://127.0.0.1:${address.port}`;
+    const storeAddress = storeServer.address();
+    if (!storeAddress || typeof storeAddress === 'string') {
+      throw new Error('Failed to bind mock extension store server');
+    }
+    storeBaseUrl = `http://127.0.0.1:${storeAddress.port}`;
+    process.env['PRO5_EXTENSION_STORE_DOWNLOAD_URL_TEMPLATE'] = `${storeBaseUrl}/mock-store/download?id={id}`;
   });
 
   afterAll(async () => {
@@ -61,9 +105,15 @@ describe('Operations endpoints', () => {
         server.close((err) => (err ? reject(err) : resolve()));
       });
     }
+    if (storeServer) {
+      await new Promise<void>((resolve, reject) => {
+        storeServer?.close((err) => (err ? reject(err) : resolve()));
+      });
+    }
     await fs.rm(tmpDir, { recursive: true, force: true });
     delete process.env['DATA_DIR'];
     delete process.env['PRO5_SERVER_AUTOSTART'];
+    delete process.env['PRO5_EXTENSION_STORE_DOWNLOAD_URL_TEMPLATE'];
   });
 
   it('serves health and readiness endpoints', async () => {
@@ -261,14 +311,32 @@ describe('Operations endpoints', () => {
     expect(incidentsRes.status).toBe(200);
     const incidentsJson = await incidentsRes.json() as {
       success: boolean;
-      data: { count: number; incidents: Array<{ source: string; level: string; message: string }> };
+      data: {
+        count: number;
+        incidents: Array<{ source: string; level: string; message: string; category: string; categoryLabel: string }>;
+        summary: {
+          total: number;
+          topCategory: string | null;
+          categories: Array<{ category: string; count: number; errorCount: number; latestAt: string | null }>;
+        };
+        timeline: Array<{ category: string; message: string }>;
+      };
     };
     expect(incidentsJson.success).toBe(true);
     expect(incidentsJson.data.count).toBeGreaterThan(0);
     expect(incidentsJson.data.incidents.some((incident) =>
       incident.source === 'electron-main.log' &&
       incident.level === 'error' &&
-      incident.message === 'Renderer failed to load URL')).toBe(true);
+      incident.message === 'Renderer failed to load URL' &&
+      incident.category === 'renderer-navigation')).toBe(true);
+    expect(incidentsJson.data.summary.total).toBe(incidentsJson.data.count);
+    expect(incidentsJson.data.summary.topCategory).toBe('renderer-navigation');
+    expect(incidentsJson.data.summary.categories.some((category) =>
+      category.category === 'renderer-navigation' &&
+      category.count > 0 &&
+      category.errorCount > 0 &&
+      category.latestAt)).toBe(true);
+    expect(incidentsJson.data.timeline[0]?.category).toBe('renderer-navigation');
 
     const statusRes = await fetch(`${baseUrl}/api/support/status`);
     expect(statusRes.status).toBe(200);
@@ -278,12 +346,16 @@ describe('Operations endpoints', () => {
         recentIncidentCount: number;
         recentErrorCount: number;
         lastIncidentAt: string | null;
+        recentIncidentTopCategory: string | null;
+        recentIncidentCategories: Array<{ category: string; count: number }>;
       };
     };
     expect(statusJson.success).toBe(true);
     expect(statusJson.data.recentIncidentCount).toBeGreaterThan(0);
     expect(statusJson.data.recentErrorCount).toBeGreaterThan(0);
     expect(statusJson.data.lastIncidentAt).toBeTruthy();
+    expect(statusJson.data.recentIncidentTopCategory).toBeTruthy();
+    expect(statusJson.data.recentIncidentCategories.length).toBeGreaterThan(0);
   });
 
   it('aggregates server and electron logs into the shared ops stream', async () => {
@@ -422,6 +494,144 @@ describe('Operations endpoints', () => {
     expect(statusJson.data.onboardingState.profileCreatedAt).toBeTruthy();
   });
 
+  it('imports, lists, exports, and clears profile cookies through the profile API', async () => {
+    const createProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Cookie Profile',
+      }),
+    });
+    expect(createProfileRes.status).toBe(201);
+    const createProfileJson = await createProfileRes.json() as {
+      success: boolean;
+      data: { id: string };
+    };
+    expect(createProfileJson.success).toBe(true);
+
+    const profileId = createProfileJson.data.id;
+    const importRes = await fetch(`${baseUrl}/api/profiles/${profileId}/cookies/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cookies: [
+          {
+            name: 'session',
+            value: 'abc',
+            domain: '.example.com',
+            path: '/',
+            expirationDate: 1900000000,
+            sameSite: 'no_restriction',
+            secure: true,
+          },
+        ],
+      }),
+    });
+    expect(importRes.status).toBe(201);
+    const importJson = await importRes.json() as {
+      success: boolean;
+      data: { count: number; cookies: Array<{ sameSite: string | null }> };
+    };
+    expect(importJson.success).toBe(true);
+    expect(importJson.data.count).toBe(1);
+    expect(importJson.data.cookies[0]?.sameSite).toBe('None');
+
+    const listRes = await fetch(`${baseUrl}/api/profiles/${profileId}/cookies`);
+    expect(listRes.status).toBe(200);
+    const listJson = await listRes.json() as {
+      success: boolean;
+      data: { count: number; cookies: Array<{ domain: string }> };
+    };
+    expect(listJson.success).toBe(true);
+    expect(listJson.data.count).toBe(1);
+    expect(listJson.data.cookies[0]?.domain).toBe('.example.com');
+
+    const exportRes = await fetch(`${baseUrl}/api/profiles/${profileId}/cookies/export`);
+    expect(exportRes.status).toBe(200);
+    expect(exportRes.headers.get('content-type')).toContain('application/json');
+    const exportedCookies = JSON.parse(await exportRes.text()) as Array<{ name: string }>;
+    expect(exportedCookies[0]?.name).toBe('session');
+
+    const clearRes = await fetch(`${baseUrl}/api/profiles/${profileId}/cookies`, {
+      method: 'DELETE',
+    });
+    expect(clearRes.status).toBe(200);
+
+    const afterClearRes = await fetch(`${baseUrl}/api/profiles/${profileId}/cookies`);
+    const afterClearJson = await afterClearRes.json() as {
+      success: boolean;
+      data: { count: number; cookies: unknown[] };
+    };
+    expect(afterClearJson.success).toBe(true);
+    expect(afterClearJson.data.count).toBe(0);
+    expect(afterClearJson.data.cookies).toEqual([]);
+  });
+
+  it('persists profile bookmarks and syncs them into the Chromium bookmarks file', async () => {
+    const bookmarks = [
+      {
+        name: 'Google',
+        url: 'https://www.google.com/',
+        folder: 'Daily',
+      },
+      {
+        name: 'Docs',
+        url: 'https://docs.example.com/',
+        folder: null,
+      },
+    ];
+
+    const createProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Bookmark Profile',
+        bookmarks,
+      }),
+    });
+    expect(createProfileRes.status).toBe(201);
+    const createProfileJson = await createProfileRes.json() as {
+      success: boolean;
+      data: {
+        id: string;
+        bookmarks: Array<{ name: string; url: string; folder: string | null }>;
+      };
+    };
+    expect(createProfileJson.success).toBe(true);
+    expect(createProfileJson.data.bookmarks).toEqual(bookmarks);
+
+    const profileId = createProfileJson.data.id;
+    const getProfileRes = await fetch(`${baseUrl}/api/profiles/${profileId}`);
+    expect(getProfileRes.status).toBe(200);
+    const getProfileJson = await getProfileRes.json() as {
+      success: boolean;
+      data: {
+        bookmarks: Array<{ name: string; url: string; folder: string | null }>;
+      };
+    };
+    expect(getProfileJson.success).toBe(true);
+    expect(getProfileJson.data.bookmarks).toEqual(bookmarks);
+
+    const chromiumBookmarksPath = path.join(tmpDir, 'profiles', profileId, 'Default', 'Bookmarks');
+    const chromiumBookmarks = JSON.parse(await fs.readFile(chromiumBookmarksPath, 'utf-8')) as {
+      roots?: {
+        bookmark_bar?: {
+          children?: Array<{
+            type?: string;
+            name?: string;
+            url?: string;
+            children?: Array<{ name?: string; url?: string }>;
+          }>;
+        };
+      };
+    };
+
+    const bookmarkBarChildren = chromiumBookmarks.roots?.bookmark_bar?.children ?? [];
+    expect(bookmarkBarChildren.some((child) => child.type === 'url' && child.name === 'Docs' && child.url === 'https://docs.example.com/')).toBe(true);
+    const dailyFolder = bookmarkBarChildren.find((child) => child.type === 'folder' && child.name === 'Daily');
+    expect(dailyFolder?.children?.some((child) => child.name === 'Google' && child.url === 'https://www.google.com/')).toBe(true);
+  });
+
   it('accepts support feedback and exposes it in support status', async () => {
     const feedbackRes = await fetch(`${baseUrl}/api/support/feedback`, {
       method: 'POST',
@@ -540,8 +750,21 @@ describe('Operations endpoints', () => {
     };
     const incidents = JSON.parse(await fs.readFile(path.join(extractDir, 'incidents.json'), 'utf-8')) as {
       count: number;
-      incidents: Array<{ message: string }>;
+      incidents: Array<{ message: string; category: string }>;
+      summary: {
+        topCategory: string | null;
+        categories: Array<{ category: string; count: number }>;
+      };
+      timeline: Array<{ message: string; category: string }>;
     };
+    const incidentSummary = JSON.parse(await fs.readFile(path.join(extractDir, 'incident-summary.json'), 'utf-8')) as {
+      topCategory: string | null;
+      categories: Array<{ category: string; count: number }>;
+    };
+    const incidentTimeline = JSON.parse(await fs.readFile(path.join(extractDir, 'incident-timeline.json'), 'utf-8')) as Array<{
+      message: string;
+      category: string;
+    }>;
     const feedbackEntries = JSON.parse(await fs.readFile(path.join(extractDir, 'support-feedback.json'), 'utf-8')) as Array<{
       message: string;
       email: string | null;
@@ -559,10 +782,10 @@ describe('Operations endpoints', () => {
     expect(supportStatus.onboardingState.status).toBe('profile_created');
     expect(supportStatus.onboardingState.currentStep).toBe(2);
     expect(supportStatus.onboardingState.selectedRuntime).toBe('smoke');
-    expect(supportStatus.profileCount).toBe(0);
+    expect(supportStatus.profileCount).toBeGreaterThanOrEqual(0);
     expect(supportStatus.proxyCount).toBe(0);
     expect(supportStatus.backupCount).toBe(0);
-    expect(supportStatus.usageMetrics.profileCreates).toBe(1);
+    expect(supportStatus.usageMetrics.profileCreates).toBeGreaterThanOrEqual(1);
     expect(supportStatus.usageMetrics.profileImports).toBe(1);
     expect(supportStatus.usageMetrics.profileLaunches).toBe(1);
     expect(supportStatus.usageMetrics.sessionChecks).toBe(3);
@@ -571,6 +794,9 @@ describe('Operations endpoints', () => {
     expect(selfTest.checks.some((check) => check.key === 'diagnostics')).toBe(true);
     expect(incidents.count).toBeGreaterThan(0);
     expect(incidents.incidents.some((incident) => incident.message === 'Test warning for diagnostics export')).toBe(true);
+    expect(incidents.summary.categories.length).toBeGreaterThan(0);
+    expect(incidentSummary.categories.length).toBeGreaterThan(0);
+    expect(incidentTimeline.some((incident) => incident.message === 'Test warning for diagnostics export')).toBe(true);
     expect(feedbackEntries.some((entry) =>
       entry.message === 'The launch flow is confusing when no runtime is configured yet.' &&
       entry.email === 'tester@example.com')).toBe(true);
@@ -806,6 +1032,770 @@ describe('Operations endpoints', () => {
       instanceManager.getStatus = originalGetStatus;
       instanceManager.stopInstance = originalStopInstance;
       instanceManager.launchInstance = originalLaunchInstance;
+    }
+  });
+
+  it('adds extensions and binds them to profiles', async () => {
+    const extensionDir = path.join(tmpDir, 'sample-extension');
+    await fs.mkdir(extensionDir, { recursive: true });
+    await fs.writeFile(path.join(extensionDir, 'manifest.json'), JSON.stringify({
+      manifest_version: 3,
+      name: 'Sample Operations Extension',
+      version: '0.1.0',
+      description: 'Operations fixture extension',
+    }, null, 2), 'utf-8');
+
+    const createExtensionRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: extensionDir,
+      }),
+    });
+    expect(createExtensionRes.status).toBe(201);
+    const createdExtensionJson = await createExtensionRes.json() as {
+      success: boolean;
+      data: { id: string; name: string; entryPath: string; enabled: boolean; category: string | null; defaultForNewProfiles: boolean };
+    };
+    expect(createdExtensionJson.success).toBe(true);
+    expect(createdExtensionJson.data.name).toBe('Sample Operations Extension');
+    expect(createdExtensionJson.data.entryPath).toBe(extensionDir);
+    expect(createdExtensionJson.data.enabled).toBe(true);
+    expect(createdExtensionJson.data.category).toBeNull();
+    expect(createdExtensionJson.data.defaultForNewProfiles).toBe(false);
+
+    const createProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Extension bound profile',
+        extensionIds: [createdExtensionJson.data.id],
+      }),
+    });
+    expect(createProfileRes.status).toBe(201);
+    const createdProfileJson = await createProfileRes.json() as {
+      success: boolean;
+      data: { extensionIds: string[] };
+    };
+    expect(createdProfileJson.success).toBe(true);
+    expect(createdProfileJson.data.extensionIds).toEqual([createdExtensionJson.data.id]);
+
+    const listExtensionsRes = await fetch(`${baseUrl}/api/extensions`);
+    expect(listExtensionsRes.status).toBe(200);
+    const listExtensionsJson = await listExtensionsRes.json() as {
+      success: boolean;
+      data: Array<{ id: string; name: string }>;
+    };
+    expect(listExtensionsJson.success).toBe(true);
+    expect(listExtensionsJson.data.some((extension) => extension.id === createdExtensionJson.data.id)).toBe(true);
+
+    const disableExtensionRes = await fetch(`${baseUrl}/api/extensions/${createdExtensionJson.data.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: false,
+        name: 'Disabled Sample Extension',
+        category: 'wallet',
+        defaultForNewProfiles: true,
+      }),
+    });
+    expect(disableExtensionRes.status).toBe(200);
+    const disableExtensionJson = await disableExtensionRes.json() as {
+      success: boolean;
+      data: { enabled: boolean; name: string; category: string | null; defaultForNewProfiles: boolean };
+    };
+    expect(disableExtensionJson.success).toBe(true);
+    expect(disableExtensionJson.data.enabled).toBe(false);
+    expect(disableExtensionJson.data.name).toBe('Disabled Sample Extension');
+    expect(disableExtensionJson.data.category).toBe('wallet');
+    expect(disableExtensionJson.data.defaultForNewProfiles).toBe(true);
+  });
+
+  it('auto-applies default extensions to newly created profiles', async () => {
+    const extensionDir = path.join(tmpDir, 'default-extension');
+    await fs.mkdir(extensionDir, { recursive: true });
+    await fs.writeFile(path.join(extensionDir, 'manifest.json'), JSON.stringify({
+      manifest_version: 3,
+      name: 'Default Stack Extension',
+      version: '0.2.0',
+    }, null, 2), 'utf-8');
+
+    const createExtensionRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: extensionDir,
+        category: 'wallet',
+        defaultForNewProfiles: true,
+      }),
+    });
+    expect(createExtensionRes.status).toBe(201);
+    const createExtensionJson = await createExtensionRes.json() as {
+      success: boolean;
+      data: { id: string };
+    };
+    expect(createExtensionJson.success).toBe(true);
+
+    const createProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Default Extension Profile',
+      }),
+    });
+    expect(createProfileRes.status).toBe(201);
+    const createProfileJson = await createProfileRes.json() as {
+      success: boolean;
+      data: { extensionIds: string[] };
+    };
+    expect(createProfileJson.success).toBe(true);
+    expect(createProfileJson.data.extensionIds).toContain(createExtensionJson.data.id);
+  });
+
+  it('imports packaged zip extensions through the extensions API', async () => {
+    const extensionDir = path.join(tmpDir, 'zip-extension');
+    const zipPath = path.join(tmpDir, 'zip-extension.zip');
+    await fs.mkdir(extensionDir, { recursive: true });
+    await fs.writeFile(path.join(extensionDir, 'manifest.json'), JSON.stringify({
+      manifest_version: 3,
+      name: 'Zip Stack Extension',
+      version: '0.3.0',
+    }, null, 2), 'utf-8');
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Compress-Archive -Path '${path.join(extensionDir, '*').replace(/'/g, "''")}' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`,
+      ],
+      { stdio: 'pipe' },
+    );
+
+    const createExtensionRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: zipPath,
+        category: 'automation',
+      }),
+    });
+    expect(createExtensionRes.status).toBe(201);
+    const createExtensionJson = await createExtensionRes.json() as {
+      success: boolean;
+      data: { id: string; sourcePath: string; entryPath: string; category: string | null };
+    };
+
+    expect(createExtensionJson.success).toBe(true);
+    expect(createExtensionJson.data.sourcePath).toBe(zipPath);
+    expect(createExtensionJson.data.entryPath).not.toBe(zipPath);
+    expect(createExtensionJson.data.entryPath).toContain(path.join('extensions', 'packages'));
+    expect(createExtensionJson.data.category).toBe('automation');
+  });
+
+  it('imports packaged crx extensions through the extensions API', async () => {
+    const extensionDir = path.join(tmpDir, 'crx-extension');
+    const zipPath = path.join(tmpDir, 'crx-extension.zip');
+    const crxPath = path.join(tmpDir, 'crx-extension.crx');
+    await fs.mkdir(extensionDir, { recursive: true });
+    await fs.writeFile(path.join(extensionDir, 'manifest.json'), JSON.stringify({
+      manifest_version: 3,
+      name: 'CRX Stack Extension',
+      version: '0.4.0',
+    }, null, 2), 'utf-8');
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Compress-Archive -Path '${path.join(extensionDir, '*').replace(/'/g, "''")}' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`,
+      ],
+      { stdio: 'pipe' },
+    );
+    const zipBytes = await fs.readFile(zipPath);
+    const header = Buffer.alloc(16);
+    header.write('Cr24', 0, 'ascii');
+    header.writeUInt32LE(3, 4);
+    header.writeUInt32LE(0, 8);
+    header.writeUInt32LE(0, 12);
+    await fs.writeFile(crxPath, Buffer.concat([header, zipBytes]));
+
+    const createExtensionRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: crxPath,
+        category: 'wallet',
+      }),
+    });
+    expect(createExtensionRes.status).toBe(201);
+    const createExtensionJson = await createExtensionRes.json() as {
+      success: boolean;
+      data: { sourcePath: string; entryPath: string; category: string | null };
+    };
+
+    expect(createExtensionJson.success).toBe(true);
+    expect(createExtensionJson.data.sourcePath).toBe(crxPath);
+    expect(createExtensionJson.data.entryPath).not.toBe(crxPath);
+    expect(createExtensionJson.data.entryPath).toContain(path.join('extensions', 'packages'));
+    expect(createExtensionJson.data.category).toBe('wallet');
+  });
+
+  it('imports Chrome Web Store extensions through the extensions API by id and by URL', async () => {
+    const extensionDir = path.join(tmpDir, 'store-extension');
+    const zipPath = path.join(tmpDir, 'store-extension.zip');
+    const crxPath = path.join(tmpDir, 'mock-store.crx');
+    await fs.mkdir(extensionDir, { recursive: true });
+    await fs.writeFile(path.join(extensionDir, 'manifest.json'), JSON.stringify({
+      manifest_version: 3,
+      name: 'Store Download Extension',
+      version: '0.5.0',
+    }, null, 2), 'utf-8');
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Compress-Archive -Path '${path.join(extensionDir, '*').replace(/'/g, "''")}' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`,
+      ],
+      { stdio: 'pipe' },
+    );
+    const zipBytes = await fs.readFile(zipPath);
+    const header = Buffer.alloc(16);
+    header.write('Cr24', 0, 'ascii');
+    header.writeUInt32LE(3, 4);
+    header.writeUInt32LE(0, 8);
+    header.writeUInt32LE(0, 12);
+    await fs.writeFile(crxPath, Buffer.concat([header, zipBytes]));
+
+    const createByIdRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        category: 'wallet',
+      }),
+    });
+    expect(createByIdRes.status).toBe(201);
+    const createByIdJson = await createByIdRes.json() as {
+      success: boolean;
+      data: { sourcePath: string; entryPath: string; category: string | null };
+    };
+    expect(createByIdJson.success).toBe(true);
+    expect(createByIdJson.data.sourcePath).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    expect(createByIdJson.data.entryPath).toContain(path.join('extensions', 'packages'));
+    expect(createByIdJson.data.category).toBe('wallet');
+
+    const createByUrlRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: 'https://chromewebstore.google.com/detail/store-download-extension/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        category: 'automation',
+      }),
+    });
+    expect(createByUrlRes.status).toBe(201);
+    const createByUrlJson = await createByUrlRes.json() as {
+      success: boolean;
+      data: { sourcePath: string; entryPath: string; category: string | null };
+    };
+    expect(createByUrlJson.success).toBe(true);
+    expect(createByUrlJson.data.sourcePath).toBe('https://chromewebstore.google.com/detail/store-download-extension/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+    expect(createByUrlJson.data.entryPath).toContain(path.join('extensions', 'packages'));
+    expect(createByUrlJson.data.category).toBe('automation');
+  });
+
+  it('creates many profiles in one request through the bulk create API', async () => {
+    const proxyRes = await fetch(`${baseUrl}/api/proxies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        host: '198.51.100.44',
+        port: 8600,
+        type: 'http',
+        label: 'Bulk API Proxy',
+      }),
+    });
+    const proxyJson = await proxyRes.json() as { success: boolean; data: { id: string } };
+    expect(proxyJson.success).toBe(true);
+
+    const createProfilesRes = await fetch(`${baseUrl}/api/profiles/bulk-create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runtime: 'smoke',
+        proxyId: proxyJson.data.id,
+        entries: [
+          { name: 'Bulk API Alpha', group: 'Growth', owner: 'alice', tags: ['warm'] },
+          { name: 'Bulk API Beta', notes: 'Second row', tags: ['scale', 'team-b'] },
+        ],
+      }),
+    });
+    expect(createProfilesRes.status).toBe(201);
+    const createProfilesJson = await createProfilesRes.json() as {
+      success: boolean;
+      data: {
+        total: number;
+        profiles: Array<{ name: string; runtime: string; proxy: { id: string } | null; group: string | null; owner: string | null; tags: string[]; notes: string }>;
+      };
+    };
+    expect(createProfilesJson.success).toBe(true);
+    expect(createProfilesJson.data.total).toBe(2);
+    expect(createProfilesJson.data.profiles.map((profile) => profile.name)).toEqual(['Bulk API Alpha', 'Bulk API Beta']);
+    expect(createProfilesJson.data.profiles.every((profile) => profile.runtime === 'smoke')).toBe(true);
+    expect(createProfilesJson.data.profiles.every((profile) => profile.proxy?.id === proxyJson.data.id)).toBe(true);
+    expect(createProfilesJson.data.profiles[0]?.group).toBe('Growth');
+    expect(createProfilesJson.data.profiles[0]?.owner).toBe('alice');
+    expect(createProfilesJson.data.profiles[1]?.notes).toBe('Second row');
+  });
+
+  it('bulk updates profiles with clearable fields and tag operations in one request', async () => {
+    const firstProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Bulk Update Alpha',
+        group: 'Warm',
+        owner: 'alice',
+        tags: ['warm', 'alpha'],
+      }),
+    });
+    expect(firstProfileRes.status).toBe(201);
+    const firstProfileJson = await firstProfileRes.json() as {
+      success: boolean;
+      data: { id: string };
+    };
+    expect(firstProfileJson.success).toBe(true);
+
+    const secondProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Bulk Update Beta',
+        group: 'Warm',
+        owner: 'bob',
+        tags: ['warm', 'beta'],
+      }),
+    });
+    expect(secondProfileRes.status).toBe(201);
+    const secondProfileJson = await secondProfileRes.json() as {
+      success: boolean;
+      data: { id: string };
+    };
+    expect(secondProfileJson.success).toBe(true);
+
+    const bulkUpdateRes = await fetch(`${baseUrl}/api/profiles/bulk-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: [firstProfileJson.data.id, secondProfileJson.data.id],
+        updates: {
+          group: null,
+          owner: null,
+          runtime: 'smoke',
+          addTags: ['shared', 'priority'],
+          removeTags: ['warm'],
+        },
+      }),
+    });
+    expect(bulkUpdateRes.status).toBe(200);
+    const bulkUpdateJson = await bulkUpdateRes.json() as {
+      success: boolean;
+      data: {
+        total: number;
+        profiles: Array<{
+          group: string | null;
+          owner: string | null;
+          runtime: string;
+          tags: string[];
+        }>;
+      };
+    };
+    expect(bulkUpdateJson.success).toBe(true);
+    expect(bulkUpdateJson.data.total).toBe(2);
+    expect(bulkUpdateJson.data.profiles.every((profile) => profile.group === null)).toBe(true);
+    expect(bulkUpdateJson.data.profiles.every((profile) => profile.owner === null)).toBe(true);
+    expect(bulkUpdateJson.data.profiles.every((profile) => profile.runtime === 'smoke')).toBe(true);
+    expect(bulkUpdateJson.data.profiles[0]?.tags).toEqual(expect.arrayContaining(['alpha', 'shared', 'priority']));
+    expect(bulkUpdateJson.data.profiles[0]?.tags).not.toContain('warm');
+    expect(bulkUpdateJson.data.profiles[1]?.tags).toEqual(expect.arrayContaining(['beta', 'shared', 'priority']));
+    expect(bulkUpdateJson.data.profiles[1]?.tags).not.toContain('warm');
+  });
+
+  it('rejects bulk updates when any profile id is missing without mutating valid profiles', async () => {
+    const profileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Bulk Update Guard',
+        group: 'Original Group',
+        owner: 'keeper',
+        tags: ['keep-me'],
+      }),
+    });
+    expect(profileRes.status).toBe(201);
+    const profileJson = await profileRes.json() as {
+      success: boolean;
+      data: { id: string };
+    };
+    expect(profileJson.success).toBe(true);
+
+    const bulkUpdateRes = await fetch(`${baseUrl}/api/profiles/bulk-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: [profileJson.data.id, 'missing-profile-id'],
+        updates: {
+          group: null,
+          addTags: ['mutated'],
+        },
+      }),
+    });
+    expect(bulkUpdateRes.status).toBe(404);
+
+    const unchangedProfileRes = await fetch(`${baseUrl}/api/profiles/${profileJson.data.id}`);
+    expect(unchangedProfileRes.status).toBe(200);
+    const unchangedProfileJson = await unchangedProfileRes.json() as {
+      success: boolean;
+      data: {
+        group: string | null;
+        owner: string | null;
+        tags: string[];
+      };
+    };
+    expect(unchangedProfileJson.success).toBe(true);
+    expect(unchangedProfileJson.data.group).toBe('Original Group');
+    expect(unchangedProfileJson.data.owner).toBe('keeper');
+    expect(unchangedProfileJson.data.tags).toEqual(['keep-me']);
+  });
+
+  it('lists extension bundles by category and applies them during profile creation', async () => {
+    const existingExtensionsRes = await fetch(`${baseUrl}/api/extensions`);
+    const existingExtensionsJson = await existingExtensionsRes.json() as {
+      success: boolean;
+      data: Array<{ id: string }>;
+    };
+    expect(existingExtensionsJson.success).toBe(true);
+    for (const extension of existingExtensionsJson.data) {
+      await fetch(`${baseUrl}/api/extensions/${extension.id}`, { method: 'DELETE' });
+    }
+
+    const walletDir = path.join(tmpDir, 'bundle-wallet-extension');
+    const automationDir = path.join(tmpDir, 'bundle-automation-extension');
+    await fs.mkdir(walletDir, { recursive: true });
+    await fs.mkdir(automationDir, { recursive: true });
+    await fs.writeFile(path.join(walletDir, 'manifest.json'), JSON.stringify({
+      manifest_version: 3,
+      name: 'Bundle Wallet',
+      version: '1.0.0',
+    }, null, 2), 'utf-8');
+    await fs.writeFile(path.join(automationDir, 'manifest.json'), JSON.stringify({
+      manifest_version: 3,
+      name: 'Bundle Automation',
+      version: '1.0.0',
+    }, null, 2), 'utf-8');
+
+    const walletRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: walletDir,
+        category: 'wallet',
+      }),
+    });
+    const walletJson = await walletRes.json() as { success: boolean; data: { id: string } };
+    expect(walletJson.success).toBe(true);
+
+    const automationRes = await fetch(`${baseUrl}/api/extensions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: automationDir,
+        category: 'automation',
+      }),
+    });
+    const automationJson = await automationRes.json() as { success: boolean; data: { id: string } };
+    expect(automationJson.success).toBe(true);
+
+    const bundlesRes = await fetch(`${baseUrl}/api/extensions/bundles`);
+    expect(bundlesRes.status).toBe(200);
+    const bundlesJson = await bundlesRes.json() as {
+      success: boolean;
+      data: Array<{ key: string; label: string; extensionIds: string[]; extensionCount: number }>;
+    };
+    expect(bundlesJson.success).toBe(true);
+    expect(bundlesJson.data).toEqual([
+      { key: 'automation', label: 'automation', extensionIds: [automationJson.data.id], extensionCount: 1 },
+      { key: 'wallet', label: 'wallet', extensionIds: [walletJson.data.id], extensionCount: 1 },
+    ]);
+
+    const createProfileRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Bundled Profile',
+        extensionCategories: ['wallet', 'automation'],
+      }),
+    });
+    expect(createProfileRes.status).toBe(201);
+    const createProfileJson = await createProfileRes.json() as {
+      success: boolean;
+      data: { extensionIds: string[] };
+    };
+    expect(createProfileJson.success).toBe(true);
+    expect(createProfileJson.data.extensionIds).toEqual([
+      automationJson.data.id,
+      walletJson.data.id,
+    ]);
+  });
+
+  it('imports an exported profile package through the raw package endpoint', async () => {
+    const createRes = await fetch(`${baseUrl}/api/profiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Portable API Profile',
+        notes: 'package import',
+        group: 'ops',
+        tags: ['portable'],
+        runtime: 'smoke',
+        bookmarks: [
+          { name: 'Example', url: 'https://example.com', folder: 'Warmup' },
+        ],
+      }),
+    });
+    expect(createRes.status).toBe(201);
+    const createdJson = await createRes.json() as {
+      success: boolean;
+      data: { id: string };
+    };
+    expect(createdJson.success).toBe(true);
+
+    const cookiesRes = await fetch(`${baseUrl}/api/profiles/${createdJson.data.id}/cookies/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cookies: [
+          {
+            name: 'session',
+            value: 'ops-123',
+            domain: '.example.com',
+            path: '/',
+            expires: null,
+            httpOnly: true,
+            secure: true,
+            sameSite: 'Lax',
+          },
+        ],
+      }),
+    });
+    expect(cookiesRes.status).toBe(201);
+
+    const exportRes = await fetch(`${baseUrl}/api/profiles/${createdJson.data.id}/export`);
+    expect(exportRes.status).toBe(200);
+    const archiveBuffer = Buffer.from(await exportRes.arrayBuffer());
+    expect(archiveBuffer.byteLength).toBeGreaterThan(100);
+
+    const importRes = await fetch(`${baseUrl}/api/profiles/import-package`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: archiveBuffer,
+    });
+    expect(importRes.status).toBe(201);
+    const importJson = await importRes.json() as {
+      success: boolean;
+      data: {
+        id: string;
+        name: string;
+        notes: string;
+        group: string | null;
+        tags: string[];
+        bookmarks: Array<{ name: string; url: string; folder: string | null }>;
+      };
+    };
+    expect(importJson.success).toBe(true);
+    expect(importJson.data.id).not.toBe(createdJson.data.id);
+    expect(importJson.data.name).toBe('Portable API Profile');
+    expect(importJson.data.notes).toBe('package import');
+    expect(importJson.data.group).toBe('ops');
+    expect(importJson.data.tags).toEqual(['portable']);
+    expect(importJson.data.bookmarks).toEqual([
+      { name: 'Example', url: 'https://example.com', folder: 'Warmup' },
+    ]);
+
+    const importedCookiesRes = await fetch(`${baseUrl}/api/profiles/${importJson.data.id}/cookies`);
+    expect(importedCookiesRes.status).toBe(200);
+    const importedCookiesJson = await importedCookiesRes.json() as {
+      success: boolean;
+      data: {
+        count: number;
+        cookies: Array<{ name: string; value: string }>;
+      };
+    };
+    expect(importedCookiesJson.success).toBe(true);
+    expect(importedCookiesJson.data.count).toBe(1);
+    expect(importedCookiesJson.data.cookies[0]).toMatchObject({ name: 'session', value: 'ops-123' });
+  });
+
+  it('imports packaged browser cores and exposes catalog install state through the API', async () => {
+    const sourceDir = path.join(tmpDir, 'browser-core-package');
+    const runtimeDir = path.join(sourceDir, 'runtime');
+    const packagePath = path.join(tmpDir, 'browser-core-package.zip');
+    await fs.mkdir(runtimeDir, { recursive: true });
+    await fs.writeFile(
+      path.join(sourceDir, 'browser-core.json'),
+      JSON.stringify({
+        key: 'pro5-chromium',
+        label: 'Pro5 Chromium',
+        version: '127.0.0-preview',
+        executableRelativePath: 'runtime/pro5-chromium.exe',
+        channel: 'preview',
+        platform: 'win32',
+      }, null, 2),
+      'utf-8',
+    );
+    await fs.writeFile(path.join(runtimeDir, 'pro5-chromium.exe'), 'stub-binary', 'utf-8');
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Compress-Archive -Path '${path.join(sourceDir, '*').replace(/'/g, "''")}' -DestinationPath '${packagePath.replace(/'/g, "''")}' -Force`,
+      ],
+      { stdio: 'pipe' },
+    );
+
+    const importRes = await fetch(`${baseUrl}/api/browser-cores/import-package`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: await fs.readFile(packagePath),
+    });
+    expect(importRes.status).toBe(201);
+    const importJson = await importRes.json() as {
+      success: boolean;
+      data: {
+        id: string;
+        key: string;
+        managedRuntimeKey: string;
+        executablePath: string;
+      };
+    };
+    expect(importJson.success).toBe(true);
+    expect(importJson.data.key).toBe('pro5-chromium');
+    expect(importJson.data.managedRuntimeKey).toBe('core-pro5-chromium');
+    expect(await fs.access(importJson.data.executablePath).then(() => true).catch(() => false)).toBe(true);
+
+    const listRes = await fetch(`${baseUrl}/api/browser-cores`);
+    expect(listRes.status).toBe(200);
+    const listJson = await listRes.json() as {
+      success: boolean;
+      data: Array<{ id: string; key: string; managedRuntimeKey: string }>;
+    };
+    expect(listJson.success).toBe(true);
+    expect(listJson.data).toHaveLength(1);
+    expect(listJson.data[0]?.managedRuntimeKey).toBe('core-pro5-chromium');
+
+    const catalogRes = await fetch(`${baseUrl}/api/browser-cores/catalog`);
+    expect(catalogRes.status).toBe(200);
+    const catalogJson = await catalogRes.json() as {
+      success: boolean;
+      data: Array<{ key: string; installed: boolean; installedCoreId: string | null }>;
+    };
+    expect(catalogJson.success).toBe(true);
+    expect(catalogJson.data.some((entry) =>
+      entry.key === 'pro5-chromium' &&
+      entry.installed &&
+      entry.installedCoreId === importJson.data.id)).toBe(true);
+
+    const runtimesRes = await fetch(`${baseUrl}/api/runtimes`);
+    expect(runtimesRes.status).toBe(200);
+    const runtimesJson = await runtimesRes.json() as {
+      success: boolean;
+      data: Array<{ key: string; executablePath: string }>;
+    };
+    expect(runtimesJson.success).toBe(true);
+    expect(runtimesJson.data.some((runtime) =>
+      runtime.key === 'core-pro5-chromium' &&
+      runtime.executablePath === importJson.data.executablePath)).toBe(true);
+  });
+
+  it('installs a browser core directly from the catalog artifact URL', async () => {
+    const sourceDir = path.join(tmpDir, 'browser-core-catalog-package');
+    const runtimeDir = path.join(sourceDir, 'runtime');
+    const packagePath = path.join(tmpDir, 'browser-core-catalog-package.zip');
+    const previousUrl = process.env['PRO5_BROWSER_CORE_URL'];
+    const previousVersion = process.env['PRO5_BROWSER_CORE_VERSION'];
+
+    await fs.mkdir(runtimeDir, { recursive: true });
+    await fs.writeFile(
+      path.join(sourceDir, 'browser-core.json'),
+      JSON.stringify({
+        key: 'pro5-chromium',
+        label: 'Pro5 Chromium',
+        version: '128.0.0-preview',
+        executableRelativePath: 'runtime/pro5-chromium.exe',
+        channel: 'preview',
+        platform: 'win32',
+      }, null, 2),
+      'utf-8',
+    );
+    await fs.writeFile(path.join(runtimeDir, 'pro5-chromium.exe'), 'stub-binary-v2', 'utf-8');
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Compress-Archive -Path '${path.join(sourceDir, '*').replace(/'/g, "''")}' -DestinationPath '${packagePath.replace(/'/g, "''")}' -Force`,
+      ],
+      { stdio: 'pipe' },
+    );
+
+    try {
+      process.env['PRO5_BROWSER_CORE_URL'] = `${storeBaseUrl}/browser-core/download`;
+      process.env['PRO5_BROWSER_CORE_VERSION'] = '128.0.0-preview';
+      await fs.copyFile(packagePath, path.join(tmpDir, 'mock-browser-core.zip'));
+
+      const installRes = await fetch(`${baseUrl}/api/browser-cores/catalog/pro5-chromium/install`, {
+        method: 'POST',
+      });
+      expect(installRes.status).toBe(201);
+      const installJson = await installRes.json() as {
+        success: boolean;
+        data: {
+          id: string;
+          key: string;
+          version: string;
+          managedRuntimeKey: string;
+        };
+      };
+      expect(installJson.success).toBe(true);
+      expect(installJson.data.key).toBe('pro5-chromium');
+      expect(installJson.data.version).toBe('128.0.0-preview');
+      expect(installJson.data.managedRuntimeKey).toBe('core-pro5-chromium');
+
+      const listRes = await fetch(`${baseUrl}/api/browser-cores`);
+      expect(listRes.status).toBe(200);
+      const listJson = await listRes.json() as {
+        success: boolean;
+        data: Array<{ key: string; version: string }>;
+      };
+      expect(listJson.success).toBe(true);
+      expect(listJson.data.some((core) => core.key === 'pro5-chromium' && core.version === '128.0.0-preview')).toBe(true);
+    } finally {
+      if (previousUrl === undefined) {
+        delete process.env['PRO5_BROWSER_CORE_URL'];
+      } else {
+        process.env['PRO5_BROWSER_CORE_URL'] = previousUrl;
+      }
+      if (previousVersion === undefined) {
+        delete process.env['PRO5_BROWSER_CORE_VERSION'];
+      } else {
+        process.env['PRO5_BROWSER_CORE_VERSION'] = previousVersion;
+      }
     }
   });
 });

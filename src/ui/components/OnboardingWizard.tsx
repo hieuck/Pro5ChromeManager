@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Steps, Button, Space, Select, Typography, Alert, Spin, Input } from 'antd';
+import { Modal, Steps, Button, Space, Select, Typography, Alert, Spin, Input, message } from 'antd';
 import { ChromeOutlined, GlobalOutlined, PlayCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { finalizeOnboarding, syncOnboardingState } from '../utils/onboarding';
 
 const { Text, Paragraph } = Typography;
+const DEFAULT_PROFILE_NAME = 'Profile đầu tiên';
 
 interface Runtime {
   key: string;
@@ -19,25 +21,37 @@ interface OnboardingWizardProps {
 }
 
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
   const [selectedRuntime, setSelectedRuntime] = useState<string | undefined>();
   const [loadingRuntimes, setLoadingRuntimes] = useState(false);
   const [creatingProfile, setCreatingProfile] = useState(false);
-  const [profileName, setProfileName] = useState('Profile đầu tiên');
+  const [profileName, setProfileName] = useState(DEFAULT_PROFILE_NAME);
   const [createdProfileId, setCreatedProfileId] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
+  const availableRuntimes = runtimes.filter((runtime) => runtime.available);
 
   useEffect(() => {
-    if (open && step === 0) {
-      void syncOnboardingState({
-        status: 'in_progress',
-        currentStep: 0,
-        draftProfileName: profileName.trim() || null,
-        lastOpenedAt: new Date().toISOString(),
-      });
-      void loadRuntimes();
+    if (!open) {
+      return;
     }
+
+    setStep(0);
+    setRuntimes([]);
+    setSelectedRuntime(undefined);
+    setCreatingProfile(false);
+    setProfileName(DEFAULT_PROFILE_NAME);
+    setCreatedProfileId(undefined);
+    setError(undefined);
+
+    void syncOnboardingState({
+      status: 'in_progress',
+      currentStep: 0,
+      draftProfileName: DEFAULT_PROFILE_NAME,
+      lastOpenedAt: new Date().toISOString(),
+    });
+    void loadRuntimes();
   }, [open]);
 
   useEffect(() => {
@@ -87,15 +101,20 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
   }
 
   async function handleFinish(): Promise<void> {
-    await finalizeOnboarding({
-      status: 'completed',
-      currentStep: 2,
-      selectedRuntime: selectedRuntime ?? null,
-      draftProfileName: profileName.trim() || null,
-      createdProfileId: createdProfileId ?? null,
-      completedAt: new Date().toISOString(),
-    });
     onFinish();
+
+    try {
+      await finalizeOnboarding({
+        status: 'completed',
+        currentStep: 2,
+        selectedRuntime: selectedRuntime ?? null,
+        draftProfileName: profileName.trim() || null,
+        createdProfileId: createdProfileId ?? null,
+        completedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      void message.error(err instanceof Error ? err.message : 'Không thể hoàn tất hướng dẫn thiết lập.');
+    }
   }
 
   async function handleSkip(): Promise<void> {
@@ -107,6 +126,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
       skippedAt: new Date().toISOString(),
     });
     onFinish();
+  }
+
+  function handleOpenRuntimeSettings(): void {
+    onFinish();
+    navigate('/settings');
   }
 
   const steps = [
@@ -122,11 +146,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
           <Paragraph>Chọn trình duyệt Chromium để sử dụng. Pro5 hỗ trợ Chrome, Edge, CentBrowser và Chromium.</Paragraph>
           {loadingRuntimes ? (
             <Spin />
-          ) : runtimes.length === 0 ? (
+          ) : availableRuntimes.length === 0 ? (
             <Alert
               type="warning"
               message="Không tìm thấy trình duyệt nào"
-              description="Hãy cài đặt Google Chrome hoặc Microsoft Edge, sau đó thêm đường dẫn trong Settings -> Runtimes."
+              description={(
+                <Space direction="vertical" size={12}>
+                  <Typography.Text>
+                    Hãy cài đặt Google Chrome hoặc Microsoft Edge, sau đó thêm đường dẫn trong Settings -&gt; Browsers.
+                  </Typography.Text>
+                  <Button onClick={handleOpenRuntimeSettings}>Mở cài đặt</Button>
+                </Space>
+              )}
             />
           ) : (
             <Select
@@ -176,7 +207,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onFinish }) =
       return (
         <Space>
           <Button onClick={() => void handleSkip()}>Bỏ qua</Button>
-          <Button type="primary" onClick={() => setStep(1)}>
+          <Button type="primary" disabled={availableRuntimes.length === 0} onClick={() => setStep(1)}>
             Tiếp theo
           </Button>
         </Space>

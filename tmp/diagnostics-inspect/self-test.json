@@ -1,0 +1,36 @@
+{
+  "status": "pass",
+  "checkedAt": "2026-03-25T05:43:02.404Z",
+  "checks": [
+    {
+      "key": "profiles-dir",
+      "label": "Profiles directory",
+      "status": "pass",
+      "detail": "C:\\Users\\hieut\\AppData\\Roaming\\Pro5 Chrome Manager\\profiles"
+    },
+    {
+      "key": "runtime",
+      "label": "Browser runtime",
+      "status": "pass",
+      "detail": "1/1 runtime(s) available"
+    },
+    {
+      "key": "diagnostics",
+      "label": "Diagnostics export",
+      "status": "pass",
+      "detail": "Base config detected, diagnostics export is available."
+    },
+    {
+      "key": "support-pages",
+      "label": "Public support/legal pages",
+      "status": "pass",
+      "detail": "Support, privacy, and terms pages are present."
+    },
+    {
+      "key": "proxy-store",
+      "label": "Proxy store",
+      "status": "pass",
+      "detail": "0 proxy configuration(s) loaded."
+    }
+  ]
+}

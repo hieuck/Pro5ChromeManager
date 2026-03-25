@@ -93,20 +93,35 @@ describe('FingerprintEngine: generate + prepareExtension', () => {
     expect(fp.fonts.length).toBeGreaterThan(0);
 
     // prepareExtension writes files
-    const extDir = await engine.prepareExtension('test-profile-id', fp, dataDir);
+    const extDir = await engine.prepareExtension('test-profile-id', fp, dataDir, {
+      profileName: 'Integration Identity',
+      profileGroup: 'Ops',
+      profileOwner: 'qa',
+    });
 
     const manifestPath = path.join(extDir, 'manifest.json');
     const scriptPath = path.join(extDir, 'content_script.js');
+    const newTabPath = path.join(extDir, 'newtab.html');
 
     const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
-    const manifest = JSON.parse(manifestRaw) as { manifest_version: number; content_scripts: unknown[] };
+    const manifest = JSON.parse(manifestRaw) as {
+      manifest_version: number;
+      content_scripts: unknown[];
+      chrome_url_overrides?: { newtab?: string };
+    };
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.content_scripts).toHaveLength(1);
+    expect(manifest.chrome_url_overrides?.newtab).toBe('newtab.html');
 
     const script = await fs.readFile(scriptPath, 'utf-8');
     expect(script).toContain(fp.userAgent);
     expect(script).toContain('Navigator.prototype');
     expect(script).toContain('WebGLRenderingContext.prototype');
+    expect(script).toContain('Integration Identity');
+
+    const newTab = await fs.readFile(newTabPath, 'utf-8');
+    expect(newTab).toContain('Integration Identity');
+    expect(newTab).toContain('Ops / qa');
   });
 });
 

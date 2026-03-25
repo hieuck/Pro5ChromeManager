@@ -316,6 +316,16 @@ const Dashboard: React.FC = () => {
     void loadDashboard();
   }, [loadDashboard]);
 
+  useEffect(() => {
+    if (!support || loading || onboardingOpen) {
+      return;
+    }
+
+    if (!support.onboardingCompleted && profiles.length === 0) {
+      setOnboardingOpen(true);
+    }
+  }, [loading, onboardingOpen, profiles.length, support]);
+
   useWebSocket((event) => {
     if (
       event.type === 'instance:started'
@@ -819,8 +829,13 @@ const Dashboard: React.FC = () => {
   }, [support, t.dashboard.supportSummaryCopied, t.dashboard.supportSummaryCopyFailed, t.dashboard.supportSummaryUnavailable]);
 
   const handleOpenCreateProfile = useCallback(() => {
+    if (!availableRuntimes.length) {
+      setOnboardingOpen(true);
+      return;
+    }
+
     navigate('/profiles', { state: { openCreate: true } });
-  }, [navigate]);
+  }, [availableRuntimes.length, navigate]);
 
   const handleOpenLogEntry = useCallback((entry: LogEntry) => {
     navigate('/logs', {

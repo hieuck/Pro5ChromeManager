@@ -26,6 +26,13 @@ export interface FingerprintConfig {
   webrtcPolicy: 'default' | 'disable_non_proxied_udp' | 'proxy_only';
 }
 
+export interface BrowserIdentityConfig {
+  profileId: string;
+  profileName: string;
+  profileGroup?: string | null;
+  profileOwner?: string | null;
+}
+
 interface DBData {
   version: string;
   userAgents: { windows: string[]; mac: string[]; linux: string[] };
@@ -257,15 +264,23 @@ export class FingerprintEngine {
   }
 
   /** Generate extension files for a profile and write to {dataDir}/extensions/{profileId}/ */
-  async prepareExtension(profileId: string, fingerprint: FingerprintConfig, dataDir: string): Promise<string> {
+  async prepareExtension(
+    profileId: string,
+    fingerprint: FingerprintConfig,
+    dataDir: string,
+    identity?: Partial<BrowserIdentityConfig>,
+  ): Promise<string> {
     const extDir = path.join(dataDir, 'extensions', profileId);
     await fs.mkdir(extDir, { recursive: true });
 
+    const resolvedIdentity = this.buildIdentityConfig(profileId, identity);
     const manifest = this.generateManifest();
-    const contentScript = this.generateContentScript(fingerprint);
+    const contentScript = this.generateContentScript(fingerprint, resolvedIdentity);
+    const newTabHtml = this.generateNewTabHtml(resolvedIdentity);
 
     await fs.writeFile(path.join(extDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf-8');
     await fs.writeFile(path.join(extDir, 'content_script.js'), contentScript, 'utf-8');
+    await fs.writeFile(path.join(extDir, 'newtab.html'), newTabHtml, 'utf-8');
 
     logger.debug('Extension prepared', { profileId, extDir });
     return extDir;
@@ -277,6 +292,9 @@ export class FingerprintEngine {
       name: 'Fingerprint Injector',
       version: '1.0.0',
       description: 'Injects fingerprint overrides into page context',
+      chrome_url_overrides: {
+        newtab: 'newtab.html',
+      },
       content_scripts: [
         {
           matches: ['<all_urls>'],
@@ -289,8 +307,42 @@ export class FingerprintEngine {
     };
   }
 
-  private generateContentScript(fp: FingerprintConfig): string {
+  private buildIdentityConfig(
+    profileId: string,
+    identity?: Partial<BrowserIdentityConfig>,
+  ): BrowserIdentityConfig & { accentColor: string; subtitle: string } {
+    const profileName = identity?.profileName?.trim() || `Profile ${profileId.slice(0, 8)}`;
+    const profileGroup = identity?.profileGroup?.trim() || null;
+    const profileOwner = identity?.profileOwner?.trim() || null;
+    const subtitleParts = [profileGroup, profileOwner].filter((value): value is string => Boolean(value));
+
+    return {
+      profileId,
+      profileName,
+      profileGroup,
+      profileOwner,
+      accentColor: this.generateAccentColor(profileId),
+      subtitle: subtitleParts.join(' / ') || `ID ${profileId.slice(0, 8)}`,
+    };
+  }
+
+  private generateAccentColor(seed: string): string {
+    let hash = 0;
+    for (let index = 0; index < seed.length; index += 1) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(index);
+      hash |= 0;
+    }
+
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue} 78% 58%)`;
+  }
+
+  private generateContentScript(
+    fp: FingerprintConfig,
+    identity: BrowserIdentityConfig & { accentColor: string; subtitle: string },
+  ): string {
     const fpJson = JSON.stringify(fp);
+    const identityJson = JSON.stringify(identity);
     return `
 // Fingerprint Injector — generated content script
 // world: MAIN — runs in page context
@@ -298,6 +350,7 @@ export class FingerprintEngine {
   'use strict';
 
   const _fp = ${fpJson};
+  const _identity = ${identityJson};
 
   function def(obj, prop, value) {
     try {
@@ -407,8 +460,277 @@ export class FingerprintEngine {
     });
   } catch(e) {}
 
+  const TITLE_PREFIX = '[' + _identity.profileName + '] ';
+
+  function ensureProfileTitlePrefix() {
+    try {
+      const currentTitle = document.title || '';
+      if (!currentTitle.startsWith(TITLE_PREFIX)) {
+        document.title = TITLE_PREFIX + currentTitle;
+      }
+    } catch(e) {}
+  }
+
+  function mountProfileBadge() {
+    try {
+      if (!document.documentElement) return;
+      if (document.getElementById('pro5-profile-identity-badge')) return;
+
+      const root = document.createElement('div');
+      root.id = 'pro5-profile-identity-badge';
+      root.setAttribute('data-profile-id', _identity.profileId);
+      root.innerHTML =
+        '<div class="pro5-profile-identity__dot"></div>' +
+        '<div class="pro5-profile-identity__body">' +
+          '<div class="pro5-profile-identity__name"></div>' +
+          '<div class="pro5-profile-identity__meta"></div>' +
+        '</div>';
+
+      const style = document.createElement('style');
+      style.id = 'pro5-profile-identity-style';
+      style.textContent = [
+        '#pro5-profile-identity-badge {',
+        'position: fixed;',
+        'top: 14px;',
+        'right: 18px;',
+        'z-index: 2147483647;',
+        'display: flex;',
+        'align-items: center;',
+        'gap: 10px;',
+        'padding: 9px 12px;',
+        'border-radius: 999px;',
+        'background: rgba(15, 23, 42, 0.88);',
+        'backdrop-filter: blur(10px);',
+        'box-shadow: 0 12px 30px rgba(15, 23, 42, 0.28);',
+        'color: #f8fafc;',
+        'font-family: "Segoe UI", Arial, sans-serif;',
+        'line-height: 1.15;',
+        'pointer-events: none;',
+        'max-width: min(52vw, 360px);',
+        '}',
+        '#pro5-profile-identity-badge .pro5-profile-identity__dot {',
+        'width: 12px;',
+        'height: 12px;',
+        'border-radius: 999px;',
+        'flex: 0 0 auto;',
+        'background: ' + _identity.accentColor + ';',
+        'box-shadow: 0 0 0 3px rgba(255,255,255,0.12);',
+        '}',
+        '#pro5-profile-identity-badge .pro5-profile-identity__body {',
+        'display: flex;',
+        'flex-direction: column;',
+        'min-width: 0;',
+        '}',
+        '#pro5-profile-identity-badge .pro5-profile-identity__name {',
+        'font-size: 13px;',
+        'font-weight: 700;',
+        'white-space: nowrap;',
+        'overflow: hidden;',
+        'text-overflow: ellipsis;',
+        '}',
+        '#pro5-profile-identity-badge .pro5-profile-identity__meta {',
+        'margin-top: 2px;',
+        'font-size: 11px;',
+        'color: rgba(226, 232, 240, 0.8);',
+        'white-space: nowrap;',
+        'overflow: hidden;',
+        'text-overflow: ellipsis;',
+        '}',
+        '@media (max-width: 720px) {',
+        '#pro5-profile-identity-badge { top: 10px; right: 10px; max-width: calc(100vw - 20px); }',
+        '#pro5-profile-identity-badge .pro5-profile-identity__meta { display: none; }',
+        '}'
+      ].join('');
+
+      root.querySelector('.pro5-profile-identity__name').textContent = _identity.profileName;
+      root.querySelector('.pro5-profile-identity__meta').textContent = _identity.subtitle;
+
+      if (!document.getElementById('pro5-profile-identity-style')) {
+        document.documentElement.appendChild(style);
+      }
+
+      document.documentElement.appendChild(root);
+    } catch(e) {}
+  }
+
+  function bootIdentityUi() {
+    ensureProfileTitlePrefix();
+    mountProfileBadge();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootIdentityUi, { once: true });
+  } else {
+    bootIdentityUi();
+  }
+
+  const observer = new MutationObserver(function() {
+    ensureProfileTitlePrefix();
+    mountProfileBadge();
+  });
+
+  try {
+    observer.observe(document.documentElement || document, {
+      childList: true,
+      subtree: true,
+    });
+  } catch(e) {}
+
 })();
 `.trim();
+  }
+
+  private generateNewTabHtml(
+    identity: BrowserIdentityConfig & { accentColor: string; subtitle: string },
+  ): string {
+    const escapedName = this.escapeHtml(identity.profileName);
+    const escapedSubtitle = this.escapeHtml(identity.subtitle);
+    const escapedId = this.escapeHtml(identity.profileId);
+    const accentColor = this.escapeHtml(identity.accentColor);
+    const shortId = this.escapeHtml(identity.profileId.slice(0, 8));
+
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapedName} - Pro5 Workspace</title>
+    <style>
+      :root {
+        --accent: ${accentColor};
+        --bg: #07111f;
+        --panel: rgba(7, 17, 31, 0.72);
+        --text: #f8fafc;
+        --muted: rgba(226, 232, 240, 0.76);
+        --border: rgba(148, 163, 184, 0.18);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(59, 130, 246, 0.28), transparent 34%),
+          radial-gradient(circle at top right, rgba(16, 185, 129, 0.16), transparent 28%),
+          linear-gradient(180deg, #0f172a 0%, var(--bg) 100%);
+        display: grid;
+        place-items: center;
+        padding: 28px;
+      }
+      .shell {
+        width: min(920px, 100%);
+        border-radius: 28px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 28px 90px rgba(2, 6, 23, 0.42);
+        overflow: hidden;
+      }
+      .hero {
+        padding: 36px;
+        display: grid;
+        gap: 18px;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 4px rgba(255,255,255,0.08);
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(34px, 7vw, 72px);
+        line-height: 0.94;
+      }
+      .subtitle {
+        font-size: 18px;
+        color: var(--muted);
+        max-width: 56ch;
+      }
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        margin-top: 6px;
+      }
+      .meta-card {
+        border-radius: 18px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.46);
+      }
+      .meta-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .meta-value {
+        margin-top: 8px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .hint {
+        margin-top: 10px;
+        padding: 18px 20px;
+        border-radius: 20px;
+        border: 1px solid rgba(59, 130, 246, 0.18);
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(15, 23, 42, 0.4));
+        color: rgba(241, 245, 249, 0.92);
+      }
+      .hint strong {
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell" id="pro5-profile-newtab" data-profile-id="${escapedId}">
+      <section class="hero">
+        <div class="eyebrow"><span class="dot"></span> Pro5 profile identity</div>
+        <h1>${escapedName}</h1>
+        <div class="subtitle">${escapedSubtitle}</div>
+        <div class="meta-grid">
+          <article class="meta-card">
+            <div class="meta-label">Profile ID</div>
+            <div class="meta-value">${shortId}</div>
+          </article>
+          <article class="meta-card">
+            <div class="meta-label">Workspace mode</div>
+            <div class="meta-value">Isolated browser</div>
+          </article>
+          <article class="meta-card">
+            <div class="meta-label">Recognition</div>
+            <div class="meta-value">Always on</div>
+          </article>
+        </div>
+        <div class="hint">
+          <strong>You are inside profile ${escapedName}.</strong>
+          Keep this window for the matching account, proxy, and session to avoid cross-profile mistakes.
+        </div>
+      </section>
+    </main>
+  </body>
+</html>`;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
 
   /** Background DB version check — called on server startup, fails silently if offline */

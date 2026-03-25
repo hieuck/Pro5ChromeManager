@@ -1,6 +1,8 @@
 const fs = require('fs/promises');
 const path = require('path');
+const http = require('http');
 const { spawn } = require('child_process');
+const { chromium } = require('playwright');
 
 const repoRoot = path.resolve(__dirname, '..');
 const dataDir = path.join(repoRoot, 'data-e2e-test');
@@ -8,6 +10,8 @@ const host = '127.0.0.1';
 const port = 33211;
 
 async function prepareDataDir() {
+  const e2eExecutablePath = chromium.executablePath();
+
   await fs.rm(dataDir, { recursive: true, force: true });
   await fs.mkdir(path.join(dataDir, 'profiles'), { recursive: true });
 
@@ -26,7 +30,7 @@ async function prepareDataDir() {
     runtimes: {
       e2e: {
         label: 'E2E Runtime',
-        executablePath: process.execPath,
+        executablePath: e2eExecutablePath,
       },
     },
   };
@@ -34,8 +38,66 @@ async function prepareDataDir() {
   await fs.writeFile(path.join(dataDir, 'config.json'), JSON.stringify(config, null, 2), 'utf-8');
 }
 
+async function prepareMockStorePackage() {
+  const fixturePath = path.join(repoRoot, 'src', 'e2e', 'fixtures', 'sample-extension');
+  const zipPath = path.join(repoRoot, 'src', 'e2e', 'fixtures', 'sample-extension-store.zip');
+  const crxPath = path.join(repoRoot, 'src', 'e2e', 'fixtures', 'sample-extension-store.crx');
+
+  await fs.rm(zipPath, { force: true });
+  await fs.rm(crxPath, { force: true });
+
+  await new Promise((resolve, reject) => {
+    const zipBuilder = spawn('powershell.exe', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      `Compress-Archive -Path '${path.join(fixturePath, '*').replace(/'/g, "''")}' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`,
+    ], { stdio: 'pipe' });
+
+    zipBuilder.on('exit', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`Failed to build mock extension zip: exit ${code ?? -1}`));
+    });
+  });
+
+  const zipBytes = await fs.readFile(zipPath);
+  const header = Buffer.alloc(16);
+  header.write('Cr24', 0, 'ascii');
+  header.writeUInt32LE(3, 4);
+  header.writeUInt32LE(0, 8);
+  header.writeUInt32LE(0, 12);
+  await fs.writeFile(crxPath, Buffer.concat([header, zipBytes]));
+  await fs.rm(zipPath, { force: true });
+  return crxPath;
+}
+
 async function main() {
   await prepareDataDir();
+  const mockStorePath = await prepareMockStorePackage();
+  const mockStoreServer = http.createServer(async (req, res) => {
+    if (!req.url || !req.url.startsWith('/mock-store/download')) {
+      res.statusCode = 404;
+      res.end('not found');
+      return;
+    }
+
+    const payload = await fs.readFile(mockStorePath);
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/x-chrome-extension');
+    res.end(payload);
+  });
+
+  await new Promise((resolve) => {
+    mockStoreServer.listen(0, host, resolve);
+  });
+  const mockStoreAddress = mockStoreServer.address();
+  if (!mockStoreAddress || typeof mockStoreAddress === 'string') {
+    throw new Error('Failed to bind mock extension store server');
+  }
+  const mockStoreBaseUrl = `http://${host}:${mockStoreAddress.port}`;
 
   const child = spawn(process.execPath, ['dist/server/index.js'], {
     cwd: repoRoot,
@@ -44,11 +106,14 @@ async function main() {
       DATA_DIR: dataDir,
       NODE_ENV: 'development',
       PRO5_SERVER_AUTOSTART: 'true',
+      PRO5_EXTENSION_STORE_DOWNLOAD_URL_TEMPLATE: `${mockStoreBaseUrl}/mock-store/download?id={id}`,
     },
     stdio: 'inherit',
   });
 
   const shutdown = () => {
+    fs.rm(mockStorePath, { force: true }).catch(() => undefined);
+    mockStoreServer.close();
     if (!child.killed) {
       child.kill('SIGTERM');
     }
@@ -58,6 +123,8 @@ async function main() {
   process.on('SIGTERM', shutdown);
 
   child.on('exit', (code, signal) => {
+    fs.rm(mockStorePath, { force: true }).catch(() => undefined);
+    mockStoreServer.close();
     process.off('SIGINT', shutdown);
     process.off('SIGTERM', shutdown);
 

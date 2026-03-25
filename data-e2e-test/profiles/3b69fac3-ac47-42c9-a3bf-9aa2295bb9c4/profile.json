@@ -1,0 +1,58 @@
+{
+  "id": "3b69fac3-ac47-42c9-a3bf-9aa2295bb9c4",
+  "schemaVersion": 1,
+  "name": "Portable Source 1774418735797-578",
+  "notes": "Package note 1774418735797-578",
+  "tags": [],
+  "group": "Portables 1774418735797-578",
+  "owner": null,
+  "runtime": "e2e",
+  "proxy": null,
+  "extensionIds": [],
+  "bookmarks": [],
+  "fingerprint": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "platform": "Linux x86_64",
+    "vendor": "Google Inc.",
+    "language": "en-US",
+    "languages": [
+      "en-US",
+      "en"
+    ],
+    "hardwareConcurrency": 2,
+    "deviceMemory": 2,
+    "screenWidth": 1600,
+    "screenHeight": 900,
+    "colorDepth": 24,
+    "timezone": "America/New_York",
+    "canvas": {
+      "noise": 0.0008539218850923686,
+      "seed": 471962974
+    },
+    "webgl": {
+      "renderer": "Mesa DRI Intel(R) UHD Graphics 620 (KBL GT2)",
+      "vendor": "Google Inc. (Intel)",
+      "noise": 0.0006669599006077011
+    },
+    "audio": {
+      "noise": 0.000022056408016461804
+    },
+    "fonts": [
+      "FreeSans",
+      "DejaVu Serif",
+      "Ubuntu",
+      "Times New Roman",
+      "DejaVu Sans Mono",
+      "DejaVu Sans",
+      "Liberation Sans",
+      "FreeMono",
+      "Courier New",
+      "Ubuntu Mono"
+    ],
+    "webrtcPolicy": "disable_non_proxied_udp"
+  },
+  "createdAt": "2026-03-25T06:05:35.830Z",
+  "updatedAt": "2026-03-25T06:05:35.830Z",
+  "lastUsedAt": null,
+  "totalSessions": 0
+}

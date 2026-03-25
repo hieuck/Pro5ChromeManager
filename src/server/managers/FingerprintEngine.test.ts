@@ -170,23 +170,50 @@ describe('FingerprintEngine — prepareExtension', () => {
 
   it('manifest.json has correct structure', async () => {
     const fp = engine.generateFingerprint();
-    const extDir = await engine.prepareExtension('test-profile-id', fp, tmpDir);
+    const extDir = await engine.prepareExtension('test-profile-id', fp, tmpDir, {
+      profileName: 'QA Identity',
+      profileGroup: 'Ops',
+      profileOwner: 'alice',
+    });
 
     const manifest = JSON.parse(await fs.readFile(path.join(extDir, 'manifest.json'), 'utf-8')) as Record<string, unknown>;
     expect(manifest['manifest_version']).toBe(3);
     expect(manifest['name']).toBeTruthy();
+    expect(manifest['chrome_url_overrides']).toEqual({ newtab: 'newtab.html' });
     const scripts = manifest['content_scripts'] as Array<Record<string, unknown>>;
     expect(scripts[0]?.['world']).toBe('MAIN');
   });
 
-  it('content_script.js contains fingerprint values', async () => {
+  it('content_script.js contains fingerprint values and profile identity UI', async () => {
     const fp = engine.generateFingerprint();
-    const extDir = await engine.prepareExtension('test-profile-id', fp, tmpDir);
+    const extDir = await engine.prepareExtension('test-profile-id', fp, tmpDir, {
+      profileName: 'QA Identity',
+      profileGroup: 'Ops',
+      profileOwner: 'alice',
+    });
 
     const script = await fs.readFile(path.join(extDir, 'content_script.js'), 'utf-8');
     expect(script).toContain(fp.userAgent);
     expect(script).toContain(fp.platform);
     expect(script).toContain(String(fp.canvas.seed));
+    expect(script).toContain('pro5-profile-identity-badge');
+    expect(script).toContain('QA Identity');
+    expect(script).toContain("const TITLE_PREFIX = '[' + _identity.profileName + '] ';");
+  });
+
+  it('newtab.html renders profile identity for first-run recognition', async () => {
+    const fp = engine.generateFingerprint();
+    const extDir = await engine.prepareExtension('test-profile-id', fp, tmpDir, {
+      profileName: 'Storefront US',
+      profileGroup: 'Growth',
+      profileOwner: 'alice',
+    });
+
+    const newTab = await fs.readFile(path.join(extDir, 'newtab.html'), 'utf-8');
+    expect(newTab).toContain('Storefront US');
+    expect(newTab).toContain('Growth / alice');
+    expect(newTab).toContain('pro5-profile-newtab');
+    expect(newTab).toContain('You are inside profile Storefront US.');
   });
 
   it('creates separate extension dirs per profile', async () => {

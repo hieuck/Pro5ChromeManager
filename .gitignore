@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+.browser-fork/
 
 # Data — user data, sensitive files
 data/profiles/

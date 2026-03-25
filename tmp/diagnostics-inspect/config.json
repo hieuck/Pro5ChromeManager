@@ -1,0 +1,26 @@
+{
+  "configVersion": 1,
+  "onboardingCompleted": true,
+  "uiLanguage": "vi",
+  "locale": "vi-VN",
+  "timezoneId": "Asia/Saigon",
+  "defaultRuntime": "auto",
+  "headless": false,
+  "windowTitleSuffixEnabled": true,
+  "profilesDir": "C:\\Users\\hieut\\AppData\\Roaming\\Pro5 Chrome Manager\\profiles",
+  "api": {
+    "host": "127.0.0.1",
+    "port": 3210
+  },
+  "sessionCheck": {
+    "enabledByDefault": false,
+    "headless": true,
+    "timeoutMs": 30000
+  },
+  "runtimes": {
+    "chrome": {
+      "label": "Google Chrome",
+      "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+    }
+  }
+}

@@ -101,6 +101,8 @@ describe('InstanceManager — sessionCheck returns error when no runtime', () =>
       owner: null,
       runtime: 'auto',
       proxy: null,
+      extensionIds: [],
+      bookmarks: [],
       fingerprint: {
         userAgent: 'Mozilla/5.0',
         platform: 'Win32',

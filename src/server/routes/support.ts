@@ -31,6 +31,44 @@ interface IncidentEntry {
   level: 'warn' | 'error';
   source: string;
   message: string;
+  category: IncidentCategory;
+  categoryLabel: string;
+  fingerprint: string;
+}
+
+type IncidentCategory =
+  | 'electron-process'
+  | 'renderer-navigation'
+  | 'startup-readiness'
+  | 'runtime-launch'
+  | 'proxy'
+  | 'extension'
+  | 'cookies'
+  | 'profile-package'
+  | 'onboarding'
+  | 'support'
+  | 'general';
+
+interface IncidentCategorySummary {
+  category: IncidentCategory;
+  label: string;
+  count: number;
+  errorCount: number;
+  warnCount: number;
+  latestAt: string | null;
+}
+
+interface IncidentSnapshot {
+  count: number;
+  incidents: IncidentEntry[];
+  summary: {
+    total: number;
+    errorCount: number;
+    warnCount: number;
+    topCategory: IncidentCategory | null;
+    categories: IncidentCategorySummary[];
+  };
+  timeline: IncidentEntry[];
 }
 
 interface SupportStatusPayload {
@@ -78,8 +116,11 @@ interface SupportStatusPayload {
   recentIncidentCount: number;
   recentErrorCount: number;
   lastIncidentAt: string | null;
+  recentIncidentTopCategory: IncidentCategory | null;
+  recentIncidentCategories: IncidentCategorySummary[];
   releaseReady: boolean;
   warnings: string[];
+  offlineSecretConfigured: boolean;
 }
 
 const SupportFeedbackSchema = z.object({
@@ -128,7 +169,161 @@ function normalizeIncident(
   const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : null;
   const message = typeof entry.message === 'string' ? entry.message.trim() : null;
   if (!level || !timestamp || !message) return null;
-  return { timestamp, level, source, message };
+  const classified = classifyIncident(source, message);
+  return {
+    timestamp,
+    level,
+    source,
+    message,
+    category: classified.category,
+    categoryLabel: classified.label,
+    fingerprint: classified.fingerprint,
+  };
+}
+
+function classifyIncident(source: string, message: string): {
+  category: IncidentCategory;
+  label: string;
+  fingerprint: string;
+} {
+  const normalizedSource = source.toLowerCase();
+  const normalizedMessage = message.toLowerCase();
+
+  const fingerprints: Array<{
+    category: IncidentCategory;
+    label: string;
+    match: boolean;
+    fingerprint: string;
+  }> = [
+    {
+      category: 'electron-process',
+      label: 'Electron process',
+      match: normalizedMessage.includes('child process gone')
+        || normalizedMessage.includes('network service')
+        || normalizedMessage.includes('utility process'),
+      fingerprint: 'electron-child-process-gone',
+    },
+    {
+      category: 'renderer-navigation',
+      label: 'Renderer navigation',
+      match: normalizedMessage.includes('renderer failed to load')
+        || normalizedMessage.includes('load url')
+        || normalizedMessage.includes('did-fail-load'),
+      fingerprint: 'renderer-navigation-failure',
+    },
+    {
+      category: 'startup-readiness',
+      label: 'Startup readiness',
+      match: normalizedMessage.includes('readiness probe')
+        || normalizedMessage.includes('backend readiness')
+        || normalizedMessage.includes('server boot timeout'),
+      fingerprint: 'startup-readiness-failure',
+    },
+    {
+      category: 'runtime-launch',
+      label: 'Runtime launch',
+      match: normalizedMessage.includes('failed to launch')
+        || normalizedMessage.includes('browser launch')
+        || normalizedMessage.includes('runtime'),
+      fingerprint: 'runtime-launch-failure',
+    },
+    {
+      category: 'proxy',
+      label: 'Proxy',
+      match: normalizedMessage.includes('proxy'),
+      fingerprint: 'proxy-issue',
+    },
+    {
+      category: 'extension',
+      label: 'Extension',
+      match: normalizedMessage.includes('extension'),
+      fingerprint: 'extension-issue',
+    },
+    {
+      category: 'cookies',
+      label: 'Cookies',
+      match: normalizedMessage.includes('cookie'),
+      fingerprint: 'cookies-issue',
+    },
+    {
+      category: 'profile-package',
+      label: 'Profile package',
+      match: normalizedMessage.includes('package')
+        || normalizedMessage.includes('archive')
+        || normalizedMessage.includes('expand-archive'),
+      fingerprint: 'profile-package-issue',
+    },
+    {
+      category: 'onboarding',
+      label: 'Onboarding',
+      match: normalizedMessage.includes('onboarding'),
+      fingerprint: 'onboarding-issue',
+    },
+    {
+      category: 'support',
+      label: 'Support',
+      match: normalizedSource.includes('support') || normalizedMessage.includes('feedback'),
+      fingerprint: 'support-issue',
+    },
+  ];
+
+  const matched = fingerprints.find((candidate) => candidate.match);
+  if (matched) {
+    return {
+      category: matched.category,
+      label: matched.label,
+      fingerprint: matched.fingerprint,
+    };
+  }
+
+  return {
+    category: 'general',
+    label: 'General',
+    fingerprint: 'general-incident',
+  };
+}
+
+function buildIncidentSnapshot(incidents: IncidentEntry[]): IncidentSnapshot {
+  const categoryMap = new Map<IncidentCategory, IncidentCategorySummary>();
+
+  for (const incident of incidents) {
+    const existing = categoryMap.get(incident.category) ?? {
+      category: incident.category,
+      label: incident.categoryLabel,
+      count: 0,
+      errorCount: 0,
+      warnCount: 0,
+      latestAt: null,
+    };
+    existing.count += 1;
+    if (incident.level === 'error') {
+      existing.errorCount += 1;
+    } else {
+      existing.warnCount += 1;
+    }
+    if (!existing.latestAt || new Date(incident.timestamp).getTime() > new Date(existing.latestAt).getTime()) {
+      existing.latestAt = incident.timestamp;
+    }
+    categoryMap.set(incident.category, existing);
+  }
+
+  const categories = Array.from(categoryMap.values()).sort((left, right) => {
+    if (right.count !== left.count) return right.count - left.count;
+    return (right.latestAt ?? '').localeCompare(left.latestAt ?? '');
+  });
+
+  return {
+    count: incidents.length,
+    incidents,
+    summary: {
+      total: incidents.length,
+      errorCount: incidents.filter((incident) => incident.level === 'error').length,
+      warnCount: incidents.filter((incident) => incident.level === 'warn').length,
+      topCategory: categories[0]?.category ?? null,
+      categories,
+    },
+    timeline: [...incidents].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+  };
 }
 
 async function loadIncidentEntries(limit: number): Promise<IncidentEntry[]> {
@@ -205,8 +400,9 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
   const onboardingState = onboardingStateManager.getSnapshot();
   const feedbackEntries = await supportInboxManager.listFeedback(50);
   const logFiles = await listLogFiles();
-  const recentIncidents = await loadIncidentEntries(20);
+  const recentIncidents = buildIncidentSnapshot(await loadIncidentEntries(20));
   const diagnosticsReady = await fileExists(dataPath('config.json'));
+  const offlineSecretConfigured = Boolean(process.env['PRO5_OFFLINE_SECRET'] || process.env['OFFLINE_SECRET']);
   const codeSigningConfigured = Boolean(process.env['CSC_LINK']);
   const supportPagesReady = await getSupportPagesReady();
   const releaseRuntime = isProductionLikeRuntime();
@@ -226,6 +422,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     dataDir: dataPath(),
     logFileCount: logFiles.length,
     diagnosticsReady,
+    offlineSecretConfigured,
     codeSigningConfigured,
     supportPagesReady,
     onboardingCompleted: config.onboardingCompleted,
@@ -236,9 +433,11 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
     feedbackCount: feedbackEntries.length,
     lastFeedbackAt: feedbackEntries[0]?.createdAt ?? null,
     usageMetrics,
-    recentIncidentCount: recentIncidents.length,
-    recentErrorCount: recentIncidents.filter((incident) => incident.level === 'error').length,
-    lastIncidentAt: recentIncidents[0]?.timestamp ?? null,
+    recentIncidentCount: recentIncidents.count,
+    recentErrorCount: recentIncidents.summary.errorCount,
+    lastIncidentAt: recentIncidents.timeline[0]?.timestamp ?? null,
+    recentIncidentTopCategory: recentIncidents.summary.topCategory,
+    recentIncidentCategories: recentIncidents.summary.categories,
     releaseReady: diagnosticsReady && supportPagesReady,
     warnings,
   };
@@ -321,13 +520,10 @@ router.get('/support/incidents', async (req: Request, res: Response) => {
   try {
     const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
-    const incidents = await loadIncidentEntries(limit);
+    const incidents = buildIncidentSnapshot(await loadIncidentEntries(limit));
     res.json({
       success: true,
-      data: {
-        count: incidents.length,
-        incidents,
-      },
+      data: incidents,
     });
   } catch (err) {
     logger.error('GET /api/support/incidents error', { error: err instanceof Error ? err.message : String(err) });
@@ -445,7 +641,7 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
   try {
     const supportStatus = await buildSupportStatus();
     const selfTest = await buildSelfTest();
-    const incidents = await loadIncidentEntries(50);
+    const incidents = buildIncidentSnapshot(await loadIncidentEntries(50));
 
     await new Promise<void>((resolve, reject) => {
       const output = createWriteStream(tmpZipPath);
@@ -466,7 +662,9 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
       archive.append(JSON.stringify(summary, null, 2), { name: 'summary.json' });
       archive.append(JSON.stringify(supportStatus, null, 2), { name: 'support-status.json' });
       archive.append(JSON.stringify(selfTest, null, 2), { name: 'self-test.json' });
-      archive.append(JSON.stringify({ count: incidents.length, incidents }, null, 2), { name: 'incidents.json' });
+      archive.append(JSON.stringify(incidents, null, 2), { name: 'incidents.json' });
+      archive.append(JSON.stringify(incidents.summary, null, 2), { name: 'incident-summary.json' });
+      archive.append(JSON.stringify(incidents.timeline, null, 2), { name: 'incident-timeline.json' });
 
       void Promise.all([
         appendIfExists(archive, dataPath('config.json'), 'config.json', sanitizeJsonText),

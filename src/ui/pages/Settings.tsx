@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Tabs, Form, Input, InputNumber, Select, Switch, Button,
-  Table, Tag, Space, Popconfirm, message, Typography, Row, Col, Empty,
+  Table, Tag, Space, Popconfirm, message, Typography, Row, Col, Empty, Modal, Upload,
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, ReloadOutlined,
   DownloadOutlined, SaveOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  QuestionCircleOutlined, CopyOutlined,
+  QuestionCircleOutlined, CopyOutlined, InboxOutlined,
 } from '@ant-design/icons';
 import { apiClient, buildApiUrl } from '../api/client';
 import { useTranslation } from '../hooks/useTranslation';
@@ -30,6 +30,31 @@ interface Runtime {
   label?: string;
   available: boolean;
   executablePath?: string;
+}
+
+interface BrowserCore {
+  id: string;
+  key: string;
+  label: string;
+  version: string;
+  channel: string | null;
+  platform: string | null;
+  executablePath: string;
+  managedRuntimeKey: string;
+  installedAt: string;
+}
+
+interface BrowserCoreCatalogEntry {
+  key: string;
+  label: string;
+  channel: string;
+  platform: string;
+  version: string | null;
+  status: 'planned' | 'package-ready';
+  artifactUrl: string | null;
+  notes: string;
+  installed: boolean;
+  installedCoreId: string | null;
 }
 
 interface BackupEntry {
@@ -84,6 +109,8 @@ interface SupportStatus {
   recentIncidentCount: number;
   recentErrorCount: number;
   lastIncidentAt: string | null;
+  recentIncidentTopCategory: string | null;
+  recentIncidentCategories: IncidentCategorySummary[];
   releaseReady: boolean;
   warnings: string[];
 }
@@ -106,11 +133,31 @@ interface IncidentEntry {
   level: 'warn' | 'error';
   source: string;
   message: string;
+  category: string;
+  categoryLabel: string;
+  fingerprint: string;
+}
+
+interface IncidentCategorySummary {
+  category: string;
+  label: string;
+  count: number;
+  errorCount: number;
+  warnCount: number;
+  latestAt: string | null;
 }
 
 interface SupportIncidentsResult {
   count: number;
   incidents: IncidentEntry[];
+  summary: {
+    total: number;
+    errorCount: number;
+    warnCount: number;
+    topCategory: string | null;
+    categories: IncidentCategorySummary[];
+  };
+  timeline: IncidentEntry[];
 }
 
 interface SupportFeedbackEntry {
@@ -360,6 +407,204 @@ const RuntimesTab: React.FC = () => {
 
 // ─── Tab: Backup ──────────────────────────────────────────────────────────────
 
+const BrowserCoresTab: React.FC = () => {
+  const [cores, setCores] = useState<BrowserCore[]>([]);
+  const [catalog, setCatalog] = useState<BrowserCoreCatalogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [installingKey, setInstallingKey] = useState<string | null>(null);
+  const [packageFiles, setPackageFiles] = useState<Array<{ originFileObj?: File }>>([]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const [coresRes, catalogRes] = await Promise.all([
+      apiClient.get<BrowserCore[]>('/api/browser-cores'),
+      apiClient.get<BrowserCoreCatalogEntry[]>('/api/browser-cores/catalog'),
+    ]);
+    if (coresRes.success) setCores(coresRes.data);
+    if (catalogRes.success) setCatalog(catalogRes.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchData(); }, [fetchData]);
+
+  async function handleImport(): Promise<void> {
+    const selectedFile = packageFiles[0]?.originFileObj;
+    if (!selectedFile) {
+      void message.warning('Chọn gói browser core trước');
+      return;
+    }
+
+    setImporting(true);
+    const payload = await selectedFile.arrayBuffer();
+    const response = await fetch(buildApiUrl('/api/browser-cores/import-package'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: payload,
+    });
+    const json = await response.json() as { success: boolean; error?: string };
+    setImporting(false);
+
+    if (!response.ok || !json.success) {
+      void message.error(json.error ?? 'Không thể import browser core');
+      return;
+    }
+
+    setImportOpen(false);
+    setPackageFiles([]);
+    void message.success('Đã cài browser core');
+    await fetchData();
+  }
+
+  async function handleDelete(id: string): Promise<void> {
+    const res = await apiClient.delete(`/api/browser-cores/${id}`);
+    if (!res.success) {
+      void message.error(res.error);
+      return;
+    }
+
+    void message.success('Đã gỡ browser core');
+    await fetchData();
+  }
+
+  async function handleInstallFromCatalog(key: string): Promise<void> {
+    setInstallingKey(key);
+    const response = await fetch(buildApiUrl(`/api/browser-cores/catalog/${encodeURIComponent(key)}/install`), {
+      method: 'POST',
+    });
+    const json = await response.json() as { success: boolean; error?: string };
+    setInstallingKey(null);
+
+    if (!response.ok || !json.success) {
+      void message.error(json.error ?? 'Không thể cài browser core từ catalog');
+      return;
+    }
+
+    void message.success('Đã tải và cài browser core');
+    await fetchData();
+  }
+
+  return (
+    <div>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
+        <Typography.Text type="secondary">
+          Quản lý browser runtime riêng của Pro5. Core đã cài sẽ tự xuất hiện như runtime cho profile.
+        </Typography.Text>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={() => void fetchData()} loading={loading}>Làm mới</Button>
+          <Button type="primary" icon={<InboxOutlined />} onClick={() => setImportOpen(true)}>Import core package</Button>
+        </Space>
+      </Row>
+
+      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>Catalog</Typography.Text>
+      <Table
+        rowKey="key"
+        size="small"
+        pagination={false}
+        loading={loading}
+        dataSource={catalog}
+        columns={[
+          { title: 'Core', key: 'label', render: (_: unknown, item: BrowserCoreCatalogEntry) => item.version ? `${item.label} ${item.version}` : item.label },
+          { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 120 },
+          { title: 'Platform', dataIndex: 'platform', key: 'platform', width: 120 },
+          {
+            title: 'Status',
+            key: 'status',
+            width: 160,
+            render: (_: unknown, item: BrowserCoreCatalogEntry) => (
+              <Tag color={item.installed ? 'success' : item.status === 'package-ready' ? 'processing' : 'default'}>
+                {item.installed ? 'Installed' : item.status === 'package-ready' ? 'Package ready' : 'Planned'}
+              </Tag>
+            ),
+          },
+          { title: 'Notes', dataIndex: 'notes', key: 'notes' },
+          {
+            title: '',
+            key: 'actions',
+            width: 120,
+            render: (_: unknown, item: BrowserCoreCatalogEntry) => {
+              if (item.installed) {
+                return <Tag color="success">Installed</Tag>;
+              }
+              if (item.status !== 'package-ready' || !item.artifactUrl) {
+                return <Tag>Unavailable</Tag>;
+              }
+              return (
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={installingKey === item.key}
+                  onClick={() => void handleInstallFromCatalog(item.key)}
+                >
+                  Install
+                </Button>
+              );
+            },
+          },
+        ]}
+      />
+
+      <Typography.Text strong style={{ display: 'block', margin: '16px 0 8px' }}>Installed cores</Typography.Text>
+      <Table
+        rowKey="id"
+        size="small"
+        pagination={false}
+        loading={loading}
+        dataSource={cores}
+        locale={{ emptyText: <Empty description="Chưa có browser core nào" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        columns={[
+          { title: 'Core', key: 'label', render: (_: unknown, core: BrowserCore) => `${core.label} ${core.version}` },
+          { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 120, render: (v: string | null) => v ?? 'stable' },
+          { title: 'Runtime', dataIndex: 'managedRuntimeKey', key: 'managedRuntimeKey', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
+          { title: 'Executable', dataIndex: 'executablePath', key: 'executablePath', render: (v: string) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{v}</Typography.Text> },
+          { title: 'Installed', dataIndex: 'installedAt', key: 'installedAt', width: 180, render: (v: string) => new Date(v).toLocaleString('vi-VN') },
+          {
+            title: '',
+            key: 'actions',
+            width: 72,
+            render: (_: unknown, core: BrowserCore) => (
+              <Popconfirm title="Gỡ browser core này?" onConfirm={() => void handleDelete(core.id)} okText="Gỡ" cancelText="Hủy">
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            ),
+          },
+        ]}
+      />
+
+      <Modal
+        open={importOpen}
+        title="Import browser core package"
+        okText="Cài browser core"
+        cancelText="Hủy"
+        confirmLoading={importing}
+        onOk={() => void handleImport()}
+        onCancel={() => {
+          if (importing) return;
+          setImportOpen(false);
+          setPackageFiles([]);
+        }}
+      >
+        <Upload.Dragger
+          multiple={false}
+          accept=".zip"
+          beforeUpload={() => false}
+          fileList={packageFiles as never[]}
+          onChange={({ fileList }) => setPackageFiles(fileList as Array<{ originFileObj?: File }>)}
+        >
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined />
+          </p>
+          <p className="ant-upload-text">Thả gói `.zip` của browser core vào đây</p>
+          <p className="ant-upload-hint">
+            Archive cần có `browser-core.json` và binary runtime bên trong.
+          </p>
+        </Upload.Dragger>
+      </Modal>
+    </div>
+  );
+};
+
 const BackupTab: React.FC = () => {
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -577,6 +822,7 @@ const SupportTab: React.FC = () => {
       `${t.settings.releaseReadinessLabel}: ${status.releaseReady ? t.settings.readyState : t.settings.needsAttentionState}`,
       `${t.settings.recentIncidentsLabel}: ${status.recentIncidentCount} ${t.settings.totalLabel} / ${status.recentErrorCount} ${t.settings.errorsLabel}`,
       `${t.settings.lastIncidentLabel}: ${status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : t.settings.noneValue}`,
+      `${t.settings.topIncidentCategoryLabel}: ${status.recentIncidentCategories[0]?.label ?? t.settings.noneValue}`,
     ];
 
     if (status.usageMetrics.lastProfileCreatedAt) {
@@ -615,10 +861,18 @@ const SupportTab: React.FC = () => {
     }
 
     if (incidentState && incidentState.incidents.length > 0) {
+      if (incidentState.summary.categories.length > 0) {
+        summaryLines.push(
+          `${t.settings.incidentCategoriesLabel}: ${incidentState.summary.categories
+            .slice(0, 4)
+            .map((category) => `${category.label} (${category.count})`)
+            .join(', ')}`,
+        );
+      }
       summaryLines.push(t.settings.recentIncidentDetailsLabel);
       summaryLines.push(
         ...incidentState.incidents.slice(0, 5).map((incident) =>
-          `- [${getIncidentLevelLabel(incident.level)}] ${incident.source} @ ${new Date(incident.timestamp).toLocaleString()}: ${incident.message}`),
+          `- [${getIncidentLevelLabel(incident.level)} | ${incident.categoryLabel}] ${incident.source} @ ${new Date(incident.timestamp).toLocaleString()}: ${incident.message}`),
       );
     }
 
@@ -695,6 +949,16 @@ const SupportTab: React.FC = () => {
     return level === 'error' ? t.settings.incidentLevelError : t.settings.incidentLevelWarn;
   }
 
+  function getIncidentCategoryColor(category: string): string {
+    if (category === 'electron-process' || category === 'renderer-navigation') return 'volcano';
+    if (category === 'startup-readiness' || category === 'runtime-launch') return 'orange';
+    if (category === 'proxy') return 'gold';
+    if (category === 'extension') return 'geekblue';
+    if (category === 'cookies' || category === 'profile-package') return 'purple';
+    if (category === 'support' || category === 'onboarding') return 'cyan';
+    return 'default';
+  }
+
   function getOnboardingStateLabel(statusValue?: SupportStatus['onboardingState']['status'] | null): string {
     if (statusValue === 'in_progress') return t.settings.onboardingStateInProgress;
     if (statusValue === 'profile_created') return t.settings.onboardingStateProfileCreated;
@@ -762,6 +1026,7 @@ const SupportTab: React.FC = () => {
           </Typography.Text>
           <Typography.Text><strong>{t.settings.recentIncidentsLabel}:</strong> {status.recentIncidentCount} {t.settings.totalLabel} / {status.recentErrorCount} {t.settings.errorsLabel}</Typography.Text>
           <Typography.Text><strong>{t.settings.lastIncidentLabel}:</strong> {status.lastIncidentAt ? new Date(status.lastIncidentAt).toLocaleString() : t.settings.noneValue}</Typography.Text>
+          <Typography.Text><strong>{t.settings.topIncidentCategoryLabel}:</strong> {status.recentIncidentCategories[0]?.label ?? t.settings.noneValue}</Typography.Text>
           <Typography.Text>
             <strong>{t.settings.diagnosticsLabel}:</strong> {status.diagnosticsReady ? t.settings.diagnosticsReadyState : t.settings.diagnosticsMissingState}
           </Typography.Text>
@@ -892,10 +1157,25 @@ const SupportTab: React.FC = () => {
             </Typography.Text>
             {incidentState && incidentState.incidents.length > 0 ? (
               <div>
+                {incidentState.summary.categories.length > 0 ? (
+                  <div style={{ marginBottom: 12 }}>
+                    <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                      {t.settings.incidentCategoriesLabel}
+                    </Typography.Text>
+                    {incidentState.summary.categories.map((category) => (
+                      <Tag key={category.category} color={getIncidentCategoryColor(category.category)} style={{ marginBottom: 8 }}>
+                        {`${category.label}: ${category.count} (${category.errorCount} ${t.settings.errorsLabel})`}
+                      </Tag>
+                    ))}
+                  </div>
+                ) : null}
                 {incidentState.incidents.map((incident, index) => (
                   <div key={`${incident.timestamp}-${incident.source}-${index}`} style={{ marginBottom: 10 }}>
                     <Tag color={incident.level === 'error' ? 'error' : 'warning'}>
                       {getIncidentLevelLabel(incident.level)}
+                    </Tag>
+                    <Tag color={getIncidentCategoryColor(incident.category)}>
+                      {incident.categoryLabel}
                     </Tag>
                     <Typography.Text strong>{incident.source}</Typography.Text>{' '}
                     <Typography.Text type="secondary">
@@ -906,6 +1186,20 @@ const SupportTab: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                <div style={{ marginTop: 12 }}>
+                  <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                    {t.settings.incidentTimelineLabel}
+                  </Typography.Text>
+                  {incidentState.timeline.slice(0, 5).map((incident, index) => (
+                    <div key={`${incident.fingerprint}-${incident.timestamp}-${index}`} style={{ marginBottom: 8 }}>
+                      <Typography.Text type="secondary">
+                        {new Date(incident.timestamp).toLocaleString()}
+                      </Typography.Text>{' '}
+                      <Tag color={getIncidentCategoryColor(incident.category)}>{incident.categoryLabel}</Tag>
+                      <Typography.Text>{incident.message}</Typography.Text>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <Typography.Text type="secondary">
@@ -929,6 +1223,7 @@ const Settings: React.FC = () => {
   const tabItems = [
     { key: 'general', label: t.settings.general, children: <GeneralTab /> },
     { key: 'runtimes', label: t.settings.runtimes, children: <RuntimesTab /> },
+    { key: 'browser-cores', label: 'Browser Cores', children: <BrowserCoresTab /> },
     { key: 'backup', label: t.settings.backup, children: <BackupTab /> },
     { key: 'logs', label: t.settings.logs, children: <LogsTab /> },
     { key: 'support', label: t.settings.support, children: <SupportTab /> },

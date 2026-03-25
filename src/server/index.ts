@@ -112,9 +112,17 @@ app.use('/api', profileRoutes);
 import proxyRoutes from './routes/proxies';
 app.use('/api', proxyRoutes);
 
+// Extension routes
+import extensionRoutes from './routes/extensions';
+app.use('/api', extensionRoutes);
+
 // Runtime routes
 import runtimeRoutes from './routes/runtimes';
 app.use('/api', runtimeRoutes);
+
+// Browser core routes
+import browserCoreRoutes from './routes/browserCores';
+app.use('/api', browserCoreRoutes);
 
 // Instance routes
 import instanceRoutes from './routes/instances';
@@ -318,6 +326,12 @@ async function start(): Promise<void> {
 
   const { proxyManager } = await import('./managers/ProxyManager');
   await proxyManager.initialize();
+
+  const { extensionManager } = await import('./managers/ExtensionManager');
+  await extensionManager.initialize();
+
+  const { browserCoreManager } = await import('./managers/BrowserCoreManager');
+  await browserCoreManager.initialize();
 
   const { usageMetricsManager } = await import('./managers/UsageMetricsManager');
   await usageMetricsManager.initialize();

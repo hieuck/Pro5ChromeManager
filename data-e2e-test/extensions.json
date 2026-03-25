@@ -1,0 +1,28 @@
+[
+  {
+    "id": "04348087-2939-46e3-aeb3-28f9940dbc58",
+    "name": "Automation Stack 1774418720300-177",
+    "sourcePath": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "entryPath": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\extensions\\packages\\04348087-2939-46e3-aeb3-28f9940dbc58",
+    "version": "0.0.1",
+    "description": "Fixture extension for Pro5 E2E tests",
+    "category": "automation",
+    "enabled": true,
+    "defaultForNewProfiles": false,
+    "createdAt": "2026-03-25T06:05:22.763Z",
+    "updatedAt": "2026-03-25T06:05:22.763Z"
+  },
+  {
+    "id": "c86e54c0-5f81-444b-a30d-95de53c7875c",
+    "name": "Wallet Bundle 1774418720300-177",
+    "sourcePath": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "entryPath": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\extensions\\packages\\c86e54c0-5f81-444b-a30d-95de53c7875c",
+    "version": "0.0.1",
+    "description": "Fixture extension for Pro5 E2E tests",
+    "category": "wallet",
+    "enabled": true,
+    "defaultForNewProfiles": false,
+    "createdAt": "2026-03-25T06:05:21.595Z",
+    "updatedAt": "2026-03-25T06:05:21.595Z"
+  }
+]

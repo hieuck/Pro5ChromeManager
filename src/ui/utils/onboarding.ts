@@ -13,11 +13,17 @@ export interface OnboardingStatePayload {
 }
 
 export async function syncOnboardingState(payload: OnboardingStatePayload): Promise<void> {
-  await apiClient.post('/api/support/onboarding-state', payload);
+  const response = await apiClient.post('/api/support/onboarding-state', payload);
+  if (!response.success) {
+    throw new Error(response.error);
+  }
 }
 
 export async function setOnboardingCompleted(completed: boolean): Promise<void> {
-  await apiClient.put('/api/config', { onboardingCompleted: completed });
+  const response = await apiClient.put('/api/config', { onboardingCompleted: completed });
+  if (!response.success) {
+    throw new Error(response.error);
+  }
 }
 
 export async function finalizeOnboarding(payload: OnboardingStatePayload): Promise<void> {

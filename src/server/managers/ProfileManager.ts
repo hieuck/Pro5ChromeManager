@@ -1,5 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import archiver from 'archiver';
 import { createWriteStream } from 'fs';
@@ -7,6 +9,8 @@ import { logger } from '../utils/logger';
 import { configManager } from './ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import type { FingerprintConfig } from './FingerprintEngine';
+import { extensionManager } from './ExtensionManager';
+import { bookmarkManager, type BookmarkEntry } from './BookmarkManager';
 import { sanitizePath } from '../utils/pathSanitizer';
 import { dataPath, resolveAppPath } from '../utils/dataPaths';
 
@@ -36,6 +40,8 @@ export interface Profile {
   owner: string | null;
   runtime: string;
   proxy: ProxyConfig | null;
+  extensionIds: string[];
+  bookmarks: BookmarkEntry[];
   fingerprint: FingerprintConfig;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +59,7 @@ export interface SearchQuery {
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const CURRENT_SCHEMA_VERSION = 1;
+const extractArchive = promisify(execFile);
 
 // ─── Migration ─────────────────────────────────────────────────────────────────
 
@@ -70,6 +77,8 @@ export function migrateProfile(raw: Record<string, unknown>, targetVersion: numb
       owner: null,
       runtime: 'auto',
       proxy: null,
+      extensionIds: [],
+      bookmarks: [],
       lastUsedAt: null,
       totalSessions: 0,
       ...profile,
@@ -86,6 +95,14 @@ export function migrateProfile(raw: Record<string, unknown>, targetVersion: numb
   // Data repair: ensure tags is always an array (spread may have overwritten default)
   if (!Array.isArray(profile['tags'])) {
     profile['tags'] = [];
+  }
+
+  if (!Array.isArray(profile['extensionIds'])) {
+    profile['extensionIds'] = [];
+  }
+
+  if (!Array.isArray(profile['bookmarks'])) {
+    profile['bookmarks'] = [];
   }
 
   // Data repair: normalize legacy proxy format { server, username, password, bypass } → null
@@ -111,10 +128,16 @@ export class ProfileManager {
   private profileDirMap: Map<string, string> = new Map();
   private profilesDir: string;
   private dataDir: string;
+  private readonly listDefaultExtensionIds: () => string[];
 
-  constructor(profilesDir?: string, dataDir?: string) {
+  constructor(
+    profilesDir?: string,
+    dataDir?: string,
+    listDefaultExtensionIds?: () => string[],
+  ) {
     this.profilesDir = profilesDir ?? resolveAppPath(configManager.get().profilesDir);
     this.dataDir = dataDir ?? dataPath();
+    this.listDefaultExtensionIds = listDefaultExtensionIds ?? (() => extensionManager.listDefaultExtensionIds());
   }
 
   /** Scan profilesDir, load all profiles into memory, run migrations */
@@ -231,6 +254,8 @@ export class ProfileManager {
 
     const fingerprint = options?.fingerprint ?? fingerprintEngine.generateFingerprint();
 
+    const extensionIds = options?.extensionIds ?? this.listDefaultExtensionIds();
+
     const profile: Profile = {
       id,
       schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -241,6 +266,8 @@ export class ProfileManager {
       owner: options?.owner ?? null,
       runtime: options?.runtime ?? 'auto',
       proxy: options?.proxy ?? null,
+      extensionIds,
+      bookmarks: options?.bookmarks ?? [],
       fingerprint,
       createdAt: now,
       updatedAt: now,
@@ -277,6 +304,8 @@ export class ProfileManager {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       name: overrides?.name?.trim() || `${existing.name} Copy`,
       tags: overrides?.tags ?? [...existing.tags],
+      extensionIds: overrides?.extensionIds ?? [...existing.extensionIds],
+      bookmarks: overrides?.bookmarks ?? [...existing.bookmarks],
       fingerprint: overrides?.fingerprint ?? JSON.parse(JSON.stringify(existing.fingerprint)) as FingerprintConfig,
       proxy: overrides?.proxy ? { ...overrides.proxy } : existing.proxy ? { ...existing.proxy } : null,
       createdAt: now,
@@ -332,6 +361,16 @@ export class ProfileManager {
   /** Get a single profile by ID */
   getProfile(id: string): Profile | undefined {
     return this.profiles.get(id);
+  }
+
+  getProfileDirectory(id: string): string {
+    const profile = this.profiles.get(id);
+    if (!profile) {
+      throw new Error(`Profile not found: ${id}`);
+    }
+
+    const dirName = this.profileDirMap.get(id) ?? id;
+    return sanitizePath(this.profilesDir, dirName);
   }
 
   /** List all profiles */
@@ -403,6 +442,8 @@ export class ProfileManager {
       owner: null,
       runtime: 'auto',
       proxy: null,
+      extensionIds: [],
+      bookmarks: await bookmarkManager.readBookmarks(destDir),
       fingerprint: fingerprintEngine.generateFingerprint(),
       createdAt: now,
       updatedAt: now,
@@ -417,6 +458,100 @@ export class ProfileManager {
     return profile;
   }
 
+  async importProfilePackage(packagePath: string): Promise<Profile> {
+    const resolvedPackagePath = path.resolve(packagePath);
+    const packageStat = await fs.stat(resolvedPackagePath).catch(() => null);
+    if (!packageStat || !packageStat.isFile()) {
+      throw new Error(`Profile package not found: ${resolvedPackagePath}`);
+    }
+
+    if (path.extname(resolvedPackagePath).toLowerCase() !== '.zip') {
+      throw new Error(`Unsupported profile package: ${resolvedPackagePath}`);
+    }
+
+    if (process.platform !== 'win32') {
+      throw new Error('Profile package import is currently supported on Windows only');
+    }
+
+    const tempExtractDir = path.join(this.dataDir, 'tmp', `profile-import-${uuidv4()}`);
+    await fs.rm(tempExtractDir, { recursive: true, force: true });
+    await fs.mkdir(tempExtractDir, { recursive: true });
+
+    try {
+      await extractArchive('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Expand-Archive -LiteralPath '${resolvedPackagePath.replace(/'/g, "''")}' -DestinationPath '${tempExtractDir.replace(/'/g, "''")}' -Force`,
+      ]);
+
+      const rawProfile = await fs.readFile(path.join(tempExtractDir, 'profile.json'), 'utf-8').catch(() => null);
+      if (!rawProfile) {
+        throw new Error('profile.json not found in package');
+      }
+
+      const parsedProfile = JSON.parse(rawProfile) as Record<string, unknown>;
+      const migratedProfile = migrateProfile(parsedProfile, CURRENT_SCHEMA_VERSION) as unknown as Profile;
+      const importedId = uuidv4();
+      const now = new Date().toISOString();
+      const importedDir = sanitizePath(this.profilesDir, importedId);
+      await fs.mkdir(importedDir, { recursive: true });
+
+      const defaultDir = path.join(tempExtractDir, 'Default');
+      const hasDefaultDir = await fs.stat(defaultDir).then((stat) => stat.isDirectory()).catch(() => false);
+      if (hasDefaultDir) {
+        await this.copyDir(defaultDir, path.join(importedDir, 'Default'));
+      } else {
+        await fs.mkdir(path.join(importedDir, 'Default'), { recursive: true });
+      }
+
+      const cookiesPath = path.join(tempExtractDir, 'cookies.json');
+      const hasCookies = await fs.access(cookiesPath).then(() => true).catch(() => false);
+      if (hasCookies) {
+        await fs.copyFile(cookiesPath, path.join(importedDir, 'cookies.json'));
+      }
+
+      let importedBookmarks = migratedProfile.bookmarks ?? [];
+      if (importedBookmarks.length === 0) {
+        importedBookmarks = await bookmarkManager.readBookmarks(importedDir);
+      }
+
+      const profile: Profile = {
+        ...migratedProfile,
+        id: importedId,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        name: migratedProfile.name?.trim() || `Imported ${importedId.slice(0, 8)}`,
+        notes: migratedProfile.notes ?? '',
+        tags: migratedProfile.tags ?? [],
+        group: migratedProfile.group ?? null,
+        owner: migratedProfile.owner ?? null,
+        runtime: migratedProfile.runtime ?? 'auto',
+        proxy: migratedProfile.proxy ?? null,
+        extensionIds: migratedProfile.extensionIds ?? [],
+        bookmarks: importedBookmarks,
+        fingerprint: migratedProfile.fingerprint ?? fingerprintEngine.generateFingerprint(),
+        createdAt: now,
+        updatedAt: now,
+        lastUsedAt: null,
+        totalSessions: 0,
+      };
+
+      this.profileDirMap.set(importedId, importedId);
+      await this.saveProfile(profile);
+      this.profiles.set(importedId, profile);
+      logger.info('Profile package imported', {
+        id: importedId,
+        name: profile.name,
+        packagePath: resolvedPackagePath,
+      });
+      return profile;
+    } catch (err) {
+      throw new Error(`Failed to import profile package: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      await fs.rm(tempExtractDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+
   /**
    * Export a profile as a .zip file containing profile.json + Default/
    */
@@ -426,6 +561,8 @@ export class ProfileManager {
 
     const dirName = this.profileDirMap.get(id) ?? id;
     const profileDir = path.join(this.profilesDir, dirName);
+    const cookiesPath = path.join(profileDir, 'cookies.json');
+    const includeCookies = await fs.access(cookiesPath).then(() => true).catch(() => false);
     // destPath is always generated by server code (tmpdir or data/), not user input — no traversal risk
 
     await new Promise<void>((resolve, reject) => {
@@ -442,6 +579,10 @@ export class ProfileManager {
       // Add Default/ directory if it exists
       const defaultDir = path.join(profileDir, 'Default');
       archive.directory(defaultDir, 'Default');
+
+      if (includeCookies) {
+        archive.file(cookiesPath, { name: 'cookies.json' });
+      }
 
       archive.finalize().catch(reject);
     });
@@ -473,6 +614,7 @@ export class ProfileManager {
     await fs.mkdir(profileDir, { recursive: true });
     const profilePath = path.join(profileDir, 'profile.json');
     await fs.writeFile(profilePath, JSON.stringify(profile, null, 2), 'utf-8');
+    await bookmarkManager.syncBookmarks(profileDir, profile.bookmarks ?? []);
   }
 
   private async copyDir(src: string, dest: string): Promise<void> {
