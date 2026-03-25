@@ -18,23 +18,22 @@ src/
   e2e/
   shared/
   server/
-    app/
-      <domain>/
-        contracts.ts
-        helpers.ts
-        router.ts
+    core/
       server/
-        bootState.ts
-        lifecycle.ts
-        http/
+    features/
+      <domain>/
+        index.ts
+    app/
     managers/
     routes/
     utils/
     tests/
   ui/
-    app/
     api/
     components/
+    features/
+      <domain>/
+        index.ts
     hooks/
     i18n/
     pages/
@@ -58,6 +57,8 @@ src/
 - Route adapters in `src/server/routes` should stay thin and delegate to `src/server/app/<domain>`.
 - Route adapter files in `src/server/routes` must end with `.routes.ts`.
 - Feature modules in `src/server/app/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
+- Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing legacy folders directly.
+- `src/server/core/*` owns composition and process lifecycle concerns.
 
 ## Migration rules
 

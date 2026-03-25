@@ -1,10 +1,16 @@
 import express from 'express';
-import { bootState } from './app/server/bootState';
-import { registerHealthEndpoints } from './app/server/http/health';
-import { registerCoreMiddleware, registerErrorHandler, registerLogsEndpoint } from './app/server/http/middleware';
-import { registerApiRoutes } from './app/server/http/routing';
-import { registerUiRoutes } from './app/server/http/ui';
-import { registerProcessHandlers, startServer, stopServer } from './app/server/lifecycle';
+import {
+  bootState,
+  registerApiRoutes,
+  registerCoreMiddleware,
+  registerErrorHandler,
+  registerHealthEndpoints,
+  registerLogsEndpoint,
+  registerProcessHandlers,
+  registerUiRoutes,
+  startServer,
+  stopServer,
+} from './core/server';
 import { logger } from './utils/logger';
 
 const app = express();

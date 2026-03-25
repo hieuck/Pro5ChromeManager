@@ -1,13 +1,13 @@
 import { Express } from 'express';
-import backupRoutes from '../../../routes/backups.routes';
-import browserCoreRoutes from '../../../routes/browserCores.routes';
-import configRoutes from '../../../routes/config.routes';
-import extensionRoutes from '../../../routes/extensions.routes';
-import instanceRoutes from '../../../routes/instances.routes';
-import profileRoutes from '../../../routes/profiles.routes';
-import proxyRoutes from '../../../routes/proxies.routes';
-import runtimeRoutes from '../../../routes/runtimes.routes';
-import supportRoutes from '../../../routes/support.routes';
+import backupRoutes from '../../../features/backups';
+import browserCoreRoutes from '../../../features/browser-cores';
+import configRoutes from '../../../features/config';
+import extensionRoutes from '../../../features/extensions';
+import instanceRoutes from '../../../features/instances';
+import profileRoutes from '../../../features/profiles';
+import proxyRoutes from '../../../features/proxies';
+import runtimeRoutes from '../../../features/runtimes';
+import supportRoutes from '../../../features/support';
 
 const apiRoutes = [
   configRoutes,

@@ -12,12 +12,12 @@ import {
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from './hooks/useTranslation';
 import { languageMeta, supportedLanguages } from './i18n';
-import ProfileListPage from './pages/ProfileList';
-import ProxiesPage from './pages/Proxies';
-import ExtensionsPage from './pages/Extensions';
-import SettingsPage from './pages/Settings';
-import LogsPage from './pages/Logs';
-import DashboardPage from './pages/Dashboard';
+import ProfileListPage from './features/profiles';
+import ProxiesPage from './features/proxies';
+import ExtensionsPage from './features/extensions';
+import SettingsPage from './features/settings';
+import LogsPage from './features/logs';
+import DashboardPage from './features/dashboard';
 import './App.css';
 
 const { Sider, Header, Content } = Layout;
