@@ -6,9 +6,11 @@ import { logger } from '../utils/logger';
 import { runtimeManager } from './RuntimeManager';
 
 // Specialized Services
-import { browserCoreCatalog, BrowserCoreCatalogEntry } from './browser-core/Catalog';
-import { browserCoreDownloader } from './browser-core/Downloader';
-import { browserCoreExtractor } from './browser-core/Extractor';
+import { browserCoreCatalog, BrowserCoreCatalogEntry } from '../features/browser-cores/catalog';
+import { browserCoreDownloader } from '../features/browser-cores/downloader';
+import { browserCoreExtractor } from '../features/browser-cores/extractor';
+import { validateBrowserCoreManifest } from '../features/browser-cores/manifest';
+import { loadInstalledBrowserCores, persistInstalledBrowserCores } from '../features/browser-cores/storage';
 
 const BROWSER_CORES_PATH = dataPath('browser-cores.json');
 const INSTALLED_BROWSER_CORES_DIR = dataPath('browser-cores', 'installed');
@@ -49,18 +51,9 @@ export class BrowserCoreManager {
   }
 
   async initialize(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.storagePath, 'utf-8');
-      const parsed = JSON.parse(raw) as InstalledBrowserCore[];
-      this.cores = new Map(parsed.map((core) => [core.id, core]));
-    } catch (err) {
-      const code = err instanceof Error && 'code' in (err as any) ? (err as any).code : null;
-      if (code !== 'ENOENT') {
-        logger.warn('BrowserCoreManager: failed to load browser-cores.json', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      this.cores = new Map();
+    const installedCores = await loadInstalledBrowserCores(this.storagePath);
+    this.cores = new Map(installedCores.map((core) => [core.id, core]));
+    if (installedCores.length === 0) {
       await this.persist();
     }
     logger.info('BrowserCoreManager initialized', { count: this.cores.size });
@@ -110,7 +103,7 @@ export class BrowserCoreManager {
     const manifestPath = path.join(installDir, 'browser-core.json');
     const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
     const manifest = JSON.parse(manifestRaw) as BrowserCoreManifest;
-    this.validateManifest(manifest);
+    validateBrowserCoreManifest(manifest);
 
     const executablePath = path.join(installDir, manifest.executableRelativePath);
     await fs.access(executablePath);
@@ -157,16 +150,8 @@ export class BrowserCoreManager {
     logger.info('Browser core deleted', { id: core.id, key: core.key });
   }
 
-  private validateManifest(manifest: BrowserCoreManifest): void {
-    if (!manifest.key?.trim()) throw new Error('Invalid browser core package: missing key');
-    if (!manifest.label?.trim()) throw new Error('Invalid browser core package: missing label');
-    if (!manifest.version?.trim()) throw new Error('Invalid browser core package: missing version');
-    if (!manifest.executableRelativePath?.trim()) throw new Error('Invalid browser core package: missing executableRelativePath');
-  }
-
   private async persist(): Promise<void> {
-    await fs.mkdir(path.dirname(this.storagePath), { recursive: true });
-    await fs.writeFile(this.storagePath, JSON.stringify(this.listInstalledCores(), null, 2), 'utf-8');
+    await persistInstalledBrowserCores(this.storagePath, this.listInstalledCores());
   }
 }
 
