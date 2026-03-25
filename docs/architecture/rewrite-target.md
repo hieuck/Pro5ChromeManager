@@ -28,7 +28,6 @@ src/
         contracts.ts
         helpers.ts
     managers/
-    routes/
     utils/
     tests/
   ui/
@@ -53,12 +52,9 @@ src/
 - Thin module entrypoints may be named `index.ts` or `index.tsx` only when they export the canonical page component and approved public API.
 - Do not keep duplicate wrapper folders such as `src/ui/pages/*` once `src/ui/features/*` is the canonical home.
 - Shared helpers should be named by purpose, not `utils`, unless the folder already gives enough context.
-- Route adapters in `src/server/routes` should stay thin and delegate to `src/server/features/<domain>`.
-- Route adapter files in `src/server/routes` must end with `.routes.ts`.
 - Feature modules in `src/server/features/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
 - Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing legacy folders directly.
 - `src/server/core/*` owns composition and process lifecycle concerns.
-- `src/server/routes/*` is the only remaining compatibility layer and should stay thin.
 
 ## Migration rules
 
@@ -69,6 +65,5 @@ src/
 
 ## Current migration priorities
 
-1. Keep `src/server/routes/*` thin and avoid moving implementation back out of `features/*`.
-2. Reduce oversized managers by pushing domain-specific behavior closer to `features/*` and focused helpers.
-3. Revisit test structure after architecture boundaries are stable.
+1. Reduce oversized managers by pushing domain-specific behavior closer to `features/*` and focused helpers.
+2. Revisit test structure after architecture boundaries are stable.
