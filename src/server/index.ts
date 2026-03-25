@@ -1,289 +1,35 @@
-import express, { NextFunction, Request, Response } from 'express';
-import fs from 'fs/promises';
-import http from 'http';
-import path from 'path';
-import rateLimit from 'express-rate-limit';
-import { configManager } from './managers/ConfigManager';
+import express from 'express';
+import { bootState } from './app/server/bootState';
+import { registerHealthEndpoints } from './app/server/http/health';
+import { registerCoreMiddleware, registerErrorHandler, registerLogsEndpoint } from './app/server/http/middleware';
+import { registerApiRoutes } from './app/server/http/routing';
+import { registerUiRoutes } from './app/server/http/ui';
+import { registerProcessHandlers, startServer, stopServer } from './app/server/lifecycle';
 import { logger } from './utils/logger';
-import { wsServer } from './utils/wsServer';
-import { dataPath } from './utils/dataPaths';
 
 const app = express();
 
-const logsRateLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 60, // limit each IP to 60 log requests per windowMs
-});
-
-type OpsLogEntry = {
-  timestamp: string | null;
-  level: 'debug' | 'info' | 'warn' | 'error';
-  message: string;
-  source: string | null;
-  raw: string;
-};
-const bootState: { ready: boolean; startedAt: string; lastError: string | null } = {
-  ready: false,
-  startedAt: new Date().toISOString(),
-  lastError: null,
-};
-let httpServerRef: http.Server | null = null;
-let shutdownRegistered = false;
-let shuttingDown = false;
-
-app.use(express.json());
-
-// CORS — allow localhost origins
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const origin = req.headers.origin ?? '';
-  if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  }
-  if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
-  next();
-});
-
-// Request logger
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    logger.info(`${req.method} ${req.path} ${res.statusCode} ${Date.now() - start}ms`);
-  });
-  next();
-});
-
-// Health check
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', uptime: process.uptime(), version: process.env.npm_package_version ?? '1.0.0' });
-});
-
-app.get('/readyz', async (_req: Request, res: Response) => {
-  try {
-    const { runtimeManager } = await import('./managers/RuntimeManager');
-    const { profileManager } = await import('./managers/ProfileManager');
-    const { proxyManager } = await import('./managers/ProxyManager');
-    const runtimes = runtimeManager.listRuntimes();
-    const profiles = profileManager.listProfiles();
-    const proxies = proxyManager.listProxies();
-    const availableRuntimeCount = runtimes.filter((runtime) => runtime.available).length;
-    const config = configManager.get();
-    const warnings = [
-      bootState.lastError ? `Last startup error: ${bootState.lastError}` : null,
-      availableRuntimeCount === 0 ? 'No available browser runtime detected.' : null,
-    ].filter((item): item is string => Boolean(item));
-
-    const payload = {
-      status: warnings.length === 0 ? 'ready' : 'degraded',
-      bootReady: bootState.ready,
-      startedAt: bootState.startedAt,
-      lastError: bootState.lastError,
-      api: config.api,
-      dataDir: dataPath(),
-      profileCount: profiles.length,
-      proxyCount: proxies.length,
-      runtimeCount: runtimes.length,
-      availableRuntimeCount,
-      warnings,
-    };
-
-    res.status(warnings.length === 0 ? 200 : 503).json(payload);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(503).json({
-      status: 'not_ready',
-      bootReady: bootState.ready,
-      startedAt: bootState.startedAt,
-      lastError: message,
-    });
-  }
-});
-
-// Config routes
-import configRoutes from './routes/config';
-app.use('/api', configRoutes);
-
-// Profile routes
-import profileRoutes from './routes/profiles';
-app.use('/api', profileRoutes);
-
-// Proxy routes
-import proxyRoutes from './routes/proxies';
-app.use('/api', proxyRoutes);
-
-// Extension routes
-import extensionRoutes from './routes/extensions';
-app.use('/api', extensionRoutes);
-
-// Runtime routes
-import runtimeRoutes from './routes/runtimes';
-app.use('/api', runtimeRoutes);
-
-// Browser core routes
-import browserCoreRoutes from './routes/browserCores';
-app.use('/api', browserCoreRoutes);
-
-// Instance routes
-import instanceRoutes from './routes/instances';
-app.use('/api', instanceRoutes);
-
-// Backup routes
-import backupRoutes from './routes/backups';
-app.use('/api', backupRoutes);
-
-// Support routes
-import supportRoutes from './routes/support';
-app.use('/api', supportRoutes);
-
-import { logManager } from './managers/LogManager';
-
-// Logs endpoint — reads the latest daily-rotated app log file
-app.get('/api/logs', logsRateLimiter, async (_req: Request, res: Response) => {
-  try {
-    const entries = await logManager.loadOpsLogEntries(200);
-    res.json({ success: true, data: entries });
-  } catch {
-    res.status(500).json({ success: false, error: 'Failed to read logs' });
-  }
-});
-
-
-function resolveUiDir(): string {
-  const packagedUiDir = path.join(__dirname, '../ui');
-  const devUiDir = path.resolve(process.cwd(), 'dist/ui');
-  return packagedUiDir.includes('app.asar') ? packagedUiDir : devUiDir;
-}
-
-// Serve static UI
-const uiDir = resolveUiDir();
-const uiAssetsDir = path.join(uiDir, 'assets');
-app.use('/assets', express.static(uiAssetsDir));
-app.use('/ui', express.static(uiDir));
-app.get('/ui/*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(uiDir, 'index.html'));
-});
-
-// Global error handler
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  logger.error('Unhandled error', { error: err instanceof Error ? err.message : String(err) });
-  res.status(500).json({ success: false, error: 'Internal server error' });
-});
+registerCoreMiddleware(app);
+registerHealthEndpoints(app);
+registerApiRoutes(app);
+registerLogsEndpoint(app);
+registerUiRoutes(app);
+registerErrorHandler(app);
 
 async function start(): Promise<void> {
-  await configManager.load();
-
-  // Initialize all managers in dependency order
-  const { fingerprintEngine } = await import('./managers/FingerprintEngine');
-  await fingerprintEngine.initialize();
-
-  const { runtimeManager } = await import('./managers/RuntimeManager');
-  await runtimeManager.initialize();
-
-  const { profileManager } = await import('./managers/ProfileManager');
-  await profileManager.initialize();
-
-  const { proxyManager } = await import('./managers/ProxyManager');
-  await proxyManager.initialize();
-
-  const { extensionManager } = await import('./managers/ExtensionManager');
-  await extensionManager.initialize();
-
-  const { browserCoreManager } = await import('./managers/BrowserCoreManager');
-  await browserCoreManager.initialize();
-
-  const { usageMetricsManager } = await import('./managers/UsageMetricsManager');
-  await usageMetricsManager.initialize();
-
-  const { onboardingStateManager } = await import('./managers/OnboardingStateManager');
-  await onboardingStateManager.initialize();
-
-  const { instanceManager } = await import('./managers/InstanceManager');
-  await instanceManager.initialize();
-
-  const { backupManager } = await import('./managers/BackupManager');
-  backupManager.startAutoBackup();
-
-  const { host, port } = configManager.get().api;
-  const httpServer = http.createServer(app);
-  httpServerRef = httpServer;
-  wsServer.attach(httpServer);
-
-  await new Promise<void>((resolve) => {
-    httpServer.listen(port, host, () => {
-      bootState.ready = true;
-      bootState.lastError = null;
-      logger.info(`API server running at http://${host}:${port}`);
-      logger.info(`WebSocket server running at ws://${host}:${port}/ws`);
-      resolve();
-    });
-  });
+  await startServer(app);
 }
 
 async function stop(reason = 'shutdown'): Promise<void> {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  bootState.ready = false;
-  bootState.lastError = `Stopped: ${reason}`;
-
-  logger.warn('Stopping server', { reason });
-
-  try {
-    const { instanceManager } = await import('./managers/InstanceManager');
-    await instanceManager.stopAll();
-  } catch (err) {
-    logger.warn('Failed to stop Chromium instances during shutdown', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-
-  if (httpServerRef) {
-    await new Promise<void>((resolve, reject) => {
-      httpServerRef?.close((err) => (err ? reject(err) : resolve()));
-    }).catch((err) => {
-      logger.warn('Failed to close HTTP server cleanly', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-    httpServerRef = null;
-  }
-
-  shuttingDown = false;
-}
-
-function registerProcessHandlers(): void {
-  if (shutdownRegistered) return;
-  shutdownRegistered = true;
-
-  process.on('SIGINT', () => {
-    void stop('SIGINT').finally(() => process.exit(0));
-  });
-
-  process.on('SIGTERM', () => {
-    void stop('SIGTERM').finally(() => process.exit(0));
-  });
-
-  process.on('uncaughtException', (err) => {
-    bootState.lastError = err.message;
-    logger.error('Uncaught exception in server process', { error: err.message, stack: err.stack });
-  });
-
-  process.on('unhandledRejection', (reason) => {
-    const message = reason instanceof Error ? reason.message : String(reason);
-    bootState.lastError = message;
-    logger.error('Unhandled rejection in server process', {
-      error: message,
-      stack: reason instanceof Error ? reason.stack : undefined,
-    });
-  });
+  await stopServer(reason);
 }
 
 if (process.env['PRO5_SERVER_AUTOSTART'] !== 'false' && process.env['NODE_ENV'] !== 'test') {
-  registerProcessHandlers();
-  start().catch((err) => {
+  registerProcessHandlers(stop);
+  start().catch((error) => {
     bootState.ready = false;
-    bootState.lastError = err instanceof Error ? err.message : String(err);
-    logger.error('Failed to start server', { error: err instanceof Error ? err.message : String(err) });
+    bootState.lastError = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to start server', { error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   });
 }
