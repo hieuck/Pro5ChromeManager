@@ -5,6 +5,12 @@ import { finalizeOnboarding } from '../../onboarding/onboardingState';
 import { mergeBulkExtensionSelection } from '../../../shared/utils/bulkExtensionSelection';
 import { parseBulkProfileDrafts } from '../../../shared/utils/bulkProfiles';
 import { Profile, ProxyOption, RuntimeOption, ExtensionRecord, ExtensionBundle, BulkCreateResponse, Instance } from '../types';
+import {
+  buildBulkApplyExtensionTargetProfiles,
+  buildBulkEditPayload,
+  getFailingProxyProfiles,
+  getUniqueTruthyValues,
+} from '../profileListAction.utils';
 import { useProfileListData } from './useProfileListData';
 import { useProfileListFilters } from './useProfileListFilters';
 import { useProfileListUIState } from './useProfileListUIState';
@@ -38,10 +44,7 @@ export function useProfileListActions(
   }, [fetchInstances, fetchProfiles]);
 
   const confirmAndStartProfiles = useCallback(async (ids: string[]) => {
-    const failingProxyProfiles = ids
-      .map((id) => data.profiles.find((p: Profile) => p.id === id))
-      .filter((p: Profile | undefined): p is Profile => Boolean(p))
-      .filter((p: Profile) => p.proxy?.lastCheckStatus === 'failing');
+    const failingProxyProfiles = getFailingProxyProfiles(data.profiles, ids);
 
     if (!failingProxyProfiles.length) {
       await Promise.all(ids.map(async (id) => handleStart(id)));
@@ -65,11 +68,9 @@ export function useProfileListActions(
         await Promise.all(ids.map(async (id) => handleStart(id)));
       },
       onCancel: async () => {
-        const failingProxyIds = Array.from(new Set(
-          failingProxyProfiles
-            .map((p: Profile) => getProfileProxyId(p))
-            .filter((proxyId: string | undefined): proxyId is string => Boolean(proxyId)),
-        ));
+        const failingProxyIds = getUniqueTruthyValues(
+          failingProxyProfiles.map((profile) => getProfileProxyId(profile)),
+        );
 
         if (!failingProxyIds.length) return;
 
@@ -281,10 +282,11 @@ export function useProfileListActions(
   }, [fetchProfiles, setImportPackageFiles, setImportPackagesOpen, setImportingPackages, ui.importPackageFiles]);
 
   const handleBulkEditProfiles = useCallback(async () => {
-    const payload: Record<string, unknown> = {};
-    if (ui.bulkEditGroup.trim()) payload['group'] = ui.bulkEditGroup.trim();
-    if (ui.bulkEditOwner.trim()) payload['owner'] = ui.bulkEditOwner.trim();
-    if (ui.bulkEditRuntime) payload['runtime'] = ui.bulkEditRuntime;
+    const payload = buildBulkEditPayload({
+      group: ui.bulkEditGroup,
+      owner: ui.bulkEditOwner,
+      runtime: ui.bulkEditRuntime,
+    });
 
     if (Object.keys(payload).length === 0) {
       void message.warning('Hãy nhập ít nhất một thay đổi để áp dụng');
@@ -312,9 +314,7 @@ export function useProfileListActions(
       return;
     }
 
-    const selectedProfiles = ui.selectedIds
-      .map((id: string) => data.profiles.find((p: Profile) => p.id === id))
-      .filter((p: Profile | undefined): p is Profile => Boolean(p));
+    const selectedProfiles = buildBulkApplyExtensionTargetProfiles(data.profiles, ui.selectedIds);
 
     if (selectedProfiles.length === 0) {
       void message.warning('Không tìm thấy hồ sơ nào để cập nhật');
@@ -366,12 +366,10 @@ export function useProfileListActions(
   }, [fetchProfiles, setBulkProxySelection, setSelectedIds, ui.bulkProxySelection, ui.selectedIds]);
 
   const handleBulkTestSelectedProxies = useCallback(async () => {
-    const proxyIds = Array.from(new Set(
-      ui.selectedIds
-        .map((id: string) => data.profiles.find((p: Profile) => p.id === id))
-        .map((p: Profile) => (p ? getProfileProxyId(p) : undefined))
-        .filter((proxyId: string | undefined): proxyId is string => Boolean(proxyId)),
-    ));
+    const proxyIds = getUniqueTruthyValues(
+      buildBulkApplyExtensionTargetProfiles(data.profiles, ui.selectedIds)
+        .map((profile) => getProfileProxyId(profile)),
+    );
 
     if (!proxyIds.length) {
       void message.warning('Các hồ sơ đã chọn chưa có proxy để test');
