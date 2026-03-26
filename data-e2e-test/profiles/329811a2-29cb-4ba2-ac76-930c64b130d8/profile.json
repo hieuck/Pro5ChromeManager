@@ -1,0 +1,62 @@
+{
+  "id": "329811a2-29cb-4ba2-ac76-930c64b130d8",
+  "schemaVersion": 1,
+  "name": "Portable Source 1774451196544-213",
+  "notes": "Package note 1774451196544-213",
+  "tags": [],
+  "group": "Portables 1774451196544-213",
+  "owner": null,
+  "runtime": "e2e",
+  "proxy": null,
+  "extensionIds": [],
+  "bookmarks": [],
+  "fingerprint": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    "platform": "Linux x86_64",
+    "vendor": "Google Inc.",
+    "language": "en-US",
+    "languages": [
+      "en-US",
+      "en"
+    ],
+    "hardwareConcurrency": 12,
+    "deviceMemory": 8,
+    "screenWidth": 1600,
+    "screenHeight": 900,
+    "colorDepth": 24,
+    "timezone": "Asia/Kolkata",
+    "canvas": {
+      "noise": 0.00018794205820723552,
+      "seed": 362562494
+    },
+    "webgl": {
+      "renderer": "ANGLE (AMD, AMD Radeon RX 580 Series (radeonsi, polaris10, LLVM 13.0.0, DRM 3.42.0, 5.15.0), OpenGL 4.6)",
+      "vendor": "Google Inc. (Intel)",
+      "noise": 0.00012393308579420275
+    },
+    "audio": {
+      "noise": 0.000018715442108302827
+    },
+    "fonts": [
+      "Arial",
+      "Courier New",
+      "Liberation Mono",
+      "DejaVu Sans",
+      "Times New Roman",
+      "DejaVu Sans Mono",
+      "DejaVu Serif",
+      "FreeSerif",
+      "FreeMono",
+      "Liberation Serif",
+      "Ubuntu Mono",
+      "Ubuntu",
+      "FreeSans",
+      "Liberation Sans"
+    ],
+    "webrtcPolicy": "disable_non_proxied_udp"
+  },
+  "createdAt": "2026-03-25T15:06:36.577Z",
+  "updatedAt": "2026-03-25T15:06:36.577Z",
+  "lastUsedAt": null,
+  "totalSessions": 0
+}

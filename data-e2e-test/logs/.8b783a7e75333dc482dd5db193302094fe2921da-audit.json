@@ -6,9 +6,9 @@
     "auditLog": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\logs\\.8b783a7e75333dc482dd5db193302094fe2921da-audit.json",
     "files": [
         {
-            "date": 1774418706952,
+            "date": 1774451126576,
             "name": "E:\\GitHub\\Pro5ChromeManager\\data-e2e-test\\logs\\app-2026-03-25.log",
-            "hash": "05c57a05e0d35772c7882aba7e43bc17166e3d7bdd9abb8feea839191374dce2"
+            "hash": "cc29b8206701a73d3308944d7c95315563ec69a324d3671f9491607825c3d410"
         }
     ],
     "hashType": "sha256"

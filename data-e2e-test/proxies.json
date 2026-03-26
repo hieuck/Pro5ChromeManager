@@ -1,20 +1,90 @@
 [
   {
-    "id": "2138324f-6039-4472-95c7-c5dac0dab706",
+    "id": "1acd2b0c-fadd-4aa4-9ebb-9b3025cee4a4",
     "type": "http",
-    "host": "198.51.100.37",
+    "host": "198.51.100.24",
     "port": 8400
   },
   {
-    "id": "c1947c39-53a8-4194-ba8b-6ff739aafade",
+    "id": "b7c4f63c-777e-4095-a746-ac57c58ce016",
     "type": "http",
-    "host": "203.0.113.42",
+    "host": "203.0.113.29",
     "port": 8500
   },
   {
-    "id": "53395226-a477-44d6-af72-4e0f48ffa98f",
+    "id": "9aa77e42-0bfb-4c1b-b44a-9c05b71f491d",
     "type": "http",
     "host": "198.51.100.88",
     "port": 8700
+  },
+  {
+    "id": "712388c7-b1d1-4d51-bc31-c7bb77671628",
+    "type": "http",
+    "host": "198.51.100.143",
+    "port": 9556
+  },
+  {
+    "id": "82a98a9e-0007-44fd-9810-4431e7aaa506",
+    "type": "http",
+    "host": "198.51.100.46",
+    "port": 8080,
+    "username": "demo-user",
+    "password": "euzBqpSqNK2wmDIVyvYolA1QQVK0p0BcHIn87+DnO5t4UIvphA=="
+  },
+  {
+    "id": "0f7834fe-23e8-41f4-be78-d1fb6e947a24",
+    "type": "socks5",
+    "host": "198.51.100.224",
+    "port": 1085
+  },
+  {
+    "id": "7ac8e5f6-b82c-4776-a195-c15aed550d93",
+    "type": "http",
+    "host": "198.51.100.169",
+    "port": 9001
+  },
+  {
+    "id": "41d49141-4350-4d3c-83ad-6ef38eced6a0",
+    "type": "http",
+    "host": "198.51.100.216",
+    "port": 9002,
+    "username": "bulk-user",
+    "password": "ZFcXnLAR7/nOcX+fGpZ9NMvq4ByhyYTFJV9Xh2bZhAy3OhVvng=="
+  },
+  {
+    "id": "bd843008-19b7-4949-b6dd-97ae1e9e04e5",
+    "type": "socks5",
+    "host": "198.51.100.244",
+    "port": 1080
+  },
+  {
+    "id": "c03b1fa6-8b57-407c-8f4a-ad2e632e43c6",
+    "type": "socks5",
+    "host": "198.51.100.203",
+    "port": 1081,
+    "username": "url-user",
+    "password": "lT5dVsrThlPu8uYNINPqGAnvHxMQZkaVVBh/YcwH+WPTIX6X"
+  },
+  {
+    "id": "c845c30a-21cc-4b46-89bf-553a3d95a340",
+    "type": "http",
+    "host": "198.51.100.68",
+    "port": 9701
+  },
+  {
+    "id": "9386e1f6-b0c1-4f79-8b33-0c197c45a693",
+    "type": "http",
+    "host": "198.51.100.218",
+    "port": 9702,
+    "username": "comment-user",
+    "password": "PWQeusNOWZz/Ij7b980tmSiGCLSSa0xvrqRAJr5E6tiY0FMjJeW9dw=="
+  },
+  {
+    "id": "5891bdf4-9ff1-4f63-bff7-e87c1cb7ae9a",
+    "type": "http",
+    "host": "198.51.100.36",
+    "port": 9100,
+    "username": "repeat-user",
+    "password": "pdj1doqDy16+VOm9Ecd6fAwhBctfUE9HtxmQaCHIZiHz/Bt3Wssv"
   }
 ]

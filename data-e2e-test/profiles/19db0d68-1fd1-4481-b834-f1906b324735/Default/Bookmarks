@@ -4,8 +4,8 @@
   "roots": {
     "bookmark_bar": {
       "children": [],
-      "date_added": "13418892338025000",
-      "date_modified": "13418892338025000",
+      "date_added": "13418924799239000",
+      "date_modified": "13418924799239000",
       "guid": "00000000-0000-0000-0000-000000000001",
       "id": "1",
       "name": "Bookmarks bar",
@@ -13,8 +13,8 @@
     },
     "other": {
       "children": [],
-      "date_added": "13418892338025000",
-      "date_modified": "13418892338025000",
+      "date_added": "13418924799239000",
+      "date_modified": "13418924799239000",
       "guid": "00000000-0000-0000-0000-000000000002",
       "id": "2",
       "name": "Other bookmarks",
@@ -22,8 +22,8 @@
     },
     "synced": {
       "children": [],
-      "date_added": "13418892338025000",
-      "date_modified": "13418892338025000",
+      "date_added": "13418924799239000",
+      "date_modified": "13418924799239000",
       "guid": "00000000-0000-0000-0000-000000000003",
       "id": "3",
       "name": "Mobile bookmarks",

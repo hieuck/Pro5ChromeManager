@@ -1,0 +1,11 @@
+[
+  {
+    "id": "79bd6328-533b-4b2e-a633-f20550b47bc6",
+    "createdAt": "2026-03-25T15:05:56.358Z",
+    "category": "feedback",
+    "sentiment": "neutral",
+    "message": "E2E support feedback 1774451155461",
+    "email": "ops-e2e@example.com",
+    "appVersion": "1.0.0"
+  }
+]
