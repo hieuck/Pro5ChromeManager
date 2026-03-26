@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SelfTestResult, SupportIncidentsResult, SupportStatus } from '../../../shared/contracts';
 import {
+  buildSupportOverviewPresentation,
   buildSupportSummaryLines,
   formatUptime,
   getIncidentCategoryColor,
@@ -32,6 +33,8 @@ const t = {
     statusPending: 'Pending',
     onboardingStateLabel: 'Onboarding state',
     stepLabel: 'Step',
+    onboardingRuntimeLabel: 'Onboarding runtime',
+    onboardingDraftProfileLabel: 'Onboarding draft profile',
     profilesLabel: 'Profiles',
     proxiesLabel: 'Proxies',
     backupsLabel: 'Backups',
@@ -54,6 +57,13 @@ const t = {
     readyState: 'Ready',
     releaseReadinessLabel: 'Release readiness',
     needsAttentionState: 'Needs attention',
+    logFilesLabel: 'Log files',
+    lastFeedbackLabel: 'Last feedback',
+    lastUsageLabel: 'Last usage',
+    lastUsageLaunch: 'Last launch',
+    lastUsageCreate: 'Last create',
+    lastUsageImport: 'Last import',
+    lastUsageSessionCheck: 'Last session check',
     recentIncidentsLabel: 'Recent incidents',
     lastIncidentLabel: 'Last incident',
     topIncidentCategoryLabel: 'Top incident category',
@@ -70,6 +80,8 @@ const t = {
     recentIncidentDetailsLabel: 'Incident details',
     incidentLevelError: 'Error',
     incidentLevelWarn: 'Warn',
+    missingPagesState: 'Missing pages',
+    operationallyReady: 'Operationally ready',
   },
 } as const;
 
@@ -159,5 +171,66 @@ describe('settingsSupport utils', () => {
     expect(lines.some((line) => line.includes('Warnings: Needs config'))).toBe(true);
     expect(lines.some((line) => line.includes('Self test: Warn'))).toBe(true);
     expect(lines.some((line) => line.includes('Incident details'))).toBe(true);
+  });
+
+  it('builds a support overview presentation for rendering rows', () => {
+    const supportStatus = {
+      appVersion: '1.0.0',
+      nodeVersion: '22',
+      platform: 'win32',
+      arch: 'x64',
+      uptimeSeconds: 3661,
+      dataDir: 'E:/data',
+      diagnosticsReady: true,
+      onboardingCompleted: false,
+      onboardingState: {
+        status: 'in_progress',
+        currentStep: 2,
+        selectedRuntime: 'chrome',
+        draftProfileName: 'Draft A',
+        lastOpenedAt: '2026-03-26T01:00:00.000Z',
+        profileCreatedAt: null,
+        createdProfileId: null,
+        lastUpdatedAt: null,
+        completedAt: null,
+        skippedAt: null,
+      },
+      profileCount: 3,
+      proxyCount: 2,
+      backupCount: 1,
+      feedbackCount: 4,
+      lastFeedbackAt: '2026-03-26T01:04:00.000Z',
+      usageMetrics: {
+        profileCreates: 1,
+        profileImports: 2,
+        profileLaunches: 3,
+        sessionChecks: 4,
+        sessionCheckLoggedIn: 2,
+        sessionCheckLoggedOut: 1,
+        sessionCheckErrors: 1,
+        lastProfileCreatedAt: null,
+        lastProfileImportedAt: null,
+        lastProfileLaunchAt: '2026-03-26T01:05:00.000Z',
+        lastSessionCheckAt: null,
+      },
+      offlineSecretConfigured: true,
+      codeSigningConfigured: false,
+      supportPagesReady: true,
+      releaseReady: false,
+      recentIncidentCount: 2,
+      recentErrorCount: 1,
+      lastIncidentAt: '2026-03-26T01:03:00.000Z',
+      recentIncidentCategories: [{ category: 'extension', label: 'Extension', count: 2, errorCount: 1, warnCount: 1, latestAt: null }],
+      warnings: ['Needs config'],
+      logFileCount: 5,
+    } satisfies SupportStatus;
+
+    const presentation = buildSupportOverviewPresentation({ t: t as never, supportStatus });
+
+    expect(presentation.rows.find((row) => row.key === 'platform')?.value).toBe('win32 / x64');
+    expect(presentation.rows.find((row) => row.key === 'onboarding-runtime')?.value).toBe('chrome');
+    expect(presentation.rows.find((row) => row.key === 'last-usage')?.value).toContain('Last launch');
+    expect(presentation.rows.find((row) => row.key === 'release-readiness')?.value).toBe('Needs attention');
+    expect(presentation.warnings).toEqual(['Needs config']);
   });
 });
