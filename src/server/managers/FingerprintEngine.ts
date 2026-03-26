@@ -2,8 +2,8 @@ import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import https from 'https';
-import { logger } from '../utils/logger';
-import { dataPath } from '../utils/dataPaths';
+import { logger } from '../core/logging/logger';
+import { dataPath } from '../core/fs/dataPaths';
 import { buildContentScriptTemplate } from '../templates/content-script';
 import { buildNewTabHtml } from '../templates/new-tab';
 

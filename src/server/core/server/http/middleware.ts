@@ -1,7 +1,7 @@
 import express, { Express, NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { logManager } from '../../../managers/LogManager';
-import { logger } from '../../../utils/logger';
+import { logger } from '../../logging/logger';
 import { sendError, sendSuccess } from '../../http';
 
 const logsRateLimiter = rateLimit({

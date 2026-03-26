@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as ProxyChain from 'proxy-chain';
-import { logger } from '../utils/logger';
-import { ProxyConfig } from '../shared/types';
-import { dataPath } from '../utils/dataPaths';
+import { logger } from '../core/logging/logger';
+import { ProxyConfig } from '../../shared/contracts';
+import { dataPath } from '../core/fs/dataPaths';
 
 // Specialized Services
 import { proxyParser } from '../features/proxies/proxyParser';

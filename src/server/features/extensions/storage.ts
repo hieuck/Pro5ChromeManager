@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { logger } from '../../utils/logger';
-import type { ManagedExtension } from '../../shared/types';
+import { logger } from '../../core/logging/logger';
+import type { ManagedExtension } from '../../../shared/contracts';
 
 function normalizeManagedExtension(extension: ManagedExtension): ManagedExtension {
   return {

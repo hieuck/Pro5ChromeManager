@@ -2,7 +2,7 @@ import { Router, Request, Response, raw } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { browserCoreManager } from '../../managers/BrowserCoreManager';
-import { dataPath } from '../../utils/dataPaths';
+import { dataPath } from '../../core/fs/dataPaths';
 
 const router = Router();
 

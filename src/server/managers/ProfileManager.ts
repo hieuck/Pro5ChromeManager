@@ -1,14 +1,14 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { logger } from '../utils/logger';
+import { logger } from '../core/logging/logger';
 import { configManager } from './ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import { extensionManager } from './ExtensionManager';
 import { bookmarkManager } from './BookmarkManager';
-import { sanitizePath } from '../utils/pathSanitizer';
-import { dataPath, resolveAppPath } from '../utils/dataPaths';
-import type { Profile, SearchQuery } from '../shared/types';
+import { sanitizePath } from '../core/fs/pathSanitizer';
+import { dataPath, resolveAppPath } from '../core/fs/dataPaths';
+import type { Profile, SearchQuery } from '../../shared/contracts';
 import { CURRENT_SCHEMA_VERSION, migrateProfile } from '../features/profiles/migration';
 import {
   buildClonedProfile,

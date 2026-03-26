@@ -1,4 +1,4 @@
-import { waitForCDP } from '../../utils/cdpWaiter';
+import { waitForCDP } from '../../core/browser/cdpWaiter';
 import { usageMetricsManager } from '../../managers/UsageMetricsManager';
 import { processManager } from './processManager';
 import { cdpClient } from './cdpClient';

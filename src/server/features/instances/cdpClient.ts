@@ -1,7 +1,7 @@
 import http from 'http';
 import WebSocket from 'ws';
-import { logger } from '../../utils/logger';
-import { ManagedCookie } from '../../shared/types';
+import { logger } from '../../core/logging/logger';
+import { ManagedCookie } from '../../../shared/contracts';
 
 /**
  * Handles WebSocket and HTTP CDP (Chrome DevTools Protocol) interactions.

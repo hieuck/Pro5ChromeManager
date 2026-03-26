@@ -8,7 +8,7 @@ import type {
   BrowserCore,
   BrowserCoreCatalogEntry,
   RuntimeEntry,
-} from '../../../server/shared/types';
+} from '../../../shared/contracts';
 
 type Translations = ReturnType<typeof useTranslation>['t'];
 

@@ -1,5 +1,5 @@
-import type { Profile } from '../../shared/types';
-import { logger } from '../../utils/logger';
+import type { Profile } from '../../../shared/contracts';
+import { logger } from '../../core/logging/logger';
 import { fingerprintEngine } from '../../managers/FingerprintEngine';
 
 export const CURRENT_SCHEMA_VERSION = 1;

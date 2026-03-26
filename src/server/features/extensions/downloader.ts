@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { logger } from '../../utils/logger';
+import { logger } from '../../core/logging/logger';
 
 const DEFAULT_CWS_DOWNLOAD_URL_TEMPLATE = 'https://clients2.google.com/service/update2/crx?response=redirect&prodversion={prodversion}&acceptformat=crx3&x=id%3D{id}%26uc';
 

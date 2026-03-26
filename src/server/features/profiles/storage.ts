@@ -1,9 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { logger } from '../../utils/logger';
+import { logger } from '../../core/logging/logger';
 import { bookmarkManager } from '../../managers/BookmarkManager';
-import { sanitizePath } from '../../utils/pathSanitizer';
-import type { Profile } from '../../shared/types';
+import { sanitizePath } from '../../core/fs/pathSanitizer';
+import type { Profile } from '../../../shared/contracts';
 import { CURRENT_SCHEMA_VERSION, migrateProfile, repairProfile } from './migration';
 
 export async function saveProfileRecord(input: {

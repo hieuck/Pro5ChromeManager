@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
-import { dataPath } from './dataPaths';
+import { dataPath } from '../fs/dataPaths';
 
 export function resolveLogDir(): string {
   if (process.env['NODE_ENV'] === 'test' && !process.env['DATA_DIR']) {

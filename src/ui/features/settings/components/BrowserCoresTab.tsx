@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, Tag, Button, Row, Modal, Upload, Space, Typography, Popconfirm, Empty } from 'antd';
 import { ReloadOutlined, InboxOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { SettingsState } from '../useSettingsState';
-import type { BrowserCore, BrowserCoreCatalogEntry } from '../../../server/shared/types';
+import type { BrowserCore, BrowserCoreCatalogEntry } from '../../../shared/contracts';
 
 interface BrowserCoresTabProps {
   state: SettingsState;

@@ -6,7 +6,7 @@ import {
   languageMeta,
   supportedLanguages,
   type Language,
-} from '../../server/shared/locales';
+} from '../../shared/i18n/locales';
 
 const qpsPloc = createPseudoLocale(en);
 

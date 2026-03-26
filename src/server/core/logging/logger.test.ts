@@ -1,7 +1,7 @@
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { dataPath } from './dataPaths';
+import { dataPath } from '../fs/dataPaths';
 import { resolveLogDir } from './logger';
 
 const originalNodeEnv = process.env['NODE_ENV'];

@@ -1,4 +1,4 @@
-import type { FingerprintConfig } from '../shared/types';
+import type { FingerprintConfig } from '../../shared/contracts';
 
 export interface IdentityConfig {
   profileId: string;

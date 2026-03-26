@@ -1,4 +1,4 @@
-import type { Profile } from '../../shared/types';
+import type { Profile } from '../../../shared/contracts';
 import type { BookmarkEntry } from '../../managers/BookmarkManager';
 import { CURRENT_SCHEMA_VERSION } from './migration';
 

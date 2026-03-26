@@ -6,8 +6,8 @@ import { profileManager } from '../../managers/ProfileManager';
 import { fingerprintEngine } from '../../managers/FingerprintEngine';
 import { cookieManager } from '../../managers/CookieManager';
 import { usageMetricsManager } from '../../managers/UsageMetricsManager';
-import { logger } from '../../utils/logger';
-import { dataPath } from '../../utils/dataPaths';
+import { logger } from '../../core/logging/logger';
+import { dataPath } from '../../core/fs/dataPaths';
 import { isNotFoundError, sendError, sendSuccess } from '../../core/http';
 import {
   BulkCreateProfilesSchema,

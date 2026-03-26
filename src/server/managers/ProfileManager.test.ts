@@ -4,7 +4,7 @@ import path from 'path';
 import os from 'os';
 import { ProfileManager } from './ProfileManager';
 import { migrateProfile } from '../features/profiles/migration';
-import { Profile } from '../shared/types';
+import { Profile } from '../../shared/contracts';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 

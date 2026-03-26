@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { logger } from '../../utils/logger';
+import { logger } from '../../core/logging/logger';
 
 /**
  * Handles network operations for downloading browser core packages.

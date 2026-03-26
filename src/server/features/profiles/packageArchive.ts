@@ -3,7 +3,7 @@ import { createWriteStream } from 'fs';
 import fs from 'fs/promises';
 import archiver from 'archiver';
 import { promisify } from 'util';
-import type { Profile } from '../../shared/types';
+import type { Profile } from '../../../shared/contracts';
 
 const extractArchive = promisify(execFile);
 

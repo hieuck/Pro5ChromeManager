@@ -1,8 +1,8 @@
 import http from 'http';
 import type { Express } from 'express';
 import { configManager } from '../../managers/ConfigManager';
-import { wsServer } from '../../utils/wsServer';
-import { logger } from '../../utils/logger';
+import { wsServer } from '../realtime/wsServer';
+import { logger } from '../logging/logger';
 import { bootState } from './bootState';
 
 let httpServerRef: http.Server | null = null;

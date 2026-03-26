@@ -5,9 +5,9 @@ import os from 'os';
 import { createWriteStream } from 'fs';
 import archiver from 'archiver';
 import { z } from 'zod';
-import { logger } from '../../utils/logger';
-import { dataPath } from '../../utils/dataPaths';
-import type { SelfTestCheck, IncidentEntry, IncidentCategory, IncidentCategorySummary, IncidentSnapshot } from '../../shared/types';
+import { logger } from '../../core/logging/logger';
+import { dataPath } from '../../core/fs/dataPaths';
+import type { SelfTestCheck, IncidentEntry, IncidentCategory, IncidentCategorySummary, IncidentSnapshot } from '../../../shared/contracts';
 
 const router = Router();
 

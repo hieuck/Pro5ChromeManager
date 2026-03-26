@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { logger } from '../../utils/logger';
-import type { Instance } from '../../shared/types';
+import { logger } from '../../core/logging/logger';
+import type { Instance } from '../../../shared/contracts';
 import { processManager } from './processManager';
 import type { RunningEntry } from './types';
 

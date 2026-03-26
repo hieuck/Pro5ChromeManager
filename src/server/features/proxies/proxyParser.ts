@@ -1,4 +1,4 @@
-import { ProxyConfig } from '../../shared/types';
+import { ProxyConfig } from '../../../shared/contracts';
 
 /**
  * Handles detection and normalization of proxy input strings.

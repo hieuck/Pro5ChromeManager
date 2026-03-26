@@ -2,10 +2,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { createReadStream, createWriteStream } from 'fs';
 import archiver from 'archiver';
-import { logger } from '../utils/logger';
+import { logger } from '../core/logging/logger';
 import { configManager } from './ConfigManager';
-import { dataPath, resolveAppPath } from '../utils/dataPaths';
-import { BackupEntry } from '../shared/types';
+import { dataPath, resolveAppPath } from '../core/fs/dataPaths';
+import { BackupEntry } from '../../shared/contracts';
 
 const BACKUPS_DIR = dataPath('backups');
 const MAX_BACKUPS = 7;

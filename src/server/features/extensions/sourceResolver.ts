@@ -1,4 +1,4 @@
-import { resolveAppPath } from '../../utils/dataPaths';
+import { resolveAppPath } from '../../core/fs/dataPaths';
 
 export interface ResolvedSourceInput {
   kind: 'path' | 'chrome_web_store';

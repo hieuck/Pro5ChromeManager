@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import net from 'net';
-import { findFreePort } from '../utils/portScanner';
+import { findFreePort } from '../core/network/portScanner';
 import { InstanceManager } from './InstanceManager';
 import { profileManager } from './ProfileManager';
-import { Profile, ProxyConfig } from '../shared/types';
+import { Profile, ProxyConfig } from '../../shared/contracts';
 import { runtimeManager } from './RuntimeManager';
 
 async function bindServer(server: net.Server, port: number): Promise<number> {

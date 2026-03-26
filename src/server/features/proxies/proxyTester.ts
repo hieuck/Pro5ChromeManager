@@ -1,8 +1,8 @@
 import http from 'http';
 import https from 'https';
 import * as ProxyChain from 'proxy-chain';
-import { ProxyConfig } from '../../shared/types';
-import { logger } from '../../utils/logger';
+import { ProxyConfig } from '../../../shared/contracts';
+import { logger } from '../../core/logging/logger';
 
 /**
  * Handles proxy connectivity testing and IP/Timezone detection.

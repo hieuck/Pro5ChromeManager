@@ -11,7 +11,7 @@ import {
   startServer,
   stopServer,
 } from './core/server';
-import { logger } from './utils/logger';
+import { logger } from './core/logging/logger';
 
 const app = express();
 

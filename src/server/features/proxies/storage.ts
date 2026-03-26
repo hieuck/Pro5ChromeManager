@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { decrypt, encrypt } from '../../utils/crypto';
-import { logger } from '../../utils/logger';
-import type { ProxyConfig } from '../../shared/types';
+import { decrypt, encrypt } from '../../core/security/crypto';
+import { logger } from '../../core/logging/logger';
+import type { ProxyConfig } from '../../../shared/contracts';
 
 interface StoredProxy extends Omit<ProxyConfig, 'password'> {
   password?: string;

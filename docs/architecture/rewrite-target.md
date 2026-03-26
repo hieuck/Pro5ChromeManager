@@ -17,6 +17,8 @@ src/
   electron/
   e2e/
   shared/
+    contracts/
+    i18n/
   server/
     core/
       http.ts
@@ -28,7 +30,6 @@ src/
         contracts.ts
         helpers.ts
     managers/
-    utils/
     tests/
   ui/
     api/
@@ -57,6 +58,7 @@ src/
 - Feature modules in `src/server/features/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
 - Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing legacy folders directly.
 - `src/server/core/*` owns composition and process lifecycle concerns.
+- Cross-runtime contracts belong in `src/shared/contracts/*`; shared language metadata belongs in `src/shared/i18n/*`.
 
 ## Migration rules
 

@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
-import { logger } from '../../utils/logger';
+import { logger } from '../../core/logging/logger';
 
 /**
  * Handles browser process lifecycle: spawning, killing, and status tracking.

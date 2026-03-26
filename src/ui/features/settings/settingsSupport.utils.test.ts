@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SelfTestResult, SupportIncidentsResult, SupportStatus } from '../../../server/shared/types';
+import type { SelfTestResult, SupportIncidentsResult, SupportStatus } from '../../../shared/contracts';
 import {
   buildSupportSummaryLines,
   formatUptime,

@@ -1,6 +1,6 @@
 import { Express, Request, Response } from 'express';
 import { configManager } from '../../../managers/ConfigManager';
-import { dataPath } from '../../../utils/dataPaths';
+import { dataPath } from '../../fs/dataPaths';
 import { bootState } from '../bootState';
 
 export function registerHealthEndpoints(app: Express): void {

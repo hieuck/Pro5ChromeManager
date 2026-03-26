@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { logger } from '../../utils/logger';
-import { dataPath } from '../../utils/dataPaths';
+import { logger } from '../../core/logging/logger';
+import { dataPath } from '../../core/fs/dataPaths';
 
 const ACTIVITY_LOG_PATH = dataPath('activity.log');
 

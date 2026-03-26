@@ -9,7 +9,7 @@ import type {
   SupportFeedbackResult,
   SupportIncidentsResult,
   SupportStatus,
-} from '../../../server/shared/types';
+} from '../../../shared/contracts';
 import {
   buildSupportSummaryLines,
   formatUptime,

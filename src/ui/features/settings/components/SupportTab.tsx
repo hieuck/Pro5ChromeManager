@@ -2,7 +2,7 @@ import React from 'react';
 import { Row, Space, Button, Typography, Tag, Form, Col, Select, Input } from 'antd';
 import { CopyOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { SettingsState } from '../useSettingsState';
-import type { SupportFeedbackEntry, IncidentEntry } from '../../../../server/shared/types';
+import type { SupportFeedbackEntry, IncidentEntry } from '../../../../shared/contracts';
 
 interface SupportTabProps {
   state: SettingsState;

@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, Button, Row, Space, Typography, Popconfirm, Empty } from 'antd';
 import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { SettingsState } from '../useSettingsState';
-import type { BackupEntry } from '../../../server/shared/types';
+import type { BackupEntry } from '../../../shared/contracts';
 
 interface BackupTabProps {
   state: SettingsState;

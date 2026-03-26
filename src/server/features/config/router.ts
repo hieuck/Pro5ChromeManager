@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { configManager } from '../../managers/ConfigManager';
-import { logger } from '../../utils/logger';
+import { logger } from '../../core/logging/logger';
 
 const router = Router();
 

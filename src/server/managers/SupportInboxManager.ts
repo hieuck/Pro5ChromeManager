@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { dataPath } from '../utils/dataPaths';
+import { dataPath } from '../core/fs/dataPaths';
 
 export interface SupportFeedbackEntry {
   id: string;

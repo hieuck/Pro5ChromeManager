@@ -1,12 +1,12 @@
-import { dataPath } from '../utils/dataPaths';
-import { waitForCDP } from '../utils/cdpWaiter';
-import { logger } from '../utils/logger';
-import { wsServer } from '../utils/wsServer';
+import { dataPath } from '../core/fs/dataPaths';
+import { waitForCDP } from '../core/browser/cdpWaiter';
+import { logger } from '../core/logging/logger';
+import { wsServer } from '../core/realtime/wsServer';
 import { profileManager } from './ProfileManager';
 import { cookieManager } from './CookieManager';
 import { configManager } from './ConfigManager';
 import { usageMetricsManager } from './UsageMetricsManager';
-import type { Instance } from '../shared/types';
+import type { Instance } from '../../shared/contracts';
 import { activityLogger } from '../features/instances/activityLogger';
 import { cdpClient } from '../features/instances/cdpClient';
 import { processManager } from '../features/instances/processManager';

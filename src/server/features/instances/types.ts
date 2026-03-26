@@ -1,5 +1,5 @@
 import type { ChildProcess } from 'child_process';
-import type { Instance } from '../../shared/types';
+import type { Instance } from '../../../shared/contracts';
 
 export interface RunningEntry {
   instance: Instance;

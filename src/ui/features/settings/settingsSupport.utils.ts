@@ -5,7 +5,7 @@ import type {
   SupportFeedbackEntry,
   SupportIncidentsResult,
   SupportStatus,
-} from '../../../server/shared/types';
+} from '../../../shared/contracts';
 
 type Translations = ReturnType<typeof useTranslation>['t'];
 

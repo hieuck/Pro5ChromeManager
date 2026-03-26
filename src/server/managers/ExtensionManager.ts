@@ -1,9 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { dataPath } from '../utils/dataPaths';
-import { logger } from '../utils/logger';
-import { ManagedExtension, ExtensionBundle } from '../shared/types';
+import { dataPath } from '../core/fs/dataPaths';
+import { logger } from '../core/logging/logger';
+import { ManagedExtension, ExtensionBundle } from '../../shared/contracts';
 
 // Specialized Services
 import { sourceResolver, ResolvedSourceInput } from '../features/extensions/sourceResolver';

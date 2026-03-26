@@ -13,7 +13,7 @@ import {
   DEFAULT_CONFIG,
   migrateConfig,
 } from './ConfigManager';
-import { supportedLanguages } from '../shared/locales';
+import { supportedLanguages } from '../../shared/i18n/locales';
 
 async function makeTempPath(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'config-test-'));

@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
-import { logger } from './logger';
+import { logger } from '../logging/logger';
 
 // ─── Event types ──────────────────────────────────────────────────────────────
 

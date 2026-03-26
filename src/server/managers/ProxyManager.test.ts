@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
 import { ProxyManager } from './ProxyManager';
-import { encrypt, decrypt } from '../utils/crypto';
+import { encrypt, decrypt } from '../core/security/crypto';
 
 // ─── P7: Password Encryption ──────────────────────────────────────────────────
 // Validates: Requirements 8.2 — proxy passwords must be stored encrypted

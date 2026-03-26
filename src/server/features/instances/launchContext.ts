@@ -4,10 +4,10 @@ import { proxyManager } from '../../managers/ProxyManager';
 import { fingerprintEngine } from '../../managers/FingerprintEngine';
 import { extensionManager } from '../../managers/ExtensionManager';
 import { configManager } from '../../managers/ConfigManager';
-import { findFreePort } from '../../utils/portScanner';
-import { resolveAppPath } from '../../utils/dataPaths';
+import { findFreePort } from '../../core/network/portScanner';
+import { resolveAppPath } from '../../core/fs/dataPaths';
 import { buildChromeFlags } from './chromeFlags';
-import type { Profile } from '../../shared/types';
+import type { Profile } from '../../../shared/contracts';
 
 export async function buildLaunchContext(profile: Profile, dataDir: string, headlessOverride?: boolean): Promise<{
   executablePath: string;

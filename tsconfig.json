@@ -5,7 +5,7 @@
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "outDir": "dist/server",
-    "rootDir": "src/server",
+    "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -15,6 +15,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/server/**/*"],
-  "exclude": ["node_modules", "dist", "src/ui"]
+  "include": ["src/server/**/*", "src/shared/**/*"],
+  "exclude": ["node_modules", "dist", "src/ui", "src/electron"]
 }
