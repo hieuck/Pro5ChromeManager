@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { extensionManager } from '../../managers/ExtensionManager';
-import { profileManager } from '../../managers/ProfileManager';
+import { profileManager } from './ProfileManager';
 import { proxyManager } from '../../managers/ProxyManager';
 import { BulkUpdateProfilesSchema, CloneProfileSchema, UpdateProfileSchema } from './contracts';
 

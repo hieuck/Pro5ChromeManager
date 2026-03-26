@@ -37,7 +37,7 @@ describe('Operations endpoints', () => {
     const { runtimeManager } = await import('../features/runtimes/RuntimeManager');
     await runtimeManager.initialize();
 
-    const { profileManager } = await import('../managers/ProfileManager');
+    const { profileManager } = await import('../features/profiles/ProfileManager');
     await profileManager.initialize();
 
     const { proxyManager } = await import('../managers/ProxyManager');
@@ -981,7 +981,7 @@ describe('Operations endpoints', () => {
   });
 
   it('restarts profiles through the restart endpoint', async () => {
-    const { instanceManager } = await import('../managers/InstanceManager');
+    const { instanceManager } = await import('../features/instances/InstanceManager');
     const originalGetStatus = instanceManager.getStatus.bind(instanceManager);
     const originalStopInstance = instanceManager.stopInstance.bind(instanceManager);
     const originalLaunchInstance = instanceManager.launchInstance.bind(instanceManager);

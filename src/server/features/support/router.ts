@@ -336,7 +336,7 @@ function isProductionLikeRuntime(): boolean {
 
 async function buildSupportStatus(): Promise<SupportStatusPayload> {
     const { configManager } = await import('../config/ConfigManager');
-  const { profileManager } = await import('../../managers/ProfileManager');
+      const { profileManager } = await import('../profiles/ProfileManager');
   const { proxyManager } = await import('../../managers/ProxyManager');
     const { backupManager } = await import('../backups/BackupManager');
   const { usageMetricsManager } = await import('../../managers/UsageMetricsManager');

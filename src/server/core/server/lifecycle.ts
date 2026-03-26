@@ -18,7 +18,7 @@ async function initializeManagers(): Promise<void> {
   const { runtimeManager } = await import('../../features/runtimes/RuntimeManager');
   await runtimeManager.initialize();
 
-  const { profileManager } = await import('../../managers/ProfileManager');
+  const { profileManager } = await import('../../features/profiles/ProfileManager');
   await profileManager.initialize();
 
   const { proxyManager } = await import('../../managers/ProxyManager');
@@ -36,7 +36,7 @@ async function initializeManagers(): Promise<void> {
   const { onboardingStateManager } = await import('../../managers/OnboardingStateManager');
   await onboardingStateManager.initialize();
 
-  const { instanceManager } = await import('../../managers/InstanceManager');
+  const { instanceManager } = await import('../../features/instances/InstanceManager');
   await instanceManager.initialize();
 
   const { backupManager } = await import('../../features/backups/BackupManager');
@@ -74,7 +74,7 @@ export async function stopServer(reason = 'shutdown'): Promise<void> {
   logger.warn('Stopping server', { reason });
 
   try {
-    const { instanceManager } = await import('../../managers/InstanceManager');
+    const { instanceManager } = await import('../../features/instances/InstanceManager');
     await instanceManager.stopAll();
   } catch (error) {
     logger.warn('Failed to stop Chromium instances during shutdown', {

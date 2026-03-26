@@ -3,8 +3,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { ProfileManager } from './ProfileManager';
-import { migrateProfile } from '../features/profiles/migration';
-import { Profile } from '../../shared/contracts';
+import { migrateProfile } from './migration';
+import { Profile } from '../../../shared/contracts';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 

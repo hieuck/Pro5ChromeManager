@@ -15,7 +15,7 @@ export function registerHealthEndpoints(app: Express): void {
   app.get('/readyz', async (_request: Request, response: Response) => {
     try {
       const { runtimeManager } = await import('../../../features/runtimes/RuntimeManager');
-      const { profileManager } = await import('../../../managers/ProfileManager');
+      const { profileManager } = await import('../../../features/profiles/ProfileManager');
       const { proxyManager } = await import('../../../managers/ProxyManager');
 
       const runtimes = runtimeManager.listRuntimes();

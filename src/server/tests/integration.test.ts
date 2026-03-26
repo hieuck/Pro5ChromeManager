@@ -6,7 +6,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { ProfileManager } from '../managers/ProfileManager';
+import { ProfileManager } from '../features/profiles/ProfileManager';
 import { FingerprintEngine } from '../managers/FingerprintEngine';
 import { ProxyManager } from '../managers/ProxyManager';
 import { ConfigManager } from '../features/config/ConfigManager';

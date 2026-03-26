@@ -1,23 +1,23 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { logger } from '../core/logging/logger';
-import { configManager } from '../features/config/ConfigManager';
-import { fingerprintEngine } from './FingerprintEngine';
-import { extensionManager } from './ExtensionManager';
-import { bookmarkManager } from './BookmarkManager';
-import { sanitizePath } from '../core/fs/pathSanitizer';
-import { dataPath, resolveAppPath } from '../core/fs/dataPaths';
-import type { Profile, SearchQuery } from '../../shared/contracts';
-import { CURRENT_SCHEMA_VERSION, migrateProfile } from '../features/profiles/migration';
+import { logger } from '../../core/logging/logger';
+import { configManager } from '../config/ConfigManager';
+import { fingerprintEngine } from '../../managers/FingerprintEngine';
+import { extensionManager } from '../../managers/ExtensionManager';
+import { bookmarkManager } from '../../managers/BookmarkManager';
+import { sanitizePath } from '../../core/fs/pathSanitizer';
+import { dataPath, resolveAppPath } from '../../core/fs/dataPaths';
+import type { Profile, SearchQuery } from '../../../shared/contracts';
+import { CURRENT_SCHEMA_VERSION, migrateProfile } from './migration';
 import {
   buildClonedProfile,
   buildCreatedProfile,
   buildImportedPackageProfile,
   buildImportedProfile,
-} from '../features/profiles/records';
-import { createProfileArchive, extractWindowsZipArchive } from '../features/profiles/packageArchive';
-import { copyDirectory, loadProfilesFromDirectory, saveProfileRecord } from '../features/profiles/storage';
+} from './records';
+import { createProfileArchive, extractWindowsZipArchive } from './packageArchive';
+import { copyDirectory, loadProfilesFromDirectory, saveProfileRecord } from './storage';
 
 export class ProfileManager {
   private profiles: Map<string, Profile> = new Map();

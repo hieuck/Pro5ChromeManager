@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { instanceManager } from '../../managers/InstanceManager';
+import { instanceManager } from './InstanceManager';
 
 const router = Router();
 

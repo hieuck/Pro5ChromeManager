@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { profileManager } from '../../managers/ProfileManager';
+import { profileManager } from './ProfileManager';
 import { fingerprintEngine } from '../../managers/FingerprintEngine';
 import { cookieManager } from '../../managers/CookieManager';
 import { usageMetricsManager } from '../../managers/UsageMetricsManager';
