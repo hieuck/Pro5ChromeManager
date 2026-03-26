@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { dataPath } from '../core/fs/dataPaths';
+import { dataPath } from '../fs/dataPaths';
 
 export type OpsLogEntry = {
   timestamp: string | null;

@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { dataPath } from '../core/fs/dataPaths';
+import { dataPath } from '../../core/fs/dataPaths';
 
 export interface OnboardingState {
   schemaVersion: number;

@@ -5,7 +5,7 @@ import path from 'path';
 import { profileManager } from './ProfileManager';
 import { fingerprintEngine } from '../../managers/FingerprintEngine';
 import { cookieManager } from '../../managers/CookieManager';
-import { usageMetricsManager } from '../../managers/UsageMetricsManager';
+import { usageMetricsManager } from '../../core/telemetry/UsageMetricsManager';
 import { logger } from '../../core/logging/logger';
 import { dataPath } from '../../core/fs/dataPaths';
 import { isNotFoundError, sendError, sendSuccess } from '../../core/http';

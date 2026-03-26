@@ -5,7 +5,7 @@ import { wsServer } from '../../core/realtime/wsServer';
 import { profileManager } from '../profiles/ProfileManager';
 import { cookieManager } from '../../managers/CookieManager';
 import { configManager } from '../config/ConfigManager';
-import { usageMetricsManager } from '../../managers/UsageMetricsManager';
+import { usageMetricsManager } from '../../core/telemetry/UsageMetricsManager';
 import type { Instance } from '../../../shared/contracts';
 import { activityLogger } from './activityLogger';
 import { cdpClient } from './cdpClient';

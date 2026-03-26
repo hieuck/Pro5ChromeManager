@@ -339,9 +339,9 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
       const { profileManager } = await import('../profiles/ProfileManager');
   const { proxyManager } = await import('../../managers/ProxyManager');
     const { backupManager } = await import('../backups/BackupManager');
-  const { usageMetricsManager } = await import('../../managers/UsageMetricsManager');
-  const { supportInboxManager } = await import('../../managers/SupportInboxManager');
-  const { onboardingStateManager } = await import('../../managers/OnboardingStateManager');
+      const { usageMetricsManager } = await import('../../core/telemetry/UsageMetricsManager');
+      const { supportInboxManager } = await import('./SupportInboxManager');
+      const { onboardingStateManager } = await import('./OnboardingStateManager');
 
   const config = configManager.get();
   const profiles = profileManager.listProfiles();
@@ -505,7 +505,7 @@ router.post('/support/onboarding-state', async (req: Request, res: Response) => 
   }
 
   try {
-    const { onboardingStateManager } = await import('../../managers/OnboardingStateManager');
+  const { onboardingStateManager } = await import('./OnboardingStateManager');
     const state = await onboardingStateManager.update(parsed.data);
     res.json({ success: true, data: state });
   } catch (err) {
@@ -518,7 +518,7 @@ router.get('/support/feedback', async (req: Request, res: Response) => {
   try {
     const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
-    const { supportInboxManager } = await import('../../managers/SupportInboxManager');
+  const { supportInboxManager } = await import('./SupportInboxManager');
     const entries = await supportInboxManager.listFeedback(limit);
     res.json({
       success: true,
@@ -541,7 +541,7 @@ router.post('/support/feedback', async (req: Request, res: Response) => {
   }
 
   try {
-    const { supportInboxManager } = await import('../../managers/SupportInboxManager');
+  const { supportInboxManager } = await import('./SupportInboxManager');
     const entry = await supportInboxManager.createFeedback({
       category: parsed.data.category,
       sentiment: parsed.data.sentiment,

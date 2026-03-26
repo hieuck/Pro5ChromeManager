@@ -410,7 +410,7 @@ describe('Operations endpoints', () => {
   });
 
   it('includes usage metrics snapshots in support status', async () => {
-    const { usageMetricsManager } = await import('../managers/UsageMetricsManager');
+    const { usageMetricsManager } = await import('../core/telemetry/UsageMetricsManager');
     await usageMetricsManager.recordProfileCreated();
     await usageMetricsManager.recordProfileImported();
     await usageMetricsManager.recordProfileLaunch();

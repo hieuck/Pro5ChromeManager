@@ -30,10 +30,10 @@ async function initializeManagers(): Promise<void> {
   const { browserCoreManager } = await import('../../features/browser-cores/BrowserCoreManager');
   await browserCoreManager.initialize();
 
-  const { usageMetricsManager } = await import('../../managers/UsageMetricsManager');
+  const { usageMetricsManager } = await import('../../core/telemetry/UsageMetricsManager');
   await usageMetricsManager.initialize();
 
-  const { onboardingStateManager } = await import('../../managers/OnboardingStateManager');
+  const { onboardingStateManager } = await import('../../features/support/OnboardingStateManager');
   await onboardingStateManager.initialize();
 
   const { instanceManager } = await import('../../features/instances/InstanceManager');

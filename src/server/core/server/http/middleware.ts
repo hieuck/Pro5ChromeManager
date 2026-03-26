@@ -1,6 +1,6 @@
 import express, { Express, NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import { logManager } from '../../../managers/LogManager';
+import { logManager } from '../../logging/LogManager';
 import { logger } from '../../logging/logger';
 import { sendError, sendSuccess } from '../../http';
 
