@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '../../core/logging/logger';
-import { bookmarkManager } from '../../managers/BookmarkManager';
+import { bookmarkManager } from './BookmarkManager';
 import { sanitizePath } from '../../core/fs/pathSanitizer';
 import type { Profile } from '../../../shared/contracts';
 import { CURRENT_SCHEMA_VERSION, migrateProfile, repairProfile } from './migration';

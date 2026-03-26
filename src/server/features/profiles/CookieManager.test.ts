@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CookieManager, normalizeCookie } from './CookieManager';
-import { profileManager } from '../features/profiles/ProfileManager';
+import { profileManager } from './ProfileManager';
 
 describe('CookieManager', () => {
   afterEach(() => {

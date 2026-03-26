@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { proxyManager } from '../../managers/ProxyManager';
+import { proxyManager } from './ProxyManager';
 
 const router = Router();
 

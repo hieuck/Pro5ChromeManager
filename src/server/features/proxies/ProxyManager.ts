@@ -1,13 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as ProxyChain from 'proxy-chain';
-import { logger } from '../core/logging/logger';
-import { ProxyConfig } from '../../shared/contracts';
-import { dataPath } from '../core/fs/dataPaths';
+import { logger } from '../../core/logging/logger';
+import { ProxyConfig } from '../../../shared/contracts';
+import { dataPath } from '../../core/fs/dataPaths';
 
 // Specialized Services
-import { proxyParser } from '../features/proxies/proxyParser';
-import { proxyTester } from '../features/proxies/proxyTester';
-import { loadStoredProxies, persistStoredProxies } from '../features/proxies/storage';
+import { proxyParser } from './proxyParser';
+import { proxyTester } from './proxyTester';
+import { loadStoredProxies, persistStoredProxies } from './storage';
 
 export interface ProxyBuildResult {
   flag: string;

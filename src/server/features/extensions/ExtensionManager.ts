@@ -1,15 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { dataPath } from '../core/fs/dataPaths';
-import { logger } from '../core/logging/logger';
-import { ManagedExtension, ExtensionBundle } from '../../shared/contracts';
+import { dataPath } from '../../core/fs/dataPaths';
+import { logger } from '../../core/logging/logger';
+import { ManagedExtension, ExtensionBundle } from '../../../shared/contracts';
 
 // Specialized Services
-import { sourceResolver, ResolvedSourceInput } from '../features/extensions/sourceResolver';
-import { downloader } from '../features/extensions/downloader';
-import { extractor } from '../features/extensions/extractor';
-import { loadManagedExtensions, persistManagedExtensions } from '../features/extensions/storage';
+import { sourceResolver, ResolvedSourceInput } from './sourceResolver';
+import { downloader } from './downloader';
+import { extractor } from './extractor';
+import { loadManagedExtensions, persistManagedExtensions } from './storage';
 
 const EXTENSIONS_PATH = dataPath('extensions.json');
 

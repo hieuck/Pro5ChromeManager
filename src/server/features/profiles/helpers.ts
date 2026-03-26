@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { extensionManager } from '../../managers/ExtensionManager';
+import { extensionManager } from '../extensions/ExtensionManager';
 import { profileManager } from './ProfileManager';
-import { proxyManager } from '../../managers/ProxyManager';
+import { proxyManager } from '../proxies/ProxyManager';
 import { BulkUpdateProfilesSchema, CloneProfileSchema, UpdateProfileSchema } from './contracts';
 
 function normalizeBookmarks<T extends { folder?: string | null }>(bookmarks: T[]): Array<T & { folder: string | null }> {

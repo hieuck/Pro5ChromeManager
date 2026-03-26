@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { profileManager } from '../features/profiles/ProfileManager';
-import { logger } from '../core/logging/logger';
+import { profileManager } from './ProfileManager';
+import { logger } from '../../core/logging/logger';
 
 export interface ManagedCookie {
   name: string;

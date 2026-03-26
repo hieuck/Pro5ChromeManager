@@ -31,7 +31,7 @@ describe('Operations endpoints', () => {
       },
     });
 
-    const { fingerprintEngine } = await import('../managers/FingerprintEngine');
+    const { fingerprintEngine } = await import('../features/profiles/FingerprintEngine');
     await fingerprintEngine.initialize();
 
     const { runtimeManager } = await import('../features/runtimes/RuntimeManager');
@@ -40,10 +40,10 @@ describe('Operations endpoints', () => {
     const { profileManager } = await import('../features/profiles/ProfileManager');
     await profileManager.initialize();
 
-    const { proxyManager } = await import('../managers/ProxyManager');
+    const { proxyManager } = await import('../features/proxies/ProxyManager');
     await proxyManager.initialize();
 
-    const { extensionManager } = await import('../managers/ExtensionManager');
+    const { extensionManager } = await import('../features/extensions/ExtensionManager');
     await extensionManager.initialize();
 
     const { browserCoreManager } = await import('../features/browser-cores/BrowserCoreManager');
@@ -876,7 +876,7 @@ describe('Operations endpoints', () => {
     });
 
   it('bulk tests proxies and persists health snapshots', async () => {
-    const { proxyManager } = await import('../managers/ProxyManager');
+    const { proxyManager } = await import('../features/proxies/ProxyManager');
     const originalTestProxy = proxyManager.testProxy.bind(proxyManager);
     const originalDetectTimezone = proxyManager.detectTimezoneFromProxy.bind(proxyManager);
 

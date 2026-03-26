@@ -1,5 +1,5 @@
 import type { Profile } from '../../../shared/contracts';
-import type { BookmarkEntry } from '../../managers/BookmarkManager';
+import type { BookmarkEntry } from './BookmarkManager';
 import { CURRENT_SCHEMA_VERSION } from './migration';
 
 type MutableProfileFields = Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'schemaVersion'>>;

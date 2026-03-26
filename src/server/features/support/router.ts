@@ -337,7 +337,7 @@ function isProductionLikeRuntime(): boolean {
 async function buildSupportStatus(): Promise<SupportStatusPayload> {
     const { configManager } = await import('../config/ConfigManager');
       const { profileManager } = await import('../profiles/ProfileManager');
-  const { proxyManager } = await import('../../managers/ProxyManager');
+      const { proxyManager } = await import('../proxies/ProxyManager');
     const { backupManager } = await import('../backups/BackupManager');
       const { usageMetricsManager } = await import('../../core/telemetry/UsageMetricsManager');
       const { supportInboxManager } = await import('./SupportInboxManager');
@@ -399,7 +399,7 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
 async function buildSelfTest(): Promise<SupportSelfTestPayload> {
     const { configManager } = await import('../config/ConfigManager');
     const { runtimeManager } = await import('../runtimes/RuntimeManager');
-  const { proxyManager } = await import('../../managers/ProxyManager');
+  const { proxyManager } = await import('../proxies/ProxyManager');
 
   const checks: SelfTestCheck[] = [];
   const config = configManager.get();

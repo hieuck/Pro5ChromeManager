@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { extensionManager } from '../../managers/ExtensionManager';
+import { extensionManager } from './ExtensionManager';
 import { logger } from '../../core/logging/logger';
 
 const router = Router();

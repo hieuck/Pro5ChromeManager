@@ -7,8 +7,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { ProfileManager } from '../features/profiles/ProfileManager';
-import { FingerprintEngine } from '../managers/FingerprintEngine';
-import { ProxyManager } from '../managers/ProxyManager';
+import { FingerprintEngine } from '../features/profiles/FingerprintEngine';
+import { ProxyManager } from '../features/proxies/ProxyManager';
 import { ConfigManager } from '../features/config/ConfigManager';
 
 // ─── Shared temp dir ──────────────────────────────────────────────────────────
