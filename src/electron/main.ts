@@ -276,7 +276,7 @@ app.on('activate', () => {
 app.on('before-quit', async () => {
   logMain('info', 'Electron app quitting');
   try {
-    const { instanceManager } = require('../server/managers/InstanceManager') as
+    const { instanceManager } = require('../server/features/instances/InstanceManager') as
       { instanceManager: { stopAll: () => Promise<void> } };
     await instanceManager.stopAll();
   } catch {
