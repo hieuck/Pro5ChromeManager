@@ -57,3 +57,65 @@ export function buildExtensionCategoryLookup(
 ): Map<string, ExtensionBundle> {
   return new Map(bundles.map((bundle) => [bundle.key, bundle]));
 }
+
+export interface ImportProfilePackageFile {
+  name: string;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+}
+
+export interface ImportProfilePackageFileLike {
+  originFileObj?: ImportProfilePackageFile | null;
+}
+
+export interface ImportProfilePackageResult {
+  successCount: number;
+  failCount: number;
+}
+
+export interface FailingProxyConfirmDetails {
+  count: number;
+  previewNames: string;
+  hasMore: boolean;
+}
+
+export function buildFailingProxyConfirmDetails(
+  profiles: Profile[],
+  previewLimit = 3,
+): FailingProxyConfirmDetails {
+  const previewProfiles = profiles.slice(0, previewLimit);
+  return {
+    count: profiles.length,
+    previewNames: previewProfiles.map((profile) => profile.name).join(', '),
+    hasMore: profiles.length > previewLimit,
+  };
+}
+
+export function getImportProfilePackageFiles(
+  files: Array<ImportProfilePackageFileLike | ImportProfilePackageFile>,
+): ImportProfilePackageFile[] {
+  return files
+    .map((file) => ('originFileObj' in file ? file.originFileObj ?? null : file))
+    .filter((file): file is ImportProfilePackageFile => Boolean(file));
+}
+
+export async function importProfilePackages(
+  files: ImportProfilePackageFile[],
+  importer: (file: ImportProfilePackageFile) => Promise<boolean>,
+): Promise<ImportProfilePackageResult> {
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const file of files) {
+    try {
+      if (await importer(file)) {
+        successCount += 1;
+      } else {
+        failCount += 1;
+      }
+    } catch {
+      failCount += 1;
+    }
+  }
+
+  return { successCount, failCount };
+}

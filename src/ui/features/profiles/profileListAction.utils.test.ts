@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBulkApplyExtensionTargetProfiles,
   buildBulkEditPayload,
+  buildFailingProxyConfirmDetails,
   buildExtensionCategoryLookup,
   getFailingProxyProfiles,
+  getImportProfilePackageFiles,
   getSelectedProfiles,
   getUniqueTruthyValues,
+  importProfilePackages,
 } from './profileListAction.utils';
 import type { ExtensionBundle, Profile } from './types';
 
@@ -54,5 +57,45 @@ describe('profileListAction utils', () => {
     expect(getSelectedProfiles(profiles, ['b', 'x']).map((profile) => profile.id)).toEqual(['b']);
     expect(buildBulkApplyExtensionTargetProfiles(profiles, ['a']).map((profile) => profile.id)).toEqual(['a']);
     expect(buildExtensionCategoryLookup(bundles).get('wallet')?.label).toBe('Wallet');
+  });
+
+  it('builds failing proxy confirm details and extracts importable files', () => {
+    const profiles = [
+      createProfile({ id: 'a', name: 'Alpha' }),
+      createProfile({ id: 'b', name: 'Beta' }),
+      createProfile({ id: 'c', name: 'Gamma' }),
+      createProfile({ id: 'd', name: 'Delta' }),
+    ];
+
+    const details = buildFailingProxyConfirmDetails(profiles);
+    const extracted = getImportProfilePackageFiles([
+      { originFileObj: { name: 'a.zip', arrayBuffer: async () => new ArrayBuffer(1) } },
+      { name: 'b.zip', arrayBuffer: async () => new ArrayBuffer(1) },
+      { originFileObj: null },
+    ]);
+
+    expect(details).toEqual({
+      count: 4,
+      previewNames: 'Alpha, Beta, Gamma',
+      hasMore: true,
+    });
+    expect(extracted.map((file) => file.name)).toEqual(['a.zip', 'b.zip']);
+  });
+
+  it('imports profile packages via injected importer and counts failures', async () => {
+    const files = [
+      { name: 'ok.zip', arrayBuffer: async () => new ArrayBuffer(1) },
+      { name: 'fail.zip', arrayBuffer: async () => new ArrayBuffer(1) },
+      { name: 'throw.zip', arrayBuffer: async () => new ArrayBuffer(1) },
+    ];
+
+    const result = await importProfilePackages(files, async (file) => {
+      if (file.name === 'throw.zip') {
+        throw new Error('boom');
+      }
+      return file.name === 'ok.zip';
+    });
+
+    expect(result).toEqual({ successCount: 1, failCount: 2 });
   });
 });

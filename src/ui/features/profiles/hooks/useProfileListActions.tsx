@@ -8,8 +8,11 @@ import { Profile, ProxyOption, RuntimeOption, ExtensionRecord, ExtensionBundle, 
 import {
   buildBulkApplyExtensionTargetProfiles,
   buildBulkEditPayload,
+  buildFailingProxyConfirmDetails,
   getFailingProxyProfiles,
+  getImportProfilePackageFiles,
   getUniqueTruthyValues,
+  importProfilePackages,
 } from '../profileListAction.utils';
 import { useProfileListData } from './useProfileListData';
 import { useProfileListFilters } from './useProfileListFilters';
@@ -45,6 +48,7 @@ export function useProfileListActions(
 
   const confirmAndStartProfiles = useCallback(async (ids: string[]) => {
     const failingProxyProfiles = getFailingProxyProfiles(data.profiles, ids);
+    const confirmDetails = buildFailingProxyConfirmDetails(failingProxyProfiles);
 
     if (!failingProxyProfiles.length) {
       await Promise.all(ids.map(async (id) => handleStart(id)));
@@ -57,10 +61,10 @@ export function useProfileListActions(
       cancelText: 'Kiểm tra lại proxy',
       content: (
         <div>
-          <p>{`Có ${failingProxyProfiles.length} hồ sơ đang dùng proxy ở trạng thái Needs check.`}</p>
+          <p>{`Có ${confirmDetails.count} hồ sơ đang dùng proxy ở trạng thái Needs check.`}</p>
           <p style={{ color: '#8c8c8c' }}>
-            {failingProxyProfiles.slice(0, 3).map((p: Profile) => p.name).join(', ')}
-            {failingProxyProfiles.length > 3 ? '...' : ''}
+            {confirmDetails.previewNames}
+            {confirmDetails.hasMore ? '...' : ''}
           </p>
         </div>
       ),
@@ -235,9 +239,7 @@ export function useProfileListActions(
   }, [fetchProfiles, setBulkCreateOpen, setBulkCreateProxyId, setBulkCreateRuntime, setBulkCreateText, setBulkCreating, ui.bulkCreateProxyId, ui.bulkCreateRuntime, ui.bulkCreateText]);
 
   const handleImportProfilePackages = useCallback(async () => {
-    const filesToImport = ui.importPackageFiles
-      .map((file: any) => (file.originFileObj ?? (typeof File !== 'undefined' && file instanceof File ? file : null)))
-      .filter((file: File): file is File => Boolean(file));
+    const filesToImport = getImportProfilePackageFiles(ui.importPackageFiles);
 
     if (filesToImport.length === 0) {
       void message.warning('Hãy chọn ít nhất một gói profile `.zip` để import');
@@ -245,27 +247,19 @@ export function useProfileListActions(
     }
 
     setImportingPackages(true);
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const file of filesToImport) {
-      try {
-        const buffer = await file.arrayBuffer();
-        const response = await fetch(buildApiUrl('/api/profiles/import-package'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'X-Pro5-File-Name': encodeURIComponent(file.name),
-          },
-          body: buffer,
-        });
-        const json = await response.json() as { success: boolean; error?: string };
-        if (json.success) successCount += 1;
-        else failCount += 1;
-      } catch {
-        failCount += 1;
-      }
-    }
+    const { successCount, failCount } = await importProfilePackages(filesToImport, async (file) => {
+      const buffer = await file.arrayBuffer();
+      const response = await fetch(buildApiUrl('/api/profiles/import-package'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-Pro5-File-Name': encodeURIComponent(file.name),
+        },
+        body: buffer,
+      });
+      const json = await response.json() as { success: boolean; error?: string };
+      return json.success;
+    });
 
     setImportingPackages(false);
 
