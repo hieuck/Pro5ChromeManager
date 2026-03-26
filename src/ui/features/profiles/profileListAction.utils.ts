@@ -78,6 +78,11 @@ export interface ProxyTestSummary {
   failing: number;
 }
 
+export interface ApiActionResultLike {
+  success: boolean;
+  error?: string;
+}
+
 export interface FailingProxyConfirmDetails {
   count: number;
   previewNames: string;
@@ -157,4 +162,33 @@ export function buildBulkAssignProxySuccessMessage(
 
 export function buildProxyTestSummaryMessage(summary: ProxyTestSummary): string {
   return `Đã test ${summary.total} proxy · OK ${summary.healthy} · FAIL ${summary.failing}`;
+}
+
+export function getFirstFailedActionResult<Result extends ApiActionResultLike>(
+  results: Result[],
+): Result | undefined {
+  return results.find((result) => !result.success);
+}
+
+export function hasBulkEditChanges(payload: Record<string, unknown>): boolean {
+  return Object.keys(payload).length > 0;
+}
+
+export function hasBulkExtensionSelection(
+  extensionIds: string[],
+  extensionCategories: string[],
+): boolean {
+  return extensionIds.length > 0 || extensionCategories.length > 0;
+}
+
+export function buildBulkRestartSuccessMessage(profileCount: number): string {
+  return `Đã restart ${profileCount} hồ sơ`;
+}
+
+export function buildBulkEditSuccessMessage(profileCount: number): string {
+  return `Đã cập nhật ${profileCount} hồ sơ`;
+}
+
+export function buildBulkApplyExtensionSuccessMessage(profileCount: number): string {
+  return `Đã gán extension cho ${profileCount} hồ sơ`;
 }

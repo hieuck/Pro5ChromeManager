@@ -1,16 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildBulkApplyExtensionSuccessMessage,
   buildBulkAssignProxySuccessMessage,
   buildBulkApplyExtensionTargetProfiles,
   buildBulkEditPayload,
+  buildBulkEditSuccessMessage,
   buildFailingProxyConfirmDetails,
+  buildBulkRestartSuccessMessage,
   buildExtensionCategoryLookup,
   buildProxyTestSummaryMessage,
+  getFirstFailedActionResult,
   getFailingProxyProfiles,
   getImportProfilePackageFiles,
   getSelectedProfileProxyIds,
   getSelectedProfiles,
   getUniqueTruthyValues,
+  hasBulkEditChanges,
+  hasBulkExtensionSelection,
   importProfilePackages,
   resolveBulkAssignProxyValue,
 } from './profileListAction.utils';
@@ -117,5 +123,19 @@ describe('profileListAction utils', () => {
     expect(buildBulkAssignProxySuccessMessage(2, 'proxy-1')).toBe('Đã gán proxy cho 2 hồ sơ');
     expect(buildBulkAssignProxySuccessMessage(2, null)).toBe('Đã gỡ proxy khỏi 2 hồ sơ');
     expect(buildProxyTestSummaryMessage({ total: 3, healthy: 2, failing: 1 })).toBe('Đã test 3 proxy · OK 2 · FAIL 1');
+  });
+
+  it('builds bulk action guards and success messages', () => {
+    expect(hasBulkEditChanges({})).toBe(false);
+    expect(hasBulkEditChanges({ group: 'Team A' })).toBe(true);
+    expect(hasBulkExtensionSelection([], [])).toBe(false);
+    expect(hasBulkExtensionSelection(['ext-1'], [])).toBe(true);
+    expect(buildBulkRestartSuccessMessage(2)).toBe('Đã restart 2 hồ sơ');
+    expect(buildBulkEditSuccessMessage(2)).toBe('Đã cập nhật 2 hồ sơ');
+    expect(buildBulkApplyExtensionSuccessMessage(2)).toBe('Đã gán extension cho 2 hồ sơ');
+    expect(getFirstFailedActionResult([{ success: true }, { success: false, error: 'boom' }])).toEqual({
+      success: false,
+      error: 'boom',
+    });
   });
 });

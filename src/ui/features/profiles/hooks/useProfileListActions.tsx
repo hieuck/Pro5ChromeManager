@@ -6,15 +6,21 @@ import { mergeBulkExtensionSelection } from '../../../shared/utils/bulkExtension
 import { parseBulkProfileDrafts } from '../../../shared/utils/bulkProfiles';
 import { Profile, ProxyOption, RuntimeOption, ExtensionRecord, ExtensionBundle, BulkCreateResponse, Instance } from '../types';
 import {
+  buildBulkApplyExtensionSuccessMessage,
   buildBulkAssignProxySuccessMessage,
   buildBulkApplyExtensionTargetProfiles,
   buildBulkEditPayload,
+  buildBulkEditSuccessMessage,
+  buildBulkRestartSuccessMessage,
   buildFailingProxyConfirmDetails,
   buildProxyTestSummaryMessage,
   getFailingProxyProfiles,
+  getFirstFailedActionResult,
   getImportProfilePackageFiles,
   getSelectedProfileProxyIds,
   getUniqueTruthyValues,
+  hasBulkEditChanges,
+  hasBulkExtensionSelection,
   importProfilePackages,
   resolveBulkAssignProxyValue,
 } from '../profileListAction.utils';
@@ -160,12 +166,12 @@ export function useProfileListActions(
 
   const handleBulkRestart = useCallback(async () => {
     const results = await Promise.all(ui.selectedIds.map(async (id: string) => apiClient.post(`/api/profiles/${id}/restart`)));
-    const failed = results.find((result) => !result.success);
+    const failed = getFirstFailedActionResult(results);
     if (failed) {
       void message.error(failed.error);
       return;
     }
-    void message.success(`Đã restart ${ui.selectedIds.length} hồ sơ`);
+    void message.success(buildBulkRestartSuccessMessage(ui.selectedIds.length));
     setSelectedIds([]);
     void fetchInstances();
     void fetchProfiles();
@@ -286,7 +292,7 @@ export function useProfileListActions(
       runtime: ui.bulkEditRuntime,
     });
 
-    if (Object.keys(payload).length === 0) {
+    if (!hasBulkEditChanges(payload)) {
       void message.warning('Hãy nhập ít nhất một thay đổi để áp dụng');
       return;
     }
@@ -294,20 +300,20 @@ export function useProfileListActions(
     setBulkEditing(true);
     const results = await Promise.all(ui.selectedIds.map(async (id: string) => apiClient.put(`/api/profiles/${id}`, payload)));
     setBulkEditing(false);
-    const failed = results.find((result) => !result.success);
+    const failed = getFirstFailedActionResult(results);
     if (failed) {
       void message.error(failed.error);
       return;
     }
 
-    void message.success(`Đã cập nhật ${ui.selectedIds.length} hồ sơ`);
+    void message.success(buildBulkEditSuccessMessage(ui.selectedIds.length));
     setBulkEditOpen(false);
     setSelectedIds([]);
     void fetchProfiles();
   }, [fetchProfiles, setBulkEditOpen, setBulkEditing, setSelectedIds, ui.bulkEditGroup, ui.bulkEditOwner, ui.bulkEditRuntime, ui.selectedIds]);
 
   const handleBulkApplyExtensions = useCallback(async () => {
-    if (ui.bulkExtensionIds.length === 0 && ui.bulkExtensionCategories.length === 0) {
+    if (!hasBulkExtensionSelection(ui.bulkExtensionIds, ui.bulkExtensionCategories)) {
       void message.warning('Hãy chọn ít nhất một extension hoặc bundle để áp dụng');
       return;
     }
@@ -330,13 +336,13 @@ export function useProfileListActions(
     })));
     setBulkApplyingExtensions(false);
 
-    const failed = results.find((result) => !result.success);
+    const failed = getFirstFailedActionResult(results);
     if (failed) {
       void message.error(failed.error);
       return;
     }
 
-    void message.success(`Đã gán extension cho ${selectedProfiles.length} hồ sơ`);
+    void message.success(buildBulkApplyExtensionSuccessMessage(selectedProfiles.length));
     setBulkExtensionsOpen(false);
     setBulkExtensionIds([]);
     setBulkExtensionCategories([]);
