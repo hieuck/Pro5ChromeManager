@@ -1,4 +1,4 @@
-import type { BrowserCoreManifest } from '../../managers/BrowserCoreManager';
+import type { BrowserCoreManifest } from './BrowserCoreManager';
 
 export function validateBrowserCoreManifest(manifest: BrowserCoreManifest): void {
   if (!manifest.key?.trim()) {

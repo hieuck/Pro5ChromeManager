@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { RuntimeManager } from './RuntimeManager';
-import type { AppConfig } from './ConfigManager';
+import type { AppConfig } from '../config/ConfigManager';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ async function buildManager(
   runtimes: Record<string, { label: string; executablePath: string }>,
   accessFn: (p: string) => Promise<void>,
 ): Promise<RuntimeManager> {
-  const configMod = await import('./ConfigManager');
+  const configMod = await import('../config/ConfigManager');
   vi.spyOn(configMod.configManager, 'get').mockReturnValue(makeConfig(runtimes));
   vi.spyOn(configMod.configManager, 'update').mockResolvedValue(makeConfig(runtimes));
 

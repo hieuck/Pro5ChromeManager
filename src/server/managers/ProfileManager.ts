@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../core/logging/logger';
-import { configManager } from './ConfigManager';
+import { configManager } from '../features/config/ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import { extensionManager } from './ExtensionManager';
 import { bookmarkManager } from './BookmarkManager';

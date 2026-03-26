@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
-import { configManager } from './ConfigManager';
-import { logger } from '../core/logging/logger';
+import { configManager } from '../config/ConfigManager';
+import { logger } from '../../core/logging/logger';
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 

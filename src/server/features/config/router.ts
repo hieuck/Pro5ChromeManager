@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { configManager } from '../../managers/ConfigManager';
+import { configManager } from './ConfigManager';
 import { logger } from '../../core/logging/logger';
 
 const router = Router();

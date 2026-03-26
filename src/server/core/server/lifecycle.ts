@@ -1,6 +1,6 @@
 import http from 'http';
 import type { Express } from 'express';
-import { configManager } from '../../managers/ConfigManager';
+import { configManager } from '../../features/config/ConfigManager';
 import { wsServer } from '../realtime/wsServer';
 import { logger } from '../logging/logger';
 import { bootState } from './bootState';
@@ -15,7 +15,7 @@ async function initializeManagers(): Promise<void> {
   const { fingerprintEngine } = await import('../../managers/FingerprintEngine');
   await fingerprintEngine.initialize();
 
-  const { runtimeManager } = await import('../../managers/RuntimeManager');
+  const { runtimeManager } = await import('../../features/runtimes/RuntimeManager');
   await runtimeManager.initialize();
 
   const { profileManager } = await import('../../managers/ProfileManager');
@@ -27,7 +27,7 @@ async function initializeManagers(): Promise<void> {
   const { extensionManager } = await import('../../managers/ExtensionManager');
   await extensionManager.initialize();
 
-  const { browserCoreManager } = await import('../../managers/BrowserCoreManager');
+  const { browserCoreManager } = await import('../../features/browser-cores/BrowserCoreManager');
   await browserCoreManager.initialize();
 
   const { usageMetricsManager } = await import('../../managers/UsageMetricsManager');
@@ -39,7 +39,7 @@ async function initializeManagers(): Promise<void> {
   const { instanceManager } = await import('../../managers/InstanceManager');
   await instanceManager.initialize();
 
-  const { backupManager } = await import('../../managers/BackupManager');
+  const { backupManager } = await import('../../features/backups/BackupManager');
   backupManager.startAutoBackup();
 }
 

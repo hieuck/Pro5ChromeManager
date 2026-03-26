@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
-import { defaultLanguage, supportedLanguages } from '../../shared/i18n/locales';
-import { dataPath, resolveAppPath } from '../core/fs/dataPaths';
+import { defaultLanguage, supportedLanguages } from '../../../shared/i18n/locales';
+import { dataPath, resolveAppPath } from '../../core/fs/dataPaths';
 
 // Zod schema for AppConfig
 export const RuntimeSchema = z.object({

@@ -335,10 +335,10 @@ function isProductionLikeRuntime(): boolean {
 }
 
 async function buildSupportStatus(): Promise<SupportStatusPayload> {
-  const { configManager } = await import('../../managers/ConfigManager');
+    const { configManager } = await import('../config/ConfigManager');
   const { profileManager } = await import('../../managers/ProfileManager');
   const { proxyManager } = await import('../../managers/ProxyManager');
-  const { backupManager } = await import('../../managers/BackupManager');
+    const { backupManager } = await import('../backups/BackupManager');
   const { usageMetricsManager } = await import('../../managers/UsageMetricsManager');
   const { supportInboxManager } = await import('../../managers/SupportInboxManager');
   const { onboardingStateManager } = await import('../../managers/OnboardingStateManager');
@@ -397,8 +397,8 @@ async function buildSupportStatus(): Promise<SupportStatusPayload> {
 }
 
 async function buildSelfTest(): Promise<SupportSelfTestPayload> {
-  const { configManager } = await import('../../managers/ConfigManager');
-  const { runtimeManager } = await import('../../managers/RuntimeManager');
+    const { configManager } = await import('../config/ConfigManager');
+    const { runtimeManager } = await import('../runtimes/RuntimeManager');
   const { proxyManager } = await import('../../managers/ProxyManager');
 
   const checks: SelfTestCheck[] = [];

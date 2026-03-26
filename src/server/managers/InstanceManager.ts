@@ -4,7 +4,7 @@ import { logger } from '../core/logging/logger';
 import { wsServer } from '../core/realtime/wsServer';
 import { profileManager } from './ProfileManager';
 import { cookieManager } from './CookieManager';
-import { configManager } from './ConfigManager';
+import { configManager } from '../features/config/ConfigManager';
 import { usageMetricsManager } from './UsageMetricsManager';
 import type { Instance } from '../../shared/contracts';
 import { activityLogger } from '../features/instances/activityLogger';

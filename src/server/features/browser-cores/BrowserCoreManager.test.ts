@@ -63,7 +63,7 @@ describe('BrowserCoreManager', () => {
 
   it('installs a packaged browser core and persists the managed runtime metadata', async () => {
     const packagePath = await createBrowserCorePackage();
-    const runtimeMod = await import('./RuntimeManager');
+    const runtimeMod = await import('../runtimes/RuntimeManager');
     const upsertSpy = vi.spyOn(runtimeMod.runtimeManager, 'upsertRuntime').mockResolvedValue({
       key: 'core-pro5-chromium',
       label: 'Pro5 Chromium 127.0.0-preview',
@@ -93,14 +93,14 @@ describe('BrowserCoreManager', () => {
   it('replaces an older installed core with the same key', async () => {
     const firstPackage = await createBrowserCorePackage('Pro5 Chromium', 'pro5-chromium');
     const secondPackage = await createBrowserCorePackage('Pro5 Chromium', 'pro5-chromium');
-    const runtimeMod = await import('./RuntimeManager');
+    const runtimeMod = await import('../runtimes/RuntimeManager');
     vi.spyOn(runtimeMod.runtimeManager, 'upsertRuntime').mockResolvedValue({
       key: 'core-pro5-chromium',
       label: 'Pro5 Chromium 127.0.0-preview',
       executablePath: 'stub',
       available: true,
     });
-    vi.spyOn(runtimeMod.runtimeManager, 'deleteRuntime').mockResolvedValue();
+    vi.spyOn(runtimeMod.runtimeManager, 'deleteRuntime').mockResolvedValue(undefined);
 
     const first = await manager.installFromPackage(firstPackage);
     const second = await manager.installFromPackage(secondPackage);
@@ -112,14 +112,14 @@ describe('BrowserCoreManager', () => {
 
   it('deletes installed cores and unregisters their managed runtime', async () => {
     const packagePath = await createBrowserCorePackage();
-    const runtimeMod = await import('./RuntimeManager');
+    const runtimeMod = await import('../runtimes/RuntimeManager');
     vi.spyOn(runtimeMod.runtimeManager, 'upsertRuntime').mockResolvedValue({
       key: 'core-pro5-chromium',
       label: 'Pro5 Chromium 127.0.0-preview',
       executablePath: 'stub',
       available: true,
     });
-    const deleteSpy = vi.spyOn(runtimeMod.runtimeManager, 'deleteRuntime').mockResolvedValue();
+    const deleteSpy = vi.spyOn(runtimeMod.runtimeManager, 'deleteRuntime').mockResolvedValue(undefined);
 
     const installed = await manager.installFromPackage(packagePath);
     await manager.deleteCore(installed.id);
@@ -131,7 +131,7 @@ describe('BrowserCoreManager', () => {
 
   it('exposes a built-in browser core catalog with install state', async () => {
     const packagePath = await createBrowserCorePackage();
-    const runtimeMod = await import('./RuntimeManager');
+    const runtimeMod = await import('../runtimes/RuntimeManager');
     vi.spyOn(runtimeMod.runtimeManager, 'upsertRuntime').mockResolvedValue({
       key: 'core-pro5-chromium',
       label: 'Pro5 Chromium 127.0.0-preview',
@@ -150,7 +150,7 @@ describe('BrowserCoreManager', () => {
     const packageBuffer = await fs.readFile(packagePath);
     const previousUrl = process.env['PRO5_BROWSER_CORE_URL'];
     const previousVersion = process.env['PRO5_BROWSER_CORE_VERSION'];
-    const runtimeMod = await import('./RuntimeManager');
+    const runtimeMod = await import('../runtimes/RuntimeManager');
     const upsertSpy = vi.spyOn(runtimeMod.runtimeManager, 'upsertRuntime').mockResolvedValue({
       key: 'core-pro5-chromium',
       label: 'Pro5 Chromium 127.0.0-preview',

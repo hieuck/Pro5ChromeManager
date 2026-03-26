@@ -1,9 +1,9 @@
 import path from 'path';
-import { runtimeManager } from '../../managers/RuntimeManager';
+import { runtimeManager } from '../runtimes/RuntimeManager';
 import { proxyManager } from '../../managers/ProxyManager';
 import { fingerprintEngine } from '../../managers/FingerprintEngine';
 import { extensionManager } from '../../managers/ExtensionManager';
-import { configManager } from '../../managers/ConfigManager';
+import { configManager } from '../config/ConfigManager';
 import { findFreePort } from '../../core/network/portScanner';
 import { resolveAppPath } from '../../core/fs/dataPaths';
 import { buildChromeFlags } from './chromeFlags';

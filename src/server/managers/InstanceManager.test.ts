@@ -4,7 +4,7 @@ import { findFreePort } from '../core/network/portScanner';
 import { InstanceManager } from './InstanceManager';
 import { profileManager } from './ProfileManager';
 import { Profile, ProxyConfig } from '../../shared/contracts';
-import { runtimeManager } from './RuntimeManager';
+import { runtimeManager } from '../features/runtimes/RuntimeManager';
 
 async function bindServer(server: net.Server, port: number): Promise<number> {
   return new Promise((resolve, reject) => {

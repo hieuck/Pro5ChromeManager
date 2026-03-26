@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { backupManager } from '../../managers/BackupManager';
+import { backupManager } from './BackupManager';
 import { logger } from '../../core/logging/logger';
 
 const router = Router();

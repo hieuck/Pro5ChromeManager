@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '../../core/logging/logger';
-import type { InstalledBrowserCore } from '../../managers/BrowserCoreManager';
+import type { InstalledBrowserCore } from './BrowserCoreManager';
 
 export async function loadInstalledBrowserCores(storagePath: string): Promise<InstalledBrowserCore[]> {
   try {

@@ -9,7 +9,7 @@ import os from 'os';
 import { ProfileManager } from '../managers/ProfileManager';
 import { FingerprintEngine } from '../managers/FingerprintEngine';
 import { ProxyManager } from '../managers/ProxyManager';
-import { ConfigManager } from '../managers/ConfigManager';
+import { ConfigManager } from '../features/config/ConfigManager';
 
 // ─── Shared temp dir ──────────────────────────────────────────────────────────
 

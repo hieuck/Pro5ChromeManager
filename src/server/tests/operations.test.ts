@@ -18,7 +18,7 @@ describe('Operations endpoints', () => {
     process.env['NODE_ENV'] = 'test';
     process.env['PRO5_SERVER_AUTOSTART'] = 'false';
 
-    const { configManager } = await import('../managers/ConfigManager');
+    const { configManager } = await import('../features/config/ConfigManager');
     await configManager.load();
     await configManager.update({
       profilesDir: path.join(tmpDir, 'profiles'),
@@ -34,7 +34,7 @@ describe('Operations endpoints', () => {
     const { fingerprintEngine } = await import('../managers/FingerprintEngine');
     await fingerprintEngine.initialize();
 
-    const { runtimeManager } = await import('../managers/RuntimeManager');
+    const { runtimeManager } = await import('../features/runtimes/RuntimeManager');
     await runtimeManager.initialize();
 
     const { profileManager } = await import('../managers/ProfileManager');
@@ -46,7 +46,7 @@ describe('Operations endpoints', () => {
     const { extensionManager } = await import('../managers/ExtensionManager');
     await extensionManager.initialize();
 
-    const { browserCoreManager } = await import('../managers/BrowserCoreManager');
+    const { browserCoreManager } = await import('../features/browser-cores/BrowserCoreManager');
     await browserCoreManager.initialize();
 
     const { app } = await import('../index');

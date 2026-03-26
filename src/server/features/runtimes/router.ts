@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { runtimeManager } from '../../managers/RuntimeManager';
+import { runtimeManager } from './RuntimeManager';
 
 const router = Router();
 

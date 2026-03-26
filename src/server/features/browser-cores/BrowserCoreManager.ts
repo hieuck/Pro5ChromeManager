@@ -1,16 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { dataPath } from '../core/fs/dataPaths';
-import { logger } from '../core/logging/logger';
-import { runtimeManager } from './RuntimeManager';
+import { dataPath } from '../../core/fs/dataPaths';
+import { logger } from '../../core/logging/logger';
+import { runtimeManager } from '../runtimes/RuntimeManager';
 
 // Specialized Services
-import { browserCoreCatalog, BrowserCoreCatalogEntry } from '../features/browser-cores/catalog';
-import { browserCoreDownloader } from '../features/browser-cores/downloader';
-import { browserCoreExtractor } from '../features/browser-cores/extractor';
-import { validateBrowserCoreManifest } from '../features/browser-cores/manifest';
-import { loadInstalledBrowserCores, persistInstalledBrowserCores } from '../features/browser-cores/storage';
+import { browserCoreCatalog, BrowserCoreCatalogEntry } from './catalog';
+import { browserCoreDownloader } from './downloader';
+import { browserCoreExtractor } from './extractor';
+import { validateBrowserCoreManifest } from './manifest';
+import { loadInstalledBrowserCores, persistInstalledBrowserCores } from './storage';
 
 const BROWSER_CORES_PATH = dataPath('browser-cores.json');
 const INSTALLED_BROWSER_CORES_DIR = dataPath('browser-cores', 'installed');
