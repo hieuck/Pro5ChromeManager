@@ -8,7 +8,7 @@ The repository rewrite was needed because the old codebase mixed multiple struct
 - page wrapper files and page folders in the UI
 - generic file names such as `index.tsx`, `utils.ts`, and `types.ts` without enough local context
 
-This document defines the target structure for the rewrite so future refactors move toward one architecture instead of introducing more local optimizations.
+This document now records the canonical structure that the repository has been migrated to. Future refactors should preserve these boundaries instead of reintroducing legacy layers.
 
 ## Repository shape
 
@@ -22,14 +22,20 @@ src/
   server/
     core/
       http.ts
+      browser/
+      fs/
+      logging/
+      network/
+      realtime/
       server/
     features/
       <domain>/
         index.ts
+        <Domain>Manager.ts
         router.ts
         contracts.ts
         helpers.ts
-    managers/
+    templates/
     tests/
   ui/
     api/
@@ -39,6 +45,7 @@ src/
         <Feature>Page.tsx
         components/
         hooks/
+        <feature helper modules>.ts
     shared/
       components/
       hooks/
@@ -53,21 +60,28 @@ src/
 - Shared UI helpers should live in `src/ui/shared/utils/*`; feature-local helpers should stay inside their owning feature module.
 - Primary page components must end with `Page.tsx`.
 - Thin module entrypoints may be named `index.ts` or `index.tsx` only when they export the canonical page component and approved public API.
-- Do not keep duplicate wrapper folders such as `src/ui/pages/*` once `src/ui/features/*` is the canonical home.
+- Do not reintroduce duplicate wrapper folders such as `src/ui/pages/*` once `src/ui/features/*` is the canonical home.
 - Shared helpers should be named by purpose, not `utils`, unless the folder already gives enough context.
 - Feature modules in `src/server/features/<domain>` should expose a clean `index.ts` public entrypoint when the domain is already split across multiple files.
-- Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing legacy folders directly.
+- Application entrypoints should import from `src/ui/features/*` and `src/server/features/*` instead of importing compatibility folders directly.
 - `src/server/core/*` owns composition and process lifecycle concerns.
 - Cross-runtime contracts belong in `src/shared/contracts/*`; shared language metadata belongs in `src/shared/i18n/*`.
+- `src/server/features/*` owns domain runtime services; do not add new tracked files under `src/server/managers/*`.
 
-## Migration rules
+## Locked decisions
 
-- Prefer folder modules over duplicate wrapper files.
-- Preserve public imports during migration with thin adapters only when necessary.
-- Do not move unrelated domains in the same commit.
-- Every structural phase must keep `npm test` and `npm run build` green.
+- UI runtime entrypoints live under `src/ui/features/*`.
+- Server runtime entrypoints live under `src/server/features/*`.
+- Server composition and infrastructure concerns live under `src/server/core/*`.
+- Cross-runtime contracts and shared locale metadata live under `src/shared/*`.
+- Generic compatibility layers such as `src/ui/pages/*`, `src/ui/utils/*`, `src/server/app/*`, and `src/server/routes/*` must stay removed.
 
-## Current migration priorities
+## Verification bar
 
-1. Reduce oversized managers by pushing domain-specific behavior closer to `features/*` and focused helpers.
-2. Revisit test structure after architecture boundaries are stable.
+- Structural changes must keep `npm test` green.
+- Structural changes must keep `npm run build` green.
+- Structural changes must keep `npm audit --audit-level=high` green.
+
+## Next phase
+
+The architecture rewrite is complete. Remaining work belongs to code-quality refactoring inside the locked structure, not further folder-model migration.
