@@ -13,6 +13,10 @@ import {
   buildImportProfilePackagesSuccessMessage,
   buildProxyTestSummaryMessage,
   createBulkCreateResetState,
+  createOpenBulkCreateState,
+  createOpenBulkEditState,
+  createOpenBulkExtensionsState,
+  createOpenImportPackagesState,
   createImportPackagesResetState,
   getFirstFailedActionResult,
   getFailingProxyProfiles,
@@ -20,6 +24,7 @@ import {
   getSelectedProfileProxyIds,
   getSelectedProfiles,
   getUniqueTruthyValues,
+  hasAvailableRuntime,
   hasBulkCreateEntries,
   hasBulkEditChanges,
   hasBulkExtensionSelection,
@@ -154,6 +159,33 @@ describe('profileListAction utils', () => {
       files: [],
       open: false,
     });
+    expect(createOpenBulkCreateState()).toEqual({
+      text: '',
+      runtime: 'auto',
+      proxyId: undefined,
+      open: true,
+    });
+    expect(createOpenImportPackagesState()).toEqual({
+      files: [],
+      open: true,
+    });
+    expect(createOpenBulkEditState()).toEqual({
+      group: '',
+      clearGroup: false,
+      owner: '',
+      clearOwner: false,
+      runtime: undefined,
+      addTags: [],
+      removeTags: [],
+      open: true,
+    });
+    expect(createOpenBulkExtensionsState()).toEqual({
+      extensionIds: [],
+      extensionCategories: [],
+      open: true,
+    });
+    expect(hasAvailableRuntime([{ key: 'chrome', available: false }])).toBe(false);
+    expect(hasAvailableRuntime([{ key: 'chrome', available: false }, { key: 'edge', available: true }])).toBe(true);
     expect(getFirstFailedActionResult([{ success: true }, { success: false, error: 'boom' }])).toEqual({
       success: false,
       error: 'boom',

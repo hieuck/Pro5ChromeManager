@@ -1,4 +1,4 @@
-import type { ExtensionBundle, Profile } from './types';
+import type { ExtensionBundle, Profile, RuntimeOption } from './types';
 
 export interface BulkEditInput {
   group: string;
@@ -81,6 +81,23 @@ export interface BulkCreateResetState {
 
 export interface ImportPackagesResetState {
   files: [];
+  open: boolean;
+}
+
+export interface BulkEditResetState {
+  group: string;
+  clearGroup: boolean;
+  owner: string;
+  clearOwner: boolean;
+  runtime: undefined;
+  addTags: [];
+  removeTags: [];
+  open: boolean;
+}
+
+export interface BulkExtensionsResetState {
+  extensionIds: [];
+  extensionCategories: [];
   open: boolean;
 }
 
@@ -235,4 +252,45 @@ export function createImportPackagesResetState(): ImportPackagesResetState {
     files: [],
     open: false,
   };
+}
+
+export function createOpenBulkCreateState(): BulkCreateResetState {
+  return {
+    text: '',
+    runtime: 'auto',
+    proxyId: undefined,
+    open: true,
+  };
+}
+
+export function createOpenImportPackagesState(): ImportPackagesResetState {
+  return {
+    files: [],
+    open: true,
+  };
+}
+
+export function createOpenBulkEditState(): BulkEditResetState {
+  return {
+    group: '',
+    clearGroup: false,
+    owner: '',
+    clearOwner: false,
+    runtime: undefined,
+    addTags: [],
+    removeTags: [],
+    open: true,
+  };
+}
+
+export function createOpenBulkExtensionsState(): BulkExtensionsResetState {
+  return {
+    extensionIds: [],
+    extensionCategories: [],
+    open: true,
+  };
+}
+
+export function hasAvailableRuntime(runtimeList: RuntimeOption[]): boolean {
+  return runtimeList.some((runtime) => runtime.available);
 }

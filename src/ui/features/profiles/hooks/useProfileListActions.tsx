@@ -18,12 +18,17 @@ import {
   buildImportProfilePackagesSuccessMessage,
   buildProxyTestSummaryMessage,
   createBulkCreateResetState,
+  createOpenBulkCreateState,
+  createOpenBulkEditState,
+  createOpenBulkExtensionsState,
+  createOpenImportPackagesState,
   createImportPackagesResetState,
   getFailingProxyProfiles,
   getFirstFailedActionResult,
   getImportProfilePackageFiles,
   getSelectedProfileProxyIds,
   getUniqueTruthyValues,
+  hasAvailableRuntime,
   hasBulkCreateEntries,
   hasBulkEditChanges,
   hasBulkExtensionSelection,
@@ -196,32 +201,36 @@ export function useProfileListActions(
   }, [setSelectedIds]);
 
   const openBulkCreate = useCallback(() => {
-    setBulkCreateText('');
-    setBulkCreateRuntime('auto');
-    setBulkCreateProxyId(undefined);
-    setBulkCreateOpen(true);
+    const nextState = createOpenBulkCreateState();
+    setBulkCreateText(nextState.text);
+    setBulkCreateRuntime(nextState.runtime);
+    setBulkCreateProxyId(nextState.proxyId);
+    setBulkCreateOpen(nextState.open);
   }, [setBulkCreateOpen, setBulkCreateProxyId, setBulkCreateRuntime, setBulkCreateText]);
 
   const openImportPackages = useCallback(() => {
-    setImportPackageFiles([]);
-    setImportPackagesOpen(true);
+    const nextState = createOpenImportPackagesState();
+    setImportPackageFiles(nextState.files);
+    setImportPackagesOpen(nextState.open);
   }, [setImportPackageFiles, setImportPackagesOpen]);
 
   const openBulkEdit = useCallback(() => {
-    ui.setBulkEditGroup('');
-    ui.setBulkEditClearGroup(false);
-    ui.setBulkEditOwner('');
-    ui.setBulkEditClearOwner(false);
-    ui.setBulkEditRuntime(undefined);
-    ui.setBulkEditAddTags([]);
-    ui.setBulkEditRemoveTags([]);
-    setBulkEditOpen(true);
+    const nextState = createOpenBulkEditState();
+    ui.setBulkEditGroup(nextState.group);
+    ui.setBulkEditClearGroup(nextState.clearGroup);
+    ui.setBulkEditOwner(nextState.owner);
+    ui.setBulkEditClearOwner(nextState.clearOwner);
+    ui.setBulkEditRuntime(nextState.runtime);
+    ui.setBulkEditAddTags(nextState.addTags);
+    ui.setBulkEditRemoveTags(nextState.removeTags);
+    setBulkEditOpen(nextState.open);
   }, [setBulkEditOpen, ui]);
 
   const openBulkExtensions = useCallback(() => {
-    setBulkExtensionIds([]);
-    setBulkExtensionCategories([]);
-    setBulkExtensionsOpen(true);
+    const nextState = createOpenBulkExtensionsState();
+    setBulkExtensionIds(nextState.extensionIds);
+    setBulkExtensionCategories(nextState.extensionCategories);
+    setBulkExtensionsOpen(nextState.open);
   }, [setBulkExtensionCategories, setBulkExtensionIds, setBulkExtensionsOpen]);
 
   const handleBulkCreateProfiles = useCallback(async () => {
@@ -411,8 +420,7 @@ export function useProfileListActions(
   const openCreate = useCallback(() => {
     void (async () => {
       const runtimeList = await fetchRuntimes();
-      const hasAvailableRuntime = runtimeList.some((runtime) => runtime.available);
-      if (!hasAvailableRuntime) {
+      if (!hasAvailableRuntime(runtimeList)) {
         void message.info(t.dashboard.runtimeActionHint);
         setWizardOpen(true);
         return;
