@@ -1,6 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import {
+  buildActivityDigestText,
+  buildHottestIssueDigestText,
+  buildLatestActivityDigestText,
+  buildTopActivityIssuesText,
+  buildTopActivitySourceLatestText,
+  buildTopActivitySourcesText,
+  type DashboardActivityCopyContext,
+} from './dashboardActivityCopyText';
 import { LogEntry } from './types';
 import { formatTime, minutesSince, isWithinLastMinutes } from './utils';
 
@@ -17,6 +26,69 @@ export function useDashboardActivity(
   const [copyingTopActivityIssues, setCopyingTopActivityIssues] = useState(false);
   const [copyingTopActivitySourceLatest, setCopyingTopActivitySourceLatest] = useState(false);
   const [copyingTopActivitySources, setCopyingTopActivitySources] = useState(false);
+
+  const copyTextContext = useMemo<DashboardActivityCopyContext>(() => ({
+    labels: {
+      logHeatLabel: t.dashboard.logHeatLabel,
+      hottestIssueDigestTitle: t.dashboard.hottestIssueDigestTitle,
+      hottestIssueRepeatsDigestLabel: t.dashboard.hottestIssueRepeatsDigestLabel,
+      levelLabel: t.dashboard.levelLabel,
+      timestampLabel: t.dashboard.timestampLabel,
+      messageLabel: t.dashboard.messageLabel,
+      rawLabel: t.dashboard.rawLabel,
+      activityDigestTitle: t.dashboard.activityDigestTitle,
+      activityEntriesDigestLabel: t.dashboard.activityEntriesDigestLabel,
+      activityIssues15Label: t.dashboard.activityIssues15Label,
+      activityIssues60Label: t.dashboard.activityIssues60Label,
+      errorCountLabel: t.dashboard.errorCountLabel,
+      warningCountLabel: t.dashboard.warningCountLabel,
+      debugCountLabel: t.dashboard.debugCountLabel,
+      infoCountLabel: t.dashboard.infoCountLabel,
+      issueRatioLabel: t.dashboard.issueRatioLabel,
+      activitySignalModeLabel: t.dashboard.activitySignalModeLabel,
+      activitySignalHintLabel: t.dashboard.activitySignalHintLabel,
+      activityFreshnessLabel: t.dashboard.activityFreshnessLabel,
+      latestActivityLevelLabel: t.dashboard.latestActivityLevelLabel,
+      topActivitySourceDigestLabel: t.dashboard.topActivitySourceDigestLabel,
+      topActivitySourceLatestDigestLabel: t.dashboard.topActivitySourceLatestDigestLabel,
+      topActivitySourceFreshnessDigestLabel: t.dashboard.topActivitySourceFreshnessDigestLabel,
+      topActivitySourceLatestLevelDigestLabel: t.dashboard.topActivitySourceLatestLevelDigestLabel,
+      topActivitySourceLatestMessageDigestLabel: t.dashboard.topActivitySourceLatestMessageDigestLabel,
+      topActivitySourceShareLabel: t.dashboard.topActivitySourceShareLabel,
+      topActivitySourcesConcentrationLabel: t.dashboard.topActivitySourcesConcentrationLabel,
+      activitySourceModeLabel: t.dashboard.activitySourceModeLabel,
+      activitySourceModeHintLabel: t.dashboard.activitySourceModeHintLabel,
+      hottestIssueFreshnessLabel: t.dashboard.hottestIssueFreshnessLabel,
+      hottestIssueLevelLabel: t.dashboard.hottestIssueLevelLabel,
+      latestActivityDigestLabel: t.dashboard.latestActivityDigestLabel,
+      latestMessageLabel: t.dashboard.latestMessageLabel,
+      latestSourceDigestLabel: t.dashboard.latestSourceDigestLabel,
+      topIssuesDigestLabel: t.dashboard.topIssuesDigestLabel,
+      topActivitySourcesDigestLabel: t.dashboard.topActivitySourcesDigestLabel,
+      latestActivityDigestTitle: t.dashboard.latestActivityDigestTitle,
+      topActivityIssuesDigestTitle: t.dashboard.topActivityIssuesDigestTitle,
+      topActivitySourceLatestDigestTitle: t.dashboard.topActivitySourceLatestDigestTitle,
+      sourceLabel: t.dashboard.sourceLabel,
+      countLabel: t.dashboard.countLabel,
+      freshnessLabel: t.dashboard.freshnessLabel,
+      levelTextLabel: t.dashboard.levelTextLabel,
+      topActivitySourcesDigestTitle: t.dashboard.topActivitySourcesDigestTitle,
+    },
+    formatters: {
+      formatActivitySummary,
+      formatTimestamp: formatTime,
+      getLogLevelLabel,
+    },
+  }), [formatActivitySummary, getLogLevelLabel, t.dashboard]);
+
+  const copyText = useCallback(async (content: string, successMessage: string, errorMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      void message.success(successMessage);
+    } catch {
+      void message.error(errorMessage);
+    }
+  }, []);
 
   const logHeat = useMemo(() => {
     const incidents15 = logs.filter((entry) => (entry.level === 'warn' || entry.level === 'error') && isWithinLastMinutes(entry.timestamp, 15)).length;
@@ -258,24 +330,16 @@ export function useDashboardActivity(
       void message.warning(t.dashboard.hottestIssueUnavailable);
       return;
     }
-
-    const summaryLines = [
-      t.dashboard.hottestIssueDigestTitle,
-      `${t.dashboard.logHeatLabel}: ${logHeat.label}`,
-      `${t.dashboard.hottestIssueRepeatsDigestLabel}: ${hottestRecentIssue.count}`,
-      `${t.dashboard.levelLabel}: ${getLogLevelLabel(hottestRecentIssue.entry.level)}`,
-      `${t.dashboard.timestampLabel}: ${formatTime(hottestRecentIssue.entry.timestamp)}`,
-      `${t.dashboard.messageLabel}: ${hottestRecentIssue.entry.message}`,
-      `${t.dashboard.rawLabel}: ${hottestRecentIssue.entry.raw}`,
-    ];
-
-    try {
-      await navigator.clipboard.writeText(summaryLines.join('\n'));
-      void message.success(t.dashboard.hottestIssueCopied);
-    } catch {
-      void message.error(t.dashboard.hottestIssueCopyFailed);
-    }
-  }, [hottestRecentIssue, logHeat.label, getLogLevelLabel, t.dashboard]);
+    await copyText(
+      buildHottestIssueDigestText(copyTextContext, {
+        logHeatLabel: logHeat.label,
+        count: hottestRecentIssue.count,
+        entry: hottestRecentIssue.entry,
+      }),
+      t.dashboard.hottestIssueCopied,
+      t.dashboard.hottestIssueCopyFailed,
+    );
+  }, [copyText, copyTextContext, hottestRecentIssue, logHeat.label, t.dashboard]);
 
   const handleCopyActivityDigest = useCallback(async () => {
     if (!activityDigest) {
@@ -284,55 +348,42 @@ export function useDashboardActivity(
     }
 
     setCopyingActivityDigest(true);
-    const summaryLines = [
-      t.dashboard.activityDigestTitle,
-      `${t.dashboard.logHeatLabel}: ${logHeat.label}`,
-      `${t.dashboard.activityEntriesDigestLabel}: ${activityDigest.total}`,
-      `${t.dashboard.activityIssues15Label}: ${activityDigest.issues15}`,
-      `${t.dashboard.activityIssues60Label}: ${activityDigest.issues60}`,
-      `${t.dashboard.errorCountLabel}: ${activityDigest.errors}`,
-      `${t.dashboard.warningCountLabel}: ${activityDigest.warnings}`,
-      `${t.dashboard.debugCountLabel}: ${activityDigest.debugs}`,
-      `${t.dashboard.infoCountLabel}: ${activityDigest.infos}`,
-      `${t.dashboard.issueRatioLabel}: ${activityDigest.issueRatio}%`,
-      `${t.dashboard.activitySignalModeLabel}: ${activityDigest.activitySignalMode.label}`,
-      `${t.dashboard.activitySignalHintLabel}: ${activityDigest.activitySignalMode.hint}`,
-      `${t.dashboard.activityFreshnessLabel}: ${activityDigest.activityFreshness.label}`,
-      `${t.dashboard.latestActivityLevelLabel}: ${activityDigest.latestActivityLevel.label}`,
-      activityDigest.topSource ? `${t.dashboard.topActivitySourceDigestLabel}: ${activityDigest.topSource[0]} (${activityDigest.topSource[1]})` : null,
-      activityDigest.topSourceLatestEntry
-        ? `${t.dashboard.topActivitySourceLatestDigestLabel}: ${formatActivitySummary(activityDigest.topSourceLatestEntry)}`
-        : null,
-      activityDigest.topSourceLatestEntry ? `${t.dashboard.topActivitySourceFreshnessDigestLabel}: ${activityDigest.topSourceLatestFreshness.label}` : null,
-      activityDigest.topSourceLatestEntry ? `${t.dashboard.topActivitySourceLatestLevelDigestLabel}: ${activityDigest.topSourceLatestLevel.label}` : null,
-      activityDigest.topSourceLatestEntry ? `${t.dashboard.topActivitySourceLatestMessageDigestLabel}: ${activityDigest.topSourceLatestEntry.message}` : null,
-      `${t.dashboard.topActivitySourceShareLabel}: ${activityDigest.topSourceShare}%`,
-      `${t.dashboard.topActivitySourcesConcentrationLabel}: ${activityDigest.topSourcesConcentration}%`,
-      `${t.dashboard.activitySourceModeLabel}: ${activityDigest.activitySourceMode.label}`,
-      `${t.dashboard.activitySourceModeHintLabel}: ${activityDigest.activitySourceMode.hint}`,
-      activityDigest.hottestRecentIssue ? `${t.dashboard.hottestIssueRepeatsDigestLabel}: ${activityDigest.hottestRecentIssue.count}` : null,
-      activityDigest.hottestRecentIssue ? `${t.dashboard.hottestIssueFreshnessLabel}: ${activityDigest.hottestIssueFreshness.label}` : null,
-      activityDigest.hottestRecentIssue ? `${t.dashboard.hottestIssueLevelLabel}: ${activityDigest.hottestIssueLevel.label}` : null,
-      `${t.dashboard.latestActivityDigestLabel}: ${formatActivitySummary(activityDigest.latestEntry)}`,
-      `${t.dashboard.latestMessageLabel}: ${activityDigest.latestEntry.message}`,
-      activityDigest.latestEntry.source ? `${t.dashboard.latestSourceDigestLabel}: ${activityDigest.latestEntry.source}` : null,
-      activityDigest.topRecentIssues.length
-        ? `${t.dashboard.topIssuesDigestLabel}: ${activityDigest.topRecentIssues.map((issue) => `${issue.entry.message} (${issue.count})`).join(', ')}`
-        : null,
-      activityDigest.topSources.length
-        ? `${t.dashboard.topActivitySourcesDigestLabel}: ${activityDigest.topSources.map(([source, count]) => `${source} (${count})`).join(', ')}`
-        : null,
-    ].filter(Boolean) as string[];
-
     try {
-      await navigator.clipboard.writeText(summaryLines.join('\n'));
-      void message.success(t.dashboard.activityDigestCopied);
-    } catch {
-      void message.error(t.dashboard.activityDigestCopyFailed);
+      await copyText(
+        buildActivityDigestText(copyTextContext, {
+          logHeatLabel: logHeat.label,
+          total: activityDigest.total,
+          issues15: activityDigest.issues15,
+          issues60: activityDigest.issues60,
+          errors: activityDigest.errors,
+          warnings: activityDigest.warnings,
+          debugs: activityDigest.debugs,
+          infos: activityDigest.infos,
+          issueRatio: activityDigest.issueRatio,
+          activitySignalMode: activityDigest.activitySignalMode,
+          activityFreshness: activityDigest.activityFreshness,
+          latestActivityLevel: activityDigest.latestActivityLevel,
+          topSource: activityDigest.topSource,
+          topSourceLatestEntry: activityDigest.topSourceLatestEntry,
+          topSourceLatestFreshness: activityDigest.topSourceLatestFreshness,
+          topSourceLatestLevel: activityDigest.topSourceLatestLevel,
+          topSourceShare: activityDigest.topSourceShare,
+          topSourcesConcentration: activityDigest.topSourcesConcentration,
+          activitySourceMode: activityDigest.activitySourceMode,
+          hottestRecentIssue: activityDigest.hottestRecentIssue,
+          hottestIssueFreshness: activityDigest.hottestIssueFreshness,
+          hottestIssueLevel: activityDigest.hottestIssueLevel,
+          latestEntry: activityDigest.latestEntry,
+          topRecentIssues: activityDigest.topRecentIssues,
+          topSources: activityDigest.topSources,
+        }),
+        t.dashboard.activityDigestCopied,
+        t.dashboard.activityDigestCopyFailed,
+      );
     } finally {
       setCopyingActivityDigest(false);
     }
-  }, [activityDigest, formatActivitySummary, logHeat.label, t.dashboard]);
+  }, [activityDigest, copyText, copyTextContext, logHeat.label, t.dashboard]);
 
   const handleCopyLatestActivity = useCallback(async () => {
     if (!activityDigest?.latestEntry) {
@@ -341,24 +392,16 @@ export function useDashboardActivity(
     }
 
     setCopyingLatestActivity(true);
-    const latestEntry = activityDigest.latestEntry;
-    const summaryLines = [
-      t.dashboard.latestActivityDigestTitle,
-      `${t.dashboard.levelLabel}: ${getLogLevelLabel(latestEntry.level)}`,
-      `${t.dashboard.timestampLabel}: ${formatTime(latestEntry.timestamp)}`,
-      `${t.dashboard.messageLabel}: ${latestEntry.message}`,
-      `${t.dashboard.rawLabel}: ${latestEntry.raw}`,
-    ];
-
     try {
-      await navigator.clipboard.writeText(summaryLines.join('\n'));
-      void message.success(t.dashboard.latestActivityCopied);
-    } catch {
-      void message.error(t.dashboard.latestActivityCopyFailed);
+      await copyText(
+        buildLatestActivityDigestText(copyTextContext, activityDigest.latestEntry),
+        t.dashboard.latestActivityCopied,
+        t.dashboard.latestActivityCopyFailed,
+      );
     } finally {
       setCopyingLatestActivity(false);
     }
-  }, [activityDigest, getLogLevelLabel, t.dashboard]);
+  }, [activityDigest, copyText, copyTextContext, t.dashboard]);
 
   const handleCopyTopActivityIssues = useCallback(async () => {
     if (!activityDigest?.topRecentIssues.length) {
@@ -367,21 +410,16 @@ export function useDashboardActivity(
     }
 
     setCopyingTopActivityIssues(true);
-    const summaryLines = [
-      t.dashboard.topActivityIssuesDigestTitle,
-      `${t.dashboard.logHeatLabel}: ${logHeat.label}`,
-      ...activityDigest.topRecentIssues.map((issue, index) => `${index + 1}. ${issue.entry.message} (${issue.count})`),
-    ];
-
     try {
-      await navigator.clipboard.writeText(summaryLines.join('\n'));
-      void message.success(t.dashboard.topActivityIssuesCopied);
-    } catch {
-      void message.error(t.dashboard.topActivityIssuesCopyFailed);
+      await copyText(
+        buildTopActivityIssuesText(copyTextContext, logHeat.label, activityDigest.topRecentIssues),
+        t.dashboard.topActivityIssuesCopied,
+        t.dashboard.topActivityIssuesCopyFailed,
+      );
     } finally {
       setCopyingTopActivityIssues(false);
     }
-  }, [activityDigest, logHeat.label, t.dashboard]);
+  }, [activityDigest, copyText, copyTextContext, logHeat.label, t.dashboard]);
 
   const handleCopyTopActivitySourceLatest = useCallback(async () => {
     if (!activityDigest?.topSourceLatestEntry || !activityDigest.topSource) {
@@ -390,28 +428,21 @@ export function useDashboardActivity(
     }
 
     setCopyingTopActivitySourceLatest(true);
-    const entry = activityDigest.topSourceLatestEntry;
-    const summaryLines = [
-      t.dashboard.topActivitySourceLatestDigestTitle,
-      `${t.dashboard.sourceLabel}: ${activityDigest.topSource[0]}`,
-      `${t.dashboard.countLabel}: ${activityDigest.topSource[1]}`,
-      `${t.dashboard.levelLabel}: ${getLogLevelLabel(entry.level)}`,
-      `${t.dashboard.timestampLabel}: ${formatTime(entry.timestamp)}`,
-      `${t.dashboard.freshnessLabel}: ${activityDigest.topSourceLatestFreshness.label}`,
-      `${t.dashboard.levelTextLabel}: ${activityDigest.topSourceLatestLevel.label}`,
-      `${t.dashboard.messageLabel}: ${entry.message}`,
-      `${t.dashboard.rawLabel}: ${entry.raw}`,
-    ];
-
     try {
-      await navigator.clipboard.writeText(summaryLines.join('\n'));
-      void message.success(t.dashboard.topActivitySourceLatestCopied);
-    } catch {
-      void message.error(t.dashboard.topActivitySourceLatestCopyFailed);
+      await copyText(
+        buildTopActivitySourceLatestText(copyTextContext, {
+          source: activityDigest.topSource,
+          entry: activityDigest.topSourceLatestEntry,
+          freshnessLabel: activityDigest.topSourceLatestFreshness.label,
+          levelText: activityDigest.topSourceLatestLevel.label,
+        }),
+        t.dashboard.topActivitySourceLatestCopied,
+        t.dashboard.topActivitySourceLatestCopyFailed,
+      );
     } finally {
       setCopyingTopActivitySourceLatest(false);
     }
-  }, [activityDigest, getLogLevelLabel, t.dashboard]);
+  }, [activityDigest, copyText, copyTextContext, t.dashboard]);
 
   const handleCopyTopActivitySources = useCallback(async () => {
     if (!activityDigest?.topSources.length) {
@@ -420,23 +451,21 @@ export function useDashboardActivity(
     }
 
     setCopyingTopActivitySources(true);
-    const summaryLines = [
-      t.dashboard.topActivitySourcesDigestTitle,
-      `${t.dashboard.activitySourceModeLabel}: ${activityDigest.activitySourceMode.label}`,
-      `${t.dashboard.topActivitySourceShareLabel}: ${activityDigest.topSourceShare}%`,
-      `${t.dashboard.topActivitySourcesConcentrationLabel}: ${activityDigest.topSourcesConcentration}%`,
-      ...activityDigest.topSources.map(([source, count], index) => `${index + 1}. ${source} (${count})`),
-    ];
-
     try {
-      await navigator.clipboard.writeText(summaryLines.join('\n'));
-      void message.success(t.dashboard.topActivitySourcesCopied);
-    } catch {
-      void message.error(t.dashboard.topActivitySourcesCopyFailed);
+      await copyText(
+        buildTopActivitySourcesText(copyTextContext, {
+          modeLabel: activityDigest.activitySourceMode.label,
+          topSourceShare: activityDigest.topSourceShare,
+          topSourcesConcentration: activityDigest.topSourcesConcentration,
+          topSources: activityDigest.topSources,
+        }),
+        t.dashboard.topActivitySourcesCopied,
+        t.dashboard.topActivitySourcesCopyFailed,
+      );
     } finally {
       setCopyingTopActivitySources(false);
     }
-  }, [activityDigest, t.dashboard]);
+  }, [activityDigest, copyText, copyTextContext, t.dashboard]);
 
   const handleOpenActivityIssue = useCallback((messageText?: string | null) => {
     if (!messageText) return;

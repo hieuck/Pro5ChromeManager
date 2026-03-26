@@ -5,6 +5,21 @@ import { apiClient } from '../../api/client';
 import { useTranslation } from '../../shared/hooks/useTranslation';
 import { type ParsedLogEntry } from './logParsing';
 import {
+  buildIssueDigestText,
+  buildLogEntryDetailsText,
+  buildRecentIssueDigestText,
+  buildRecentIssueSourceDigestText,
+  buildRecentIssueSourceLatestText,
+  buildRepeatedRecentIssuesText,
+  buildRepeatedRecentSourcesText,
+  buildVisibleSliceSummaryText,
+  buildVisibleSourceDigestText,
+  buildVisibleSourceLatestText,
+  buildVisibleSourcesText,
+  buildVisibleTopSourceSummaryText,
+  type LogsCopyTextContext,
+} from './logsCopyText';
+import {
   buildRepeatedRecentIssues,
   buildRepeatedRecentSources,
   buildSourceOptions,
@@ -273,21 +288,94 @@ export const useLogsState = (): LogsState => {
       : emptyLabel
   ), [formatMaybeValue, getLogLevelLabel, t.logs.unknownValue, t.settings.noneValue]);
 
+  const copyTextContext = useMemo<LogsCopyTextContext>(() => ({
+    labels: {
+      yes: t.common.yes,
+      no: t.common.no,
+      noneValue: t.settings.noneValue,
+      unknownValue: t.logs.unknownValue,
+      levelLabel: t.logs.levelLabel,
+      timestampLabel: t.logs.timestampLabel,
+      messageLabel: t.logs.messageLabel,
+      rawLabel: t.logs.rawLabel,
+      sourceLabel: t.logs.sourceLabel,
+      visibleLogSliceTitle: t.logs.visibleLogSliceTitle,
+      visibleEntriesLabel: t.logs.visibleEntriesLabel,
+      visibleErrorsLabel: t.logs.visibleErrorsLabel,
+      visibleWarningsLabel: t.logs.visibleWarningsLabel,
+      visibleDebugLabel: t.logs.visibleDebugLabel,
+      visibleInfoLabel: t.logs.visibleInfoLabel,
+      visibleHeatLabel: t.logs.visibleHeatLabel,
+      levelFilterLabel: t.logs.levelFilterLabel,
+      recentWindowOnlyLabel: t.logs.recentWindowOnlyLabel,
+      sortOrderLabel: t.logs.sortOrderLabel,
+      searchLabel: t.logs.searchLabel,
+      visibleIssuesLast15Label: t.logs.visibleIssuesLast15Label,
+      visibleIssuesLast60Label: t.logs.visibleIssuesLast60Label,
+      latestVisibleIssueLabel: t.logs.latestVisibleIssueLabel,
+      latestVisibleSourceLabel: t.logs.latestVisibleSourceLabel,
+      recentIssueSourceLatestTitle: t.logs.recentIssueSourceLatestTitle,
+      repeatedRecentIssuesTitle: 'Pro5 repeated recent issues',
+      repeatedRecentSourcesTitle: 'Pro5 repeated recent issue sources',
+      visibleSourceLatestTitle: t.logs.visibleSourceLatestTitle,
+      visibleLinesLabel: t.logs.visibleLinesLabel,
+      visibleSourceActionHintLabel: t.logs.visibleSourceActionHintLabel,
+      visibleTopSourceTimestampLabel: t.logs.visibleTopSourceTimestampLabel,
+      visibleTopSourceTrendLabel: t.logs.visibleTopSourceTrendLabel,
+      visibleTopSourceSummaryTitle: t.logs.visibleTopSourceSummaryTitle,
+      visibleTopSourceShareLabel: t.logs.visibleTopSourceShareLabel,
+      visibleTopSourcesConcentrationLabel: t.logs.visibleTopSourcesConcentrationLabel,
+      visibleSourceModeLabel: t.logs.visibleSourceModeLabel,
+      latestLevelLabel: t.logs.latestLevelLabel,
+      latestMessageLabel: t.logs.latestMessageLabel,
+      visibleSourceDigestTitle: t.logs.visibleSourceDigestTitle,
+      visibleSourceModeHintLabel: t.logs.visibleSourceModeHintLabel,
+      visibleTopSourceFreshnessLabel: t.logs.visibleTopSourceFreshnessLabel,
+      latestTimestampLabel: t.logs.latestTimestampLabel,
+      latestRawLabel: t.logs.latestRawLabel,
+      visibleSourcesDigestTitle: t.logs.visibleSourcesDigestTitle,
+      recentIssueSourceDigestTitle: t.logs.recentIssueSourceDigestTitle,
+      issueLines60mLabel: t.logs.issueLines60mLabel,
+      highestLevelLabel: t.logs.highestLevelLabel,
+      latestIssueLevelLabel: t.logs.latestIssueLevelLabel,
+      latestIssueTimestampLabel: t.logs.latestIssueTimestampLabel,
+      latestIssueMessageLabel: t.logs.latestIssueMessageLabel,
+      latestIssueRawLabel: t.logs.latestIssueRawLabel,
+      logDigestTitle: t.logs.logDigestTitle,
+      issuesLabel: t.logs.issuesLabel,
+      activeFilterLabel: t.logs.activeFilterLabel,
+      recentIncidentDigestTitle: t.logs.recentIncidentDigestTitle,
+      incidentsLast60Label: t.logs.incidentsLast60Label,
+      recentErrorsLabel: t.logs.recentErrorsLabel,
+      recentWarningsLabel: t.logs.recentWarningsLabel,
+      latestRecentIssueLabel: t.logs.latestRecentIssueLabel,
+    },
+    formatters: {
+      formatIssueSummary,
+      formatMaybeValue,
+      getLogLevelLabel,
+      getSortOrderLabel,
+    },
+  }), [formatIssueSummary, formatMaybeValue, getLogLevelLabel, getSortOrderLabel, t.common.no, t.common.yes, t.logs, t.settings.noneValue]);
+
+  const copyText = useCallback(async (content: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      void message.success(successMessage);
+    } catch {
+      void message.error(t.logs.copyFailed);
+    }
+  }, [t.logs]);
+
   const issueStreak = useMemo(() => calculateIssueStreak(entries), [entries]);
 
   const handleCopySingleLog = useCallback(async (raw: string) => {
-    try {
-      await navigator.clipboard.writeText(raw);
-      void message.success(t.logs.copied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [t.logs]);
+    await copyText(raw, t.logs.copied);
+  }, [copyText, t.logs.copied]);
 
   const handleCopyVisibleLogs = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(filteredEntries.map((entry) => entry.raw).join('\n'));
-      void message.success(t.logs.copied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [filteredEntries, t.logs]);
+    await copyText(filteredEntries.map((entry) => entry.raw).join('\n'), t.logs.copied);
+  }, [copyText, filteredEntries, t.logs.copied]);
 
   const issueEntries = useMemo(() => filterIssueEntries(matchedEntries), [matchedEntries]);
 
@@ -378,11 +466,8 @@ export const useLogsState = (): LogsState => {
   const hottestRecentSource = repeatedRecentSources[0] ?? null;
 
   const handleCopyIssues = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(issueEntries.map((e) => e.raw).join('\n'));
-      void message.success(t.logs.issuesCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [issueEntries, t.logs]);
+    await copyText(issueEntries.map((e) => e.raw).join('\n'), t.logs.issuesCopied);
+  }, [copyText, issueEntries, t.logs.issuesCopied]);
 
   const handleRunSelfTest = useCallback(async () => {
     const res = await apiClient.post('/api/support/self-test');
@@ -392,17 +477,8 @@ export const useLogsState = (): LogsState => {
 
   const handleCopyLatestIssue = useCallback(async () => {
     if (!latestIssue) return;
-    const lines = [
-      `${t.logs.levelLabel}: ${getLogLevelLabel(latestIssue.level)}`,
-      `${t.logs.timestampLabel}: ${formatMaybeValue(latestIssue.timestamp, t.logs.unknownValue)}`,
-      `${t.logs.messageLabel}: ${latestIssue.message}`,
-      `${t.logs.rawLabel}: ${latestIssue.raw}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.latestIssueCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [formatMaybeValue, getLogLevelLabel, latestIssue, t.logs]);
+    await copyText(buildLogEntryDetailsText(copyTextContext, latestIssue), t.logs.latestIssueCopied);
+  }, [copyText, copyTextContext, latestIssue, t.logs.latestIssueCopied]);
 
   const handleFocusLatestIssue = useCallback(() => {
     if (!latestIssue) return;
@@ -420,41 +496,23 @@ export const useLogsState = (): LogsState => {
 
   const handleCopyVisibleIssue = useCallback(async () => {
     if (!latestVisibleIssue) return;
-    const lines = [
-      `${t.logs.levelLabel}: ${getLogLevelLabel(latestVisibleIssue.level)}`,
-      `${t.logs.timestampLabel}: ${formatMaybeValue(latestVisibleIssue.timestamp, t.logs.unknownValue)}`,
-      `${t.logs.messageLabel}: ${latestVisibleIssue.message}`,
-      `${t.logs.rawLabel}: ${latestVisibleIssue.raw}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.visibleIssueCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [formatMaybeValue, getLogLevelLabel, latestVisibleIssue, t.logs]);
+    await copyText(buildLogEntryDetailsText(copyTextContext, latestVisibleIssue), t.logs.visibleIssueCopied);
+  }, [copyText, copyTextContext, latestVisibleIssue, t.logs.visibleIssueCopied]);
 
   const handleCopyVisibleSliceSummary = useCallback(async () => {
-    const lines = [
-      t.logs.visibleLogSliceTitle,
-      `${t.logs.visibleEntriesLabel}: ${filteredEntries.length}/${entries.length}`,
-      `${t.logs.visibleErrorsLabel}: ${filteredCounts.error}`,
-      `${t.logs.visibleWarningsLabel}: ${filteredCounts.warn}`,
-      `${t.logs.visibleDebugLabel}: ${filteredCounts.debug}`,
-      `${t.logs.visibleInfoLabel}: ${filteredCounts.info}`,
-      `${t.logs.visibleHeatLabel}: ${visibleTrendStatus.label}`,
-      `${t.logs.levelFilterLabel}: ${getLogLevelLabel(filter)}`,
-      `${t.logs.recentWindowOnlyLabel}: ${recentWindowOnly ? t.common.yes : t.common.no}`,
-      `${t.logs.sortOrderLabel}: ${getSortOrderLabel(sortOrder)}`,
-      `${t.logs.searchLabel}: ${formatMaybeValue(query.trim())}`,
-      `${t.logs.visibleIssuesLast15Label}: ${visibleIssueTrend.last15m}`,
-      `${t.logs.visibleIssuesLast60Label}: ${visibleIssueTrend.last60m}`,
-      `${t.logs.latestVisibleIssueLabel}: ${formatIssueSummary(latestVisibleIssue)}`,
-      `${t.logs.latestVisibleSourceLabel}: ${formatMaybeValue(latestVisibleIssue?.source)}`,
-    ].filter(Boolean);
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.visibleSliceCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [entries.length, filter, filteredCounts, filteredEntries.length, formatIssueSummary, formatMaybeValue, getLogLevelLabel, getSortOrderLabel, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.common, t.logs, visibleIssueTrend, visibleTrendStatus]);
+    await copyText(buildVisibleSliceSummaryText(copyTextContext, {
+      totalEntries: entries.length,
+      visibleEntries: filteredEntries.length,
+      filteredCounts,
+      visibleTrendLabel: visibleTrendStatus.label,
+      filter,
+      recentWindowOnly,
+      sortOrder,
+      query,
+      visibleIssueTrend,
+      latestVisibleIssue,
+    }), t.logs.visibleSliceCopied);
+  }, [copyText, copyTextContext, entries.length, filter, filteredCounts, filteredEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.logs.visibleSliceCopied, visibleIssueTrend, visibleTrendStatus.label]);
 
   const handleFocusRepeatedRecentIssue = useCallback((messageText: string) => {
     if (!messageText) return;
@@ -483,35 +541,16 @@ export const useLogsState = (): LogsState => {
 
   const handleCopyRecentIssueSourceLatest = useCallback(async (source: string, entry: ParsedLogEntry | null | undefined) => {
     if (!entry) return;
-    const lines = [
-      t.logs.recentIssueSourceLatestTitle,
-      `${t.logs.sourceLabel}: ${source}`,
-      `${t.logs.levelLabel}: ${getLogLevelLabel(entry.level)}`,
-      `${t.logs.timestampLabel}: ${formatMaybeValue(entry.timestamp, t.logs.unknownValue)}`,
-      `${t.logs.messageLabel}: ${entry.message}`,
-      `${t.logs.rawLabel}: ${entry.raw}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.recentIssueSourceLatestCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [formatMaybeValue, getLogLevelLabel, t.logs]);
+    await copyText(buildRecentIssueSourceLatestText(copyTextContext, source, entry), t.logs.recentIssueSourceLatestCopied);
+  }, [copyText, copyTextContext, t.logs.recentIssueSourceLatestCopied]);
 
   const handleCopyRepeatedRecentIssues = useCallback(async () => {
-    const lines = ['Pro5 repeated recent issues', ...repeatedRecentIssues.map(i => `${i.level.toUpperCase()} | ${i.count}x | ${i.message}`)];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.repeatedRecentIssuesCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [repeatedRecentIssues, t.logs]);
+    await copyText(buildRepeatedRecentIssuesText(copyTextContext, repeatedRecentIssues), t.logs.repeatedRecentIssuesCopied);
+  }, [copyText, copyTextContext, repeatedRecentIssues, t.logs.repeatedRecentIssuesCopied]);
 
   const handleCopyRecentIssueSources = useCallback(async () => {
-    const lines = ['Pro5 repeated recent issue sources', ...repeatedRecentSources.map(s => `${s.level.toUpperCase()} | ${s.count}x | ${s.source}`)];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.recentIssueSourcesCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [repeatedRecentSources, t.logs]);
+    await copyText(buildRepeatedRecentSourcesText(copyTextContext, repeatedRecentSources), t.logs.recentIssueSourcesCopied);
+  }, [copyText, copyTextContext, repeatedRecentSources, t.logs.recentIssueSourcesCopied]);
 
   const handleFocusVisibleSource = useCallback((sourceText: string) => {
     if (!sourceText) return;
@@ -527,141 +566,78 @@ export const useLogsState = (): LogsState => {
 
   const handleCopyVisibleSourceLatest = useCallback(async (source: VisibleSourceSummary | null | undefined) => {
     if (!source?.latestEntry) { void message.error(t.logs.visibleSourceLatestUnavailable); return; }
-    const entry = source.latestEntry;
-    const lines = [
-      t.logs.visibleSourceLatestTitle,
-      `${t.logs.sourceLabel}: ${source.source}`,
-      `${t.logs.visibleLinesLabel}: ${source.count}`,
-      `${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`,
-      `${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`,
-      `${t.logs.visibleTopSourceTrendLabel}: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
-      `${t.logs.levelLabel}: ${getLogLevelLabel(entry.level)}`,
-      `${t.logs.timestampLabel}: ${formatMaybeValue(entry.timestamp, t.logs.unknownValue)}`,
-      `${t.logs.messageLabel}: ${entry.message}`,
-      `${t.logs.rawLabel}: ${entry.raw}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.visibleSourceLatestCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [formatMaybeValue, getLogLevelLabel, t.logs, visibleSourceActionHint, visibleTopSourceTimestamp, visibleTopSourceTrend]);
+    await copyText(buildVisibleSourceLatestText(copyTextContext, {
+      source,
+      actionHint: visibleSourceActionHint,
+      topSourceTimestamp: visibleTopSourceTimestamp,
+      topSourceTrend: visibleTopSourceTrend,
+    }), t.logs.visibleSourceLatestCopied);
+  }, [copyText, copyTextContext, t.logs, visibleSourceActionHint, visibleTopSourceTimestamp, visibleTopSourceTrend]);
 
   const handleCopyVisibleTopSourceSummary = useCallback(async () => {
     if (!visibleTopSource?.latestEntry) { void message.error(t.logs.visibleTopSourceSummaryUnavailable); return; }
-    const lines = [
-      t.logs.visibleTopSourceSummaryTitle,
-      `${t.logs.sourceLabel}: ${visibleTopSource.source}`,
-      `${t.logs.visibleLinesLabel}: ${visibleTopSource.count}`,
-      `${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`,
-      `${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`,
-      `${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`,
-      `${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`,
-      `${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`,
-      `${t.logs.visibleTopSourceTrendLabel}: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
-      `${t.logs.latestLevelLabel}: ${getLogLevelLabel(visibleTopSource.latestEntry.level)}`,
-      `${t.logs.latestMessageLabel}: ${visibleTopSource.latestEntry.message}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.visibleTopSourceSummaryCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [getLogLevelLabel, t.logs, visibleSourceActionHint, visibleSourceMode.label, visibleTopSource, visibleTopSourceShare, visibleTopSourceTimestamp, visibleTopSourceTrend, visibleTopSourcesConcentration]);
+    await copyText(buildVisibleTopSourceSummaryText(copyTextContext, {
+      source: visibleTopSource,
+      sharePercent: visibleTopSourceShare,
+      concentrationPercent: visibleTopSourcesConcentration,
+      modeLabel: visibleSourceMode.label,
+      actionHint: visibleSourceActionHint,
+      topSourceTimestamp: visibleTopSourceTimestamp,
+      topSourceTrend: visibleTopSourceTrend,
+    }), t.logs.visibleTopSourceSummaryCopied);
+  }, [copyText, copyTextContext, t.logs, visibleSourceActionHint, visibleSourceMode.label, visibleTopSource, visibleTopSourceShare, visibleTopSourceTimestamp, visibleTopSourceTrend, visibleTopSourcesConcentration]);
 
   const handleCopyVisibleSourceDigest = useCallback(async (source: VisibleSourceSummary | null | undefined) => {
     if (!source) { void message.error(t.logs.visibleSourceDigestUnavailable); return; }
-    const lines = [
-      t.logs.visibleSourceDigestTitle,
-      `${t.logs.sourceLabel}: ${source.source}`,
-      `${t.logs.visibleLinesLabel}: ${source.count}`,
-      `${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`,
-      `${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`,
-      `${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`,
-      `${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`,
-      `${t.logs.visibleSourceActionHintLabel}: ${visibleSourceActionHint}`,
-      `${t.logs.visibleTopSourceFreshnessLabel}: ${visibleTopSourceFreshness}`,
-      `${t.logs.visibleTopSourceTimestampLabel}: ${visibleTopSourceTimestamp}`,
-      `${t.logs.visibleTopSourceTrendLabel}: ${visibleTopSourceTrend.label} | 15m=${visibleTopSourceTrend.last15m} | 60m=${visibleTopSourceTrend.last60m}`,
-      `${t.logs.latestLevelLabel}: ${getLogLevelLabel(source.latestEntry.level)}`,
-      `${t.logs.latestTimestampLabel}: ${formatMaybeValue(source.latestEntry.timestamp, t.logs.unknownValue)}`,
-      `${t.logs.latestMessageLabel}: ${source.latestEntry.message}`,
-      `${t.logs.latestRawLabel}: ${source.latestEntry.raw}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.visibleSourceDigestCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [formatMaybeValue, getLogLevelLabel, t.logs, visibleSourceMode, visibleSourceActionHint, visibleTopSourceFreshness, visibleTopSourceTimestamp, visibleTopSourceTrend, visibleTopSourceShare, visibleTopSourcesConcentration]);
+    await copyText(buildVisibleSourceDigestText(copyTextContext, {
+      source,
+      sharePercent: visibleTopSourceShare,
+      concentrationPercent: visibleTopSourcesConcentration,
+      mode: visibleSourceMode,
+      actionHint: visibleSourceActionHint,
+      topSourceFreshness: visibleTopSourceFreshness,
+      topSourceTimestamp: visibleTopSourceTimestamp,
+      topSourceTrend: visibleTopSourceTrend,
+    }), t.logs.visibleSourceDigestCopied);
+  }, [copyText, copyTextContext, t.logs, visibleSourceMode, visibleSourceActionHint, visibleTopSourceFreshness, visibleTopSourceTimestamp, visibleTopSourceTrend, visibleTopSourceShare, visibleTopSourcesConcentration]);
 
   const handleCopyVisibleSources = useCallback(async () => {
     if (!visibleSources.length) { void message.error(t.logs.visibleSourcesUnavailable); return; }
-    const lines = [
-      t.logs.visibleSourcesDigestTitle,
-      `${t.logs.visibleTopSourceShareLabel}: ${visibleTopSourceShare}%`,
-      `${t.logs.visibleTopSourcesConcentrationLabel}: ${visibleTopSourcesConcentration}%`,
-      `${t.logs.visibleSourceModeLabel}: ${visibleSourceMode.label}`,
-      `${t.logs.visibleSourceModeHintLabel}: ${visibleSourceMode.hint}`,
-      ...visibleSources.map(s => `${s.count}x | ${s.source} | ${getLogLevelLabel(s.latestEntry.level)} | ${s.latestEntry.message}`),
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.visibleSourcesCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [getLogLevelLabel, t.logs, visibleSourceMode, visibleSources, visibleTopSourceShare, visibleTopSourcesConcentration]);
+    await copyText(buildVisibleSourcesText(copyTextContext, {
+      sources: visibleSources,
+      sharePercent: visibleTopSourceShare,
+      concentrationPercent: visibleTopSourcesConcentration,
+      mode: visibleSourceMode,
+    }), t.logs.visibleSourcesCopied);
+  }, [copyText, copyTextContext, t.logs, visibleSourceMode, visibleSources, visibleTopSourceShare, visibleTopSourcesConcentration]);
 
   const handleCopyRecentIssueSourceDigest = useCallback(async (source: RepeatedRecentSourceSummary | null | undefined) => {
     if (!source) { void message.error(t.logs.recentIssueSourceDigestUnavailable); return; }
-    const lines = [
-      t.logs.recentIssueSourceDigestTitle,
-      `${t.logs.sourceLabel}: ${source.source}`,
-      `${t.logs.issueLines60mLabel}: ${source.count}`,
-      `${t.logs.highestLevelLabel}: ${getLogLevelLabel(source.level)}`,
-      `${t.logs.latestIssueLevelLabel}: ${getLogLevelLabel(source.latestEntry.level)}`,
-      `${t.logs.latestIssueTimestampLabel}: ${formatMaybeValue(source.latestEntry.timestamp, t.logs.unknownValue)}`,
-      `${t.logs.latestIssueMessageLabel}: ${source.latestEntry.message}`,
-      `${t.logs.latestIssueRawLabel}: ${source.latestEntry.raw}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      void message.success(t.logs.recentIssueSourceDigestCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [formatMaybeValue, getLogLevelLabel, t.logs]);
+    await copyText(buildRecentIssueSourceDigestText(copyTextContext, source), t.logs.recentIssueSourceDigestCopied);
+  }, [copyText, copyTextContext, t.logs.recentIssueSourceDigestCopied]);
 
   const handleCopyIssueDigest = useCallback(async () => {
-    const digestLines = [
-      t.logs.logDigestTitle,
-      `${t.logs.visibleEntriesLabel}: ${filteredEntries.length}/${entries.length}`,
-      `${t.logs.issuesLabel}: ${issueEntries.length}`,
-      `${t.logs.visibleErrorsLabel}: ${filteredCounts.error}`,
-      `${t.logs.visibleWarningsLabel}: ${filteredCounts.warn}`,
-      `${t.logs.visibleDebugLabel}: ${filteredCounts.debug}`,
-      `${t.logs.visibleInfoLabel}: ${filteredCounts.info}`,
-      `${t.logs.activeFilterLabel}: ${getLogLevelLabel(filter)}`,
-      `${t.logs.recentWindowOnlyLabel}: ${recentWindowOnly ? t.common.yes : t.common.no}`,
-      `${t.logs.sortOrderLabel}: ${getSortOrderLabel(sortOrder)}`,
-      `${t.logs.searchLabel}: ${formatMaybeValue(query.trim())}`,
-      `${t.logs.latestVisibleIssueLabel}: ${formatIssueSummary(latestVisibleIssue)}`,
-      `${t.logs.latestVisibleSourceLabel}: ${formatMaybeValue(latestVisibleIssue?.source)}`,
-    ].filter(Boolean);
-    try {
-      await navigator.clipboard.writeText(digestLines.join('\n'));
-      void message.success(t.logs.digestCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [entries.length, filter, filteredCounts, filteredEntries.length, formatIssueSummary, formatMaybeValue, getLogLevelLabel, getSortOrderLabel, issueEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.common, t.logs]);
+    await copyText(buildIssueDigestText(copyTextContext, {
+      totalEntries: entries.length,
+      visibleEntries: filteredEntries.length,
+      issueCount: issueEntries.length,
+      filteredCounts,
+      filter,
+      recentWindowOnly,
+      sortOrder,
+      query,
+      latestVisibleIssue,
+    }), t.logs.digestCopied);
+  }, [copyText, copyTextContext, entries.length, filter, filteredCounts, filteredEntries.length, issueEntries.length, latestVisibleIssue, query, recentWindowOnly, sortOrder, t.logs.digestCopied]);
 
   const handleCopyRecentIssueDigest = useCallback(async () => {
     const latestRecentIssue = recentIssueEntries[0] ?? null;
-    const digestLines = [
-      t.logs.recentIncidentDigestTitle,
-      `${t.logs.incidentsLast60Label}: ${recentIssueEntries.length}`,
-      `${t.logs.recentErrorsLabel}: ${recentIssueBreakdown.error}`,
-      `${t.logs.recentWarningsLabel}: ${recentIssueBreakdown.warn}`,
-      `${t.logs.latestRecentIssueLabel}: ${formatIssueSummary(latestRecentIssue)}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(digestLines.join('\n'));
-      void message.success(t.logs.recentIssueDigestCopied);
-    } catch { void message.error(t.logs.copyFailed); }
-  }, [formatIssueSummary, recentIssueBreakdown, recentIssueEntries, t.logs]);
+    await copyText(buildRecentIssueDigestText(copyTextContext, {
+      recentIssueCount: recentIssueEntries.length,
+      recentIssueBreakdown,
+      latestRecentIssue,
+    }), t.logs.recentIssueDigestCopied);
+  }, [copyText, copyTextContext, recentIssueBreakdown, recentIssueEntries, t.logs.recentIssueDigestCopied]);
 
   const handleExportVisibleLogs = useCallback(() => {
     const content = filteredEntries.map(e => e.raw).join('\n');
