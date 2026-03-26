@@ -72,6 +72,18 @@ export interface ImportProfilePackageResult {
   failCount: number;
 }
 
+export interface BulkCreateResetState {
+  text: string;
+  runtime: string;
+  proxyId: undefined;
+  open: boolean;
+}
+
+export interface ImportPackagesResetState {
+  files: [];
+  open: boolean;
+}
+
 export interface ProxyTestSummary {
   total: number;
   healthy: number;
@@ -191,4 +203,36 @@ export function buildBulkEditSuccessMessage(profileCount: number): string {
 
 export function buildBulkApplyExtensionSuccessMessage(profileCount: number): string {
   return `Đã gán extension cho ${profileCount} hồ sơ`;
+}
+
+export function hasBulkCreateEntries(entries: unknown[]): boolean {
+  return entries.length > 0;
+}
+
+export function buildBulkCreateSuccessMessage(profileCount: number): string {
+  return `Đã tạo ${profileCount} hồ sơ`;
+}
+
+export function buildImportProfilePackagesSuccessMessage(successCount: number): string {
+  return `Đã import ${successCount} gói profile`;
+}
+
+export function buildImportProfilePackagesFailureMessage(failCount: number): string {
+  return `${failCount} gói profile import thất bại`;
+}
+
+export function createBulkCreateResetState(): BulkCreateResetState {
+  return {
+    text: '',
+    runtime: 'auto',
+    proxyId: undefined,
+    open: false,
+  };
+}
+
+export function createImportPackagesResetState(): ImportPackagesResetState {
+  return {
+    files: [],
+    open: false,
+  };
 }

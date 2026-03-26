@@ -9,16 +9,22 @@ import {
   buildBulkApplyExtensionSuccessMessage,
   buildBulkAssignProxySuccessMessage,
   buildBulkApplyExtensionTargetProfiles,
+  buildBulkCreateSuccessMessage,
   buildBulkEditPayload,
   buildBulkEditSuccessMessage,
   buildBulkRestartSuccessMessage,
   buildFailingProxyConfirmDetails,
+  buildImportProfilePackagesFailureMessage,
+  buildImportProfilePackagesSuccessMessage,
   buildProxyTestSummaryMessage,
+  createBulkCreateResetState,
+  createImportPackagesResetState,
   getFailingProxyProfiles,
   getFirstFailedActionResult,
   getImportProfilePackageFiles,
   getSelectedProfileProxyIds,
   getUniqueTruthyValues,
+  hasBulkCreateEntries,
   hasBulkEditChanges,
   hasBulkExtensionSelection,
   importProfilePackages,
@@ -220,7 +226,7 @@ export function useProfileListActions(
 
   const handleBulkCreateProfiles = useCallback(async () => {
     const entries = parseBulkProfileDrafts(ui.bulkCreateText);
-    if (entries.length === 0) {
+    if (!hasBulkCreateEntries(entries)) {
       void message.warning('Hãy nhập ít nhất một dòng profile hợp lệ');
       return;
     }
@@ -240,11 +246,12 @@ export function useProfileListActions(
       return;
     }
 
-    void message.success(`Đã tạo ${res.data.total} hồ sơ`);
-    setBulkCreateOpen(false);
-    setBulkCreateText('');
-    setBulkCreateRuntime('auto');
-    setBulkCreateProxyId(undefined);
+    const resetState = createBulkCreateResetState();
+    void message.success(buildBulkCreateSuccessMessage(res.data.total));
+    setBulkCreateOpen(resetState.open);
+    setBulkCreateText(resetState.text);
+    setBulkCreateRuntime(resetState.runtime);
+    setBulkCreateProxyId(resetState.proxyId);
     void fetchProfiles();
   }, [fetchProfiles, setBulkCreateOpen, setBulkCreateProxyId, setBulkCreateRuntime, setBulkCreateText, setBulkCreating, ui.bulkCreateProxyId, ui.bulkCreateRuntime, ui.bulkCreateText]);
 
@@ -274,14 +281,15 @@ export function useProfileListActions(
     setImportingPackages(false);
 
     if (successCount > 0) {
-      void message.success(`Đã import ${successCount} gói profile`);
-      setImportPackagesOpen(false);
-      setImportPackageFiles([]);
+      const resetState = createImportPackagesResetState();
+      void message.success(buildImportProfilePackagesSuccessMessage(successCount));
+      setImportPackagesOpen(resetState.open);
+      setImportPackageFiles(resetState.files);
       void fetchProfiles();
     }
 
     if (failCount > 0) {
-      void message.warning(`${failCount} gói profile import thất bại`);
+      void message.warning(buildImportProfilePackagesFailureMessage(failCount));
     }
   }, [fetchProfiles, setImportPackageFiles, setImportPackagesOpen, setImportingPackages, ui.importPackageFiles]);
 

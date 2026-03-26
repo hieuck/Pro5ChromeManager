@@ -3,18 +3,24 @@ import {
   buildBulkApplyExtensionSuccessMessage,
   buildBulkAssignProxySuccessMessage,
   buildBulkApplyExtensionTargetProfiles,
+  buildBulkCreateSuccessMessage,
   buildBulkEditPayload,
   buildBulkEditSuccessMessage,
   buildFailingProxyConfirmDetails,
   buildBulkRestartSuccessMessage,
   buildExtensionCategoryLookup,
+  buildImportProfilePackagesFailureMessage,
+  buildImportProfilePackagesSuccessMessage,
   buildProxyTestSummaryMessage,
+  createBulkCreateResetState,
+  createImportPackagesResetState,
   getFirstFailedActionResult,
   getFailingProxyProfiles,
   getImportProfilePackageFiles,
   getSelectedProfileProxyIds,
   getSelectedProfiles,
   getUniqueTruthyValues,
+  hasBulkCreateEntries,
   hasBulkEditChanges,
   hasBulkExtensionSelection,
   importProfilePackages,
@@ -126,13 +132,28 @@ describe('profileListAction utils', () => {
   });
 
   it('builds bulk action guards and success messages', () => {
+    expect(hasBulkCreateEntries([])).toBe(false);
+    expect(hasBulkCreateEntries([{}])).toBe(true);
     expect(hasBulkEditChanges({})).toBe(false);
     expect(hasBulkEditChanges({ group: 'Team A' })).toBe(true);
     expect(hasBulkExtensionSelection([], [])).toBe(false);
     expect(hasBulkExtensionSelection(['ext-1'], [])).toBe(true);
+    expect(buildBulkCreateSuccessMessage(2)).toBe('Đã tạo 2 hồ sơ');
     expect(buildBulkRestartSuccessMessage(2)).toBe('Đã restart 2 hồ sơ');
     expect(buildBulkEditSuccessMessage(2)).toBe('Đã cập nhật 2 hồ sơ');
     expect(buildBulkApplyExtensionSuccessMessage(2)).toBe('Đã gán extension cho 2 hồ sơ');
+    expect(buildImportProfilePackagesSuccessMessage(2)).toBe('Đã import 2 gói profile');
+    expect(buildImportProfilePackagesFailureMessage(1)).toBe('1 gói profile import thất bại');
+    expect(createBulkCreateResetState()).toEqual({
+      text: '',
+      runtime: 'auto',
+      proxyId: undefined,
+      open: false,
+    });
+    expect(createImportPackagesResetState()).toEqual({
+      files: [],
+      open: false,
+    });
     expect(getFirstFailedActionResult([{ success: true }, { success: false, error: 'boom' }])).toEqual({
       success: false,
       error: 'boom',
