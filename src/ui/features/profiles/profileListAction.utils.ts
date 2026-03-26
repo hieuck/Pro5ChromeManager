@@ -72,6 +72,12 @@ export interface ImportProfilePackageResult {
   failCount: number;
 }
 
+export interface ProxyTestSummary {
+  total: number;
+  healthy: number;
+  failing: number;
+}
+
 export interface FailingProxyConfirmDetails {
   count: number;
   previewNames: string;
@@ -118,4 +124,37 @@ export async function importProfilePackages(
   }
 
   return { successCount, failCount };
+}
+
+export function getSelectedProfileProxyIds(
+  profiles: Profile[],
+  selectedIds: string[],
+  getProfileProxyId: (profile: Profile) => string | undefined | null,
+): string[] {
+  return getUniqueTruthyValues(
+    getSelectedProfiles(profiles, selectedIds).map((profile) => getProfileProxyId(profile)),
+  );
+}
+
+export function resolveBulkAssignProxyValue(
+  selection: string | undefined,
+): string | null | undefined {
+  if (selection === undefined) {
+    return undefined;
+  }
+
+  return selection === '__NONE__' ? null : selection;
+}
+
+export function buildBulkAssignProxySuccessMessage(
+  profileCount: number,
+  proxyId: string | null,
+): string {
+  return proxyId
+    ? `Đã gán proxy cho ${profileCount} hồ sơ`
+    : `Đã gỡ proxy khỏi ${profileCount} hồ sơ`;
+}
+
+export function buildProxyTestSummaryMessage(summary: ProxyTestSummary): string {
+  return `Đã test ${summary.total} proxy · OK ${summary.healthy} · FAIL ${summary.failing}`;
 }

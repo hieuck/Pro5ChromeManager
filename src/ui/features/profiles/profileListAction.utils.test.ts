@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildBulkAssignProxySuccessMessage,
   buildBulkApplyExtensionTargetProfiles,
   buildBulkEditPayload,
   buildFailingProxyConfirmDetails,
   buildExtensionCategoryLookup,
+  buildProxyTestSummaryMessage,
   getFailingProxyProfiles,
   getImportProfilePackageFiles,
+  getSelectedProfileProxyIds,
   getSelectedProfiles,
   getUniqueTruthyValues,
   importProfilePackages,
+  resolveBulkAssignProxyValue,
 } from './profileListAction.utils';
 import type { ExtensionBundle, Profile } from './types';
 
@@ -97,5 +101,21 @@ describe('profileListAction utils', () => {
     });
 
     expect(result).toEqual({ successCount: 1, failCount: 2 });
+  });
+
+  it('builds proxy bulk helpers from selected profiles', () => {
+    const profiles = [
+      createProfile({ id: 'a', proxy: { id: 'p1', host: '1.1.1.1', port: 80, type: 'http' } }),
+      createProfile({ id: 'b', proxy: { id: 'p2', host: '2.2.2.2', port: 80, type: 'http' } }),
+      createProfile({ id: 'c', proxy: { id: 'p1', host: '1.1.1.1', port: 80, type: 'http' } }),
+    ];
+
+    expect(getSelectedProfileProxyIds(profiles, ['a', 'c', 'x'], (profile) => profile.proxy?.id)).toEqual(['p1']);
+    expect(resolveBulkAssignProxyValue('__NONE__')).toBeNull();
+    expect(resolveBulkAssignProxyValue('proxy-1')).toBe('proxy-1');
+    expect(resolveBulkAssignProxyValue(undefined)).toBeUndefined();
+    expect(buildBulkAssignProxySuccessMessage(2, 'proxy-1')).toBe('Đã gán proxy cho 2 hồ sơ');
+    expect(buildBulkAssignProxySuccessMessage(2, null)).toBe('Đã gỡ proxy khỏi 2 hồ sơ');
+    expect(buildProxyTestSummaryMessage({ total: 3, healthy: 2, failing: 1 })).toBe('Đã test 3 proxy · OK 2 · FAIL 1');
   });
 });

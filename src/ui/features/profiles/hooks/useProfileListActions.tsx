@@ -6,13 +6,17 @@ import { mergeBulkExtensionSelection } from '../../../shared/utils/bulkExtension
 import { parseBulkProfileDrafts } from '../../../shared/utils/bulkProfiles';
 import { Profile, ProxyOption, RuntimeOption, ExtensionRecord, ExtensionBundle, BulkCreateResponse, Instance } from '../types';
 import {
+  buildBulkAssignProxySuccessMessage,
   buildBulkApplyExtensionTargetProfiles,
   buildBulkEditPayload,
   buildFailingProxyConfirmDetails,
+  buildProxyTestSummaryMessage,
   getFailingProxyProfiles,
   getImportProfilePackageFiles,
+  getSelectedProfileProxyIds,
   getUniqueTruthyValues,
   importProfilePackages,
+  resolveBulkAssignProxyValue,
 } from '../profileListAction.utils';
 import { useProfileListData } from './useProfileListData';
 import { useProfileListFilters } from './useProfileListFilters';
@@ -84,7 +88,7 @@ export function useProfileListActions(
           return;
         }
 
-        void message.success(`Đã test ${res.data.total} proxy · OK ${res.data.healthy} · FAIL ${res.data.failing}`);
+        void message.success(buildProxyTestSummaryMessage(res.data));
         await fetchProfiles();
         await fetchProxies();
       },
@@ -343,7 +347,7 @@ export function useProfileListActions(
   const handleBulkAssignProxy = useCallback(async () => {
     if (!ui.selectedIds.length || ui.bulkProxySelection === undefined) return;
 
-    const proxyId = ui.bulkProxySelection === '__NONE__' ? null : ui.bulkProxySelection;
+    const proxyId = resolveBulkAssignProxyValue(ui.bulkProxySelection);
     const results = await Promise.all(
       ui.selectedIds.map(async (id: string) => apiClient.put(`/api/profiles/${id}`, { proxyId }))
     );
@@ -353,17 +357,14 @@ export function useProfileListActions(
       return;
     }
 
-    void message.success(proxyId ? `Đã gán proxy cho ${ui.selectedIds.length} hồ sơ` : `Đã gỡ proxy khỏi ${ui.selectedIds.length} hồ sơ`);
+    void message.success(buildBulkAssignProxySuccessMessage(ui.selectedIds.length, proxyId));
     setBulkProxySelection(undefined);
     setSelectedIds([]);
     await fetchProfiles();
   }, [fetchProfiles, setBulkProxySelection, setSelectedIds, ui.bulkProxySelection, ui.selectedIds]);
 
   const handleBulkTestSelectedProxies = useCallback(async () => {
-    const proxyIds = getUniqueTruthyValues(
-      buildBulkApplyExtensionTargetProfiles(data.profiles, ui.selectedIds)
-        .map((profile) => getProfileProxyId(profile)),
-    );
+    const proxyIds = getSelectedProfileProxyIds(data.profiles, ui.selectedIds, getProfileProxyId);
 
     if (!proxyIds.length) {
       void message.warning('Các hồ sơ đã chọn chưa có proxy để test');
@@ -379,7 +380,7 @@ export function useProfileListActions(
       return;
     }
 
-    void message.success(`Đã test ${res.data.total} proxy · OK ${res.data.healthy} · FAIL ${res.data.failing}`);
+    void message.success(buildProxyTestSummaryMessage(res.data));
     await fetchProfiles();
     await fetchProxies();
   }, [data.profiles, fetchProfiles, fetchProxies, getProfileProxyId, setBulkProxyTesting, ui.selectedIds]);
