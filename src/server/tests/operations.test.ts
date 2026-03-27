@@ -11,9 +11,11 @@ describe('Operations endpoints', () => {
   let server: http.Server;
   let storeServer: http.Server | null = null;
   let storeBaseUrl = '';
+  let previousNodeEnv: string | undefined;
 
   beforeAll(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pro5-ops-test-'));
+    previousNodeEnv = process.env['NODE_ENV'];
     process.env['DATA_DIR'] = tmpDir;
     process.env['NODE_ENV'] = 'test';
     process.env['PRO5_SERVER_AUTOSTART'] = 'false';
@@ -114,13 +116,18 @@ describe('Operations endpoints', () => {
     delete process.env['DATA_DIR'];
     delete process.env['PRO5_SERVER_AUTOSTART'];
     delete process.env['PRO5_EXTENSION_STORE_DOWNLOAD_URL_TEMPLATE'];
+    if (previousNodeEnv === undefined) {
+      delete process.env['NODE_ENV'];
+    } else {
+      process.env['NODE_ENV'] = previousNodeEnv;
+    }
   });
 
   it('serves health and readiness endpoints', async () => {
     const healthRes = await fetch(`${baseUrl}/health`);
     expect(healthRes.status).toBe(200);
     const health = await healthRes.json() as { status: string; version: string };
-    expect(health.status).toBe('ok');
+    expect(health.status).toBe('healthy');
     expect(health.version).toBeTruthy();
 
     const readyRes = await fetch(`${baseUrl}/readyz`);
@@ -141,6 +148,30 @@ describe('Operations endpoints', () => {
     const html = await uiRes.text();
     expect(html.toLowerCase()).toContain('<!doctype html>');
     expect(html).toContain('<div id="root"></div>');
+  });
+
+  it('rejects invalid config updates with structured validation details', async () => {
+    const invalidRes = await fetch(`${baseUrl}/api/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api: { port: 70000 },
+        unknownSetting: true,
+      }),
+    });
+
+    expect(invalidRes.status).toBe(400);
+    const invalidJson = await invalidRes.json() as {
+      success: boolean;
+      error: string;
+      code?: string;
+      details?: Array<{ path: string; message: string }>;
+    };
+    expect(invalidJson.success).toBe(false);
+    expect(invalidJson.error).toBe('Invalid config payload');
+    expect(invalidJson.code).toBe('VALIDATION_ERROR');
+    expect(Array.isArray(invalidJson.details)).toBe(true);
+    expect(invalidJson.details?.some((detail) => detail.path === 'api.port')).toBe(true);
   });
 
   it('exposes support status and self-test results', async () => {
@@ -989,7 +1020,7 @@ describe('Operations endpoints', () => {
     const calls: string[] = [];
 
     instanceManager.getStatus = ((profileId: string) => (
-      profileId === 'running-profile' ? 'running' : 'not_running'
+      profileId === '7183e817-4861-4fa9-8b83-9bffd1afc0d6' ? 'running' : 'not_running'
     )) as typeof instanceManager.getStatus;
 
     instanceManager.stopInstance = (async (profileId: string) => {
@@ -1013,20 +1044,20 @@ describe('Operations endpoints', () => {
     }) as typeof instanceManager.launchInstance;
 
     try {
-      const runningRes = await fetch(`${baseUrl}/api/profiles/running-profile/restart`, {
+      const runningRes = await fetch(`${baseUrl}/api/profiles/7183e817-4861-4fa9-8b83-9bffd1afc0d6/restart`, {
         method: 'POST',
       });
       expect(runningRes.status).toBe(201);
 
-      const stoppedRes = await fetch(`${baseUrl}/api/profiles/stopped-profile/restart`, {
+      const stoppedRes = await fetch(`${baseUrl}/api/profiles/d23871ee-8260-4927-a9a3-5c0debaee3ca/restart`, {
         method: 'POST',
       });
       expect(stoppedRes.status).toBe(201);
 
       expect(calls).toEqual([
-        'stop:running-profile',
-        'launch:running-profile',
-        'launch:stopped-profile',
+        'stop:7183e817-4861-4fa9-8b83-9bffd1afc0d6',
+        'launch:7183e817-4861-4fa9-8b83-9bffd1afc0d6',
+        'launch:d23871ee-8260-4927-a9a3-5c0debaee3ca',
       ]);
     } finally {
       instanceManager.getStatus = originalGetStatus;
@@ -1720,6 +1751,78 @@ describe('Operations endpoints', () => {
     expect(runtimesJson.data.some((runtime) =>
       runtime.key === 'core-pro5-chromium' &&
       runtime.executablePath === importJson.data.executablePath)).toBe(true);
+  });
+
+  it('returns 500 when runtime availability refresh fails', async () => {
+    const { runtimeManager } = await import('../features/runtimes/RuntimeManager');
+    const originalRefreshAvailability = runtimeManager.refreshAvailability.bind(runtimeManager);
+
+    runtimeManager.refreshAvailability = (async () => {
+      throw new Error('runtime refresh failed');
+    }) as typeof runtimeManager.refreshAvailability;
+
+    try {
+      const runtimesRes = await fetch(`${baseUrl}/api/runtimes`);
+      expect(runtimesRes.status).toBe(500);
+      const runtimesJson = await runtimesRes.json() as {
+        success: boolean;
+        error: string;
+      };
+      expect(runtimesJson.success).toBe(false);
+      expect(runtimesJson.error).toBe('Internal server error');
+    } finally {
+      runtimeManager.refreshAvailability = originalRefreshAvailability;
+    }
+  });
+
+  it('returns 404 when installing unknown browser core catalog entry', async () => {
+    const installRes = await fetch(`${baseUrl}/api/browser-cores/catalog/unknown-core/install`, {
+      method: 'POST',
+    });
+    expect(installRes.status).toBe(404);
+
+    const installJson = await installRes.json() as {
+      success: boolean;
+      error: string;
+      code?: string;
+    };
+    expect(installJson.success).toBe(false);
+    expect(installJson.code).toBe('NOT_FOUND');
+    expect(installJson.error).toContain('not found');
+  });
+
+  it('returns 409 when browser core package is not yet available', async () => {
+    const previousUrl = process.env['PRO5_BROWSER_CORE_URL'];
+    const previousVersion = process.env['PRO5_BROWSER_CORE_VERSION'];
+    delete process.env['PRO5_BROWSER_CORE_URL'];
+    delete process.env['PRO5_BROWSER_CORE_VERSION'];
+
+    try {
+      const installRes = await fetch(`${baseUrl}/api/browser-cores/catalog/pro5-chromium/install`, {
+        method: 'POST',
+      });
+      expect(installRes.status).toBe(409);
+
+      const installJson = await installRes.json() as {
+        success: boolean;
+        error: string;
+        code?: string;
+      };
+      expect(installJson.success).toBe(false);
+      expect(installJson.code).toBe('CONFLICT');
+      expect(installJson.error).toContain('not available');
+    } finally {
+      if (previousUrl === undefined) {
+        delete process.env['PRO5_BROWSER_CORE_URL'];
+      } else {
+        process.env['PRO5_BROWSER_CORE_URL'] = previousUrl;
+      }
+      if (previousVersion === undefined) {
+        delete process.env['PRO5_BROWSER_CORE_VERSION'];
+      } else {
+        process.env['PRO5_BROWSER_CORE_VERSION'] = previousVersion;
+      }
+    }
   });
 
   it('installs a browser core directly from the catalog artifact URL', async () => {

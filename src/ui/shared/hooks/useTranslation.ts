@@ -4,6 +4,7 @@ import {
   formatMessage,
   getTranslations,
   isSupportedLanguage,
+  isUserFacingLanguage,
   type Language,
   type TranslationKeys,
 } from '../../i18n';
@@ -14,7 +15,8 @@ import {
  */
 function getLanguage(): Language {
   const stored = localStorage.getItem('uiLanguage');
-  if (isSupportedLanguage(stored)) return stored;
+  if (import.meta.env.DEV && isSupportedLanguage(stored)) return stored;
+  if (isUserFacingLanguage(stored)) return stored;
   return defaultLanguage;
 }
 

@@ -852,6 +852,7 @@ const en: TranslationKeys = {
       exported: 'Visible logs exported',
       digestCopied: 'Issue digest copied',
       copyFailed: 'Failed to copy logs',
+    loadFailed: 'Failed to load logs',
     autoRefresh: 'Auto refresh',
     issuesOnly: 'Issues only',
     filterDebug: 'Debug',

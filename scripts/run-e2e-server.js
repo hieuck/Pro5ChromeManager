@@ -1,6 +1,8 @@
 const fs = require('fs/promises');
+const fsSync = require('fs');
 const path = require('path');
 const http = require('http');
+const archiver = require('archiver');
 const { spawn } = require('child_process');
 const { chromium } = require('playwright');
 
@@ -46,22 +48,7 @@ async function prepareMockStorePackage() {
   await fs.rm(zipPath, { force: true });
   await fs.rm(crxPath, { force: true });
 
-  await new Promise((resolve, reject) => {
-    const zipBuilder = spawn('powershell.exe', [
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      `Compress-Archive -Path '${path.join(fixturePath, '*').replace(/'/g, "''")}' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`,
-    ], { stdio: 'pipe' });
-
-    zipBuilder.on('exit', (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`Failed to build mock extension zip: exit ${code ?? -1}`));
-    });
-  });
+  await zipDirectory(fixturePath, zipPath);
 
   const zipBytes = await fs.readFile(zipPath);
   const header = Buffer.alloc(16);
@@ -72,6 +59,21 @@ async function prepareMockStorePackage() {
   await fs.writeFile(crxPath, Buffer.concat([header, zipBytes]));
   await fs.rm(zipPath, { force: true });
   return crxPath;
+}
+
+async function zipDirectory(sourceDir, outputZipPath) {
+  await new Promise((resolve, reject) => {
+    const output = fsSync.createWriteStream(outputZipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', resolve);
+    output.on('error', reject);
+    archive.on('error', reject);
+
+    archive.pipe(output);
+    archive.directory(sourceDir, false);
+    void archive.finalize();
+  });
 }
 
 async function main() {

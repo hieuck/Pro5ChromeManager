@@ -59,7 +59,7 @@ describe('launch desktop build detection', () => {
     writeFile(projectRoot, 'tsconfig.json', '{}', 2_000);
     writeFile(projectRoot, 'tsconfig.electron.json', '{}', 2_000);
     writeFile(projectRoot, 'vite.config.mjs', 'export default {};', 2_000);
-    writeFile(projectRoot, 'dist/server/index.js', '// built', 3_000);
+    writeFile(projectRoot, 'dist/server/server/index.js', '// built', 3_000);
     writeFile(projectRoot, 'dist/ui/index.html', '<html></html>', 3_000);
     writeFile(projectRoot, 'dist/electron-main/main.js', '// built', 3_000);
 
@@ -76,7 +76,7 @@ describe('launch desktop build detection', () => {
     writeFile(projectRoot, 'tsconfig.json', '{}', 4_000);
     writeFile(projectRoot, 'tsconfig.electron.json', '{}', 4_000);
     writeFile(projectRoot, 'vite.config.mjs', 'export default {};', 4_000);
-    writeFile(projectRoot, 'dist/server/index.js', '// built', 3_000);
+    writeFile(projectRoot, 'dist/server/server/index.js', '// built', 3_000);
     writeFile(projectRoot, 'dist/ui/index.html', '<html></html>', 3_000);
     writeFile(projectRoot, 'dist/electron-main/main.js', '// built', 3_000);
 

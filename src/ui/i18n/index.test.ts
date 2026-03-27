@@ -3,8 +3,11 @@ import {
   defaultLanguage,
   formatMessage,
   getTranslations,
+  getTranslationsWithFallback,
   isSupportedLanguage,
+  isUserFacingLanguage,
   supportedLanguages,
+  userFacingLanguages,
 } from './index';
 
 describe('i18n registry', () => {
@@ -12,6 +15,7 @@ describe('i18n registry', () => {
     expect(supportedLanguages).toContain('vi');
     expect(supportedLanguages).toContain('en');
     expect(supportedLanguages).toContain('qps-ploc');
+    expect(userFacingLanguages).toEqual(['vi', 'en']);
     expect(isSupportedLanguage(defaultLanguage)).toBe(true);
   });
 
@@ -33,6 +37,15 @@ describe('i18n registry', () => {
   it('detects unsupported languages', () => {
     expect(isSupportedLanguage('jp')).toBe(false);
     expect(isSupportedLanguage(undefined)).toBe(false);
+    expect(isUserFacingLanguage('qps-ploc')).toBe(false);
+    expect(isUserFacingLanguage('en')).toBe(true);
+  });
+
+  it('falls back to default language for unsupported or empty values', () => {
+    const fallback = getTranslations(defaultLanguage);
+    expect(getTranslationsWithFallback('unknown-locale')).toBe(fallback);
+    expect(getTranslationsWithFallback(undefined)).toBe(fallback);
+    expect(getTranslationsWithFallback('en')).toBe(getTranslations('en'));
   });
 
   it('keeps placeholder tokens intact in the pseudo locale', () => {

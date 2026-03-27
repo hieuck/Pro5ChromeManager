@@ -1,7 +1,7 @@
 import React from 'react';
 import { Form, Input, InputNumber, Select, Switch, Button, Row, Col, Typography } from 'antd';
 import { SaveOutlined, QuestionCircleOutlined, DownloadOutlined } from '@ant-design/icons';
-import { supportedLanguages, languageMeta } from '../../../i18n';
+import { userFacingLanguages, languageMeta } from '../../../i18n';
 import OnboardingWizard from '../../onboarding/components/OnboardingWizard';
 import type { SettingsState } from '../useSettingsState';
 
@@ -30,7 +30,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ state }) => {
     <Form form={generalForm} layout="vertical" style={{ maxWidth: 560 }}>
       <Form.Item name="uiLanguage" label={t.settings.uiLanguage}>
         <Select
-          options={supportedLanguages.map((language) => ({
+          options={userFacingLanguages.map((language) => ({
             label: languageMeta[language].nativeLabel,
             value: language,
           }))}

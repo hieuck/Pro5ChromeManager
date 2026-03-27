@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../core/logging/logger';
+import { loggerService } from '../../core/logging/LoggerService';
 import { configManager } from '../config/ConfigManager';
 import { fingerprintEngine } from './FingerprintEngine';
 import { extensionManager } from '../extensions/ExtensionManager';
@@ -18,6 +19,13 @@ import {
 } from './records';
 import { createProfileArchive, extractWindowsZipArchive } from './packageArchive';
 import { copyDirectory, loadProfilesFromDirectory, saveProfileRecord } from './storage';
+import { 
+  NotFoundError, 
+  ValidationError, 
+  FileSystemError, 
+  InternalServerError,
+  ConflictError
+} from '../../core/errors';
 
 export class ProfileManager {
   private profiles: Map<string, Profile> = new Map();
@@ -47,17 +55,39 @@ export class ProfileManager {
     name: string,
     options?: Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'schemaVersion'>>,
   ): Promise<Profile> {
+    // Validate input
+    if (!name || name.trim().length === 0) {
+      throw new ValidationError('Profile name is required', {
+        field: 'name',
+        value: name,
+      });
+    }
+
     const id = uuidv4();
     const now = new Date().toISOString();
     const profileDir = sanitizePath(this.profilesDir, id);
+    const correlationId = loggerService.generateCorrelationId();
 
-    await fs.mkdir(profileDir, { recursive: true });
-    await fs.mkdir(path.join(profileDir, 'Default'), { recursive: true });
+    try {
+      // Create profile directory structure
+      await fs.mkdir(profileDir, { recursive: true });
+      await fs.mkdir(path.join(profileDir, 'Default'), { recursive: true });
+    } catch (error) {
+      throw new FileSystemError('create profile directory', profileDir, {
+        correlationId,
+        originalError: error instanceof Error ? error : undefined,
+        context: { profileId: id, profileName: name },
+      });
+    }
 
     if (!options?.fingerprint) {
       try {
         await fingerprintEngine.initialize();
-      } catch {
+      } catch (error) {
+        loggerService.warn('Fingerprint engine initialization failed, using fallback', {
+          correlationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
         // fallback generation still works
       }
     }
@@ -71,11 +101,29 @@ export class ProfileManager {
       options,
     });
 
-    this.profileDirMap.set(id, id);
-    await this.saveProfile(profile);
-    this.profiles.set(id, profile);
-    logger.info('Profile created', { id, name });
-    return profile;
+    try {
+      this.profileDirMap.set(id, id);
+      await this.saveProfile(profile);
+      this.profiles.set(id, profile);
+      loggerService.info('Profile created successfully', {
+        correlationId,
+        profileId: id,
+        profileName: name,
+        fingerprintGenerated: !options?.fingerprint,
+      });
+      return profile;
+    } catch (error) {
+      // Cleanup on failure
+      await this.cleanupFailedProfile(id, profileDir).catch(() => {
+        // Ignore cleanup errors
+      });
+      
+      throw new InternalServerError('Failed to create profile', {
+        correlationId,
+        originalError: error instanceof Error ? error : undefined,
+        context: { profileId: id, profileName: name },
+      });
+    }
   }
 
   async cloneProfile(
@@ -84,7 +132,7 @@ export class ProfileManager {
   ): Promise<Profile> {
     const existing = this.profiles.get(id);
     if (!existing) {
-      throw new Error(`Profile not found: ${id}`);
+      throw new NotFoundError('Profile', id);
     }
 
     const cloneId = uuidv4();
@@ -111,7 +159,7 @@ export class ProfileManager {
   async updateProfile(id: string, partial: Partial<Omit<Profile, 'id' | 'createdAt' | 'schemaVersion'>>): Promise<Profile> {
     const existing = this.profiles.get(id);
     if (!existing) {
-      throw new Error(`Profile not found: ${id}`);
+      throw new NotFoundError('Profile', id);
     }
 
     const updated: Profile = {
@@ -130,7 +178,7 @@ export class ProfileManager {
 
   async deleteProfile(id: string): Promise<void> {
     if (!this.profiles.has(id)) {
-      throw new Error(`Profile not found: ${id}`);
+      throw new NotFoundError('Profile', id);
     }
 
     const dirName = this.profileDirMap.get(id) ?? id;
@@ -152,7 +200,7 @@ export class ProfileManager {
   getProfileDirectory(id: string): string {
     const profile = this.profiles.get(id);
     if (!profile) {
-      throw new Error(`Profile not found: ${id}`);
+      throw new NotFoundError('Profile', id);
     }
 
     const dirName = this.profileDirMap.get(id) ?? id;
@@ -222,15 +270,21 @@ export class ProfileManager {
     const resolvedPackagePath = path.resolve(packagePath);
     const packageStat = await fs.stat(resolvedPackagePath).catch(() => null);
     if (!packageStat || !packageStat.isFile()) {
-      throw new Error(`Profile package not found: ${resolvedPackagePath}`);
+      throw new ValidationError(`Profile package not found: ${resolvedPackagePath}`, {
+        field: 'packagePath',
+        value: resolvedPackagePath,
+      });
     }
 
     if (path.extname(resolvedPackagePath).toLowerCase() !== '.zip') {
-      throw new Error(`Unsupported profile package: ${resolvedPackagePath}`);
+      throw new ValidationError(`Unsupported profile package format: ${resolvedPackagePath}`, {
+        field: 'packagePath',
+        value: path.extname(resolvedPackagePath),
+      });
     }
 
     if (process.platform !== 'win32') {
-      throw new Error('Profile package import is currently supported on Windows only');
+      throw new ValidationError('Profile package import is currently supported on Windows only');
     }
 
     const tempExtractDir = path.join(this.dataDir, 'tmp', `profile-import-${uuidv4()}`);
@@ -242,7 +296,7 @@ export class ProfileManager {
 
       const rawProfile = await fs.readFile(path.join(tempExtractDir, 'profile.json'), 'utf-8').catch(() => null);
       if (!rawProfile) {
-        throw new Error('profile.json not found in package');
+        throw new ValidationError('profile.json not found in package');
       }
 
       const migratedProfile = migrateProfile(
@@ -292,7 +346,12 @@ export class ProfileManager {
       });
       return profile;
     } catch (error) {
-      throw new Error(`Failed to import profile package: ${error instanceof Error ? error.message : String(error)}`);
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new FileSystemError('import profile package', resolvedPackagePath, {
+        originalError: error instanceof Error ? error : undefined,
+      });
     } finally {
       await fs.rm(tempExtractDir, { recursive: true, force: true }).catch(() => undefined);
     }
@@ -301,7 +360,7 @@ export class ProfileManager {
   async exportProfile(id: string, destPath: string): Promise<void> {
     const profile = this.profiles.get(id);
     if (!profile) {
-      throw new Error(`Profile not found: ${id}`);
+      throw new NotFoundError('Profile', id);
     }
 
     const dirName = this.profileDirMap.get(id) ?? id;
@@ -316,7 +375,7 @@ export class ProfileManager {
   async updateLastUsed(id: string): Promise<void> {
     const profile = this.profiles.get(id);
     if (!profile) {
-      throw new Error(`Profile not found: ${id}`);
+      throw new NotFoundError('Profile', id);
     }
 
     const updated: Profile = {
@@ -336,6 +395,12 @@ export class ProfileManager {
       profileDirMap: this.profileDirMap,
       profile,
     });
+  }
+
+  private async cleanupFailedProfile(id: string, profileDir: string): Promise<void> {
+    this.profiles.delete(id);
+    this.profileDirMap.delete(id);
+    await fs.rm(profileDir, { recursive: true, force: true });
   }
 }
 

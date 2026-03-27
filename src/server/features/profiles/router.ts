@@ -8,7 +8,9 @@ import { cookieManager } from './CookieManager';
 import { usageMetricsManager } from '../../core/telemetry/UsageMetricsManager';
 import { logger } from '../../core/logging/logger';
 import { dataPath } from '../../core/fs/dataPaths';
-import { isNotFoundError, sendError, sendSuccess } from '../../core/http';
+import { sendError, sendSuccess, getErrorStatusCode, getErrorMessage } from '../../core/http';
+import { validateUuidParam } from '../../core/server/http/paramValidation';
+import { NotFoundError } from '../../core/errors';
 import {
   BulkCreateProfilesSchema,
   BulkImportProfilesSchema,
@@ -28,13 +30,43 @@ import {
 } from './helpers';
 
 const router = Router();
+router.param('id', validateUuidParam('id'));
+const ACTIVITY_TAIL_READ_BYTES = 5 * 1024 * 1024;
 
 function getRequiredProfile(profileId: string) {
   const profile = profileManager.getProfile(profileId);
   if (!profile) {
-    throw new Error(`Profile not found: ${profileId}`);
+    throw new NotFoundError('Profile', profileId);
   }
   return profile;
+}
+
+async function readRecentActivityContent(filePath: string): Promise<string> {
+  const stat = await fs.stat(filePath).catch(() => null);
+  if (!stat || stat.size <= 0) {
+    return '';
+  }
+
+  if (stat.size <= ACTIVITY_TAIL_READ_BYTES) {
+    return fs.readFile(filePath, 'utf-8').catch(() => '');
+  }
+
+  const file = await fs.open(filePath, 'r');
+  try {
+    const start = Math.max(0, stat.size - ACTIVITY_TAIL_READ_BYTES);
+    const buffer = Buffer.alloc(stat.size - start);
+    await file.read(buffer, 0, buffer.length, start);
+    const text = buffer.toString('utf-8');
+
+    // Trim partial first line when tail-reading.
+    const firstBreak = text.indexOf('\n');
+    if (firstBreak === -1) {
+      return '';
+    }
+    return text.slice(firstBreak + 1);
+  } finally {
+    await file.close().catch(() => undefined);
+  }
 }
 
 router.get('/profiles', (request: Request, response: Response) => {
@@ -49,8 +81,8 @@ router.get('/profiles', (request: Request, response: Response) => {
 
     sendSuccess(response, profiles);
   } catch (error) {
-    logger.error('GET /api/profiles error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('GET /api/profiles error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -62,8 +94,8 @@ router.post('/profiles', async (request: Request, response: Response) => {
     await usageMetricsManager.recordProfileCreated();
     sendSuccess(response, profile, 201);
   } catch (error) {
-    logger.error('POST /api/profiles error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('POST /api/profiles error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -87,8 +119,8 @@ router.post('/profiles/bulk-create', async (request: Request, response: Response
 
     sendSuccess(response, { total: profiles.length, profiles }, 201);
   } catch (error) {
-    logger.error('POST /api/profiles/bulk-create error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('POST /api/profiles/bulk-create error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -117,8 +149,8 @@ router.post('/profiles/bulk-update', async (request: Request, response: Response
 
     sendSuccess(response, { total: updatedProfiles.length, profiles: updatedProfiles });
   } catch (error) {
-    logger.error('POST /api/profiles/bulk-update error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('POST /api/profiles/bulk-update error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -140,8 +172,8 @@ router.post('/profiles/import', async (request: Request, response: Response) => 
     await usageMetricsManager.recordProfileImported();
     sendSuccess(response, profile, 201);
   } catch (error) {
-    logger.error('POST /api/profiles/import error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('POST /api/profiles/import error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -168,8 +200,8 @@ router.post(
       await usageMetricsManager.recordProfileImported();
       sendSuccess(response, profile, 201);
     } catch (error) {
-      logger.error('POST /api/profiles/import-package error', { error: error instanceof Error ? error.message : String(error) });
-      sendError(response, 400, error instanceof Error ? error.message : 'Bad request');
+      logger.error('POST /api/profiles/import-package error', { error: getErrorMessage(error) });
+      sendError(response, getErrorStatusCode(error), getErrorMessage(error));
     } finally {
       await fs.rm(uploadedPackagePath, { force: true }).catch(() => undefined);
     }
@@ -187,14 +219,14 @@ router.post('/profiles/import-bulk', async (request: Request, response: Response
         await usageMetricsManager.recordProfileImported();
         results.push({ srcDir, success: true, profile });
       } catch (error) {
-        results.push({ srcDir, success: false, error: error instanceof Error ? error.message : String(error) });
+        results.push({ srcDir, success: false, error: getErrorMessage(error) });
       }
     }
 
     sendSuccess(response, results);
   } catch (error) {
-    logger.error('POST /api/profiles/import-bulk error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('POST /api/profiles/import-bulk error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -206,8 +238,8 @@ router.get('/profiles/:id/cookies', async (request: Request, response: Response)
     const cookies = await cookieManager.listCookies(id);
     sendSuccess(response, { count: cookies.length, cookies });
   } catch (error) {
-    logger.error('GET /api/profiles/:id/cookies error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 500, isNotFoundError(error) ? 'Profile not found' : 'Failed to load cookies');
+    logger.error('GET /api/profiles/:id/cookies error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -220,8 +252,8 @@ router.post('/profiles/:id/cookies/import', async (request: Request, response: R
     const cookies = await cookieManager.importCookies(id, body.cookies);
     sendSuccess(response, { count: cookies.length, cookies }, 201);
   } catch (error) {
-    logger.error('POST /api/profiles/:id/cookies/import error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('POST /api/profiles/:id/cookies/import error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -233,8 +265,8 @@ router.delete('/profiles/:id/cookies', async (request: Request, response: Respon
     await cookieManager.clearCookies(id);
     sendSuccess(response, null);
   } catch (error) {
-    logger.error('DELETE /api/profiles/:id/cookies error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 500, error instanceof Error ? error.message : 'Failed to clear cookies');
+    logger.error('DELETE /api/profiles/:id/cookies error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -249,8 +281,8 @@ router.get('/profiles/:id/cookies/export', async (request: Request, response: Re
     response.setHeader('Content-Disposition', `attachment; filename="profile-${safeId}-cookies.json"`);
     response.send(JSON.stringify(cookies, null, 2));
   } catch (error) {
-    logger.error('GET /api/profiles/:id/cookies/export error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 500, isNotFoundError(error) ? 'Profile not found' : 'Failed to export cookies');
+    logger.error('GET /api/profiles/:id/cookies/export error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -259,8 +291,8 @@ router.get('/profiles/:id', (request: Request, response: Response) => {
     const profile = getRequiredProfile(request.params.id);
     sendSuccess(response, profile);
   } catch (error) {
-    logger.error('GET /api/profiles/:id error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 500, isNotFoundError(error) ? 'Profile not found' : 'Internal server error');
+    logger.error('GET /api/profiles/:id error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -270,8 +302,8 @@ router.put('/profiles/:id', async (request: Request, response: Response) => {
     const profile = await profileManager.updateProfile(request.params.id, buildProfileUpdateFields(body));
     sendSuccess(response, profile);
   } catch (error) {
-    logger.error('PUT /api/profiles/:id error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('PUT /api/profiles/:id error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -283,8 +315,8 @@ router.post('/profiles/:id/clone', async (request: Request, response: Response) 
     await usageMetricsManager.recordProfileCreated();
     sendSuccess(response, profile, 201);
   } catch (error) {
-    logger.error('POST /api/profiles/:id/clone error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 400, error instanceof Error ? error.message : 'Bad request');
+    logger.error('POST /api/profiles/:id/clone error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -293,8 +325,8 @@ router.delete('/profiles/:id', async (request: Request, response: Response) => {
     await profileManager.deleteProfile(request.params.id);
     sendSuccess(response, null);
   } catch (error) {
-    logger.error('DELETE /api/profiles/:id error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 500, error instanceof Error ? error.message : 'Internal server error');
+    logger.error('DELETE /api/profiles/:id error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -316,8 +348,8 @@ router.get('/profiles/:id/export', async (request: Request, response: Response) 
       void fs.unlink(temporaryPath).catch(() => undefined);
     });
   } catch (error) {
-    logger.error('GET /api/profiles/:id/export error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 500, error instanceof Error ? error.message : 'Internal server error');
+    logger.error('GET /api/profiles/:id/export error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 
@@ -327,7 +359,7 @@ router.get('/profiles/:id/activity', async (request: Request, response: Response
     getRequiredProfile(id);
 
     const activityPath = dataPath('activity.log');
-    const content = await fs.readFile(activityPath, 'utf-8').catch(() => '');
+    const content = await readRecentActivityContent(activityPath);
     const sessions = content
       .split('\n')
       .filter(Boolean)
@@ -344,8 +376,8 @@ router.get('/profiles/:id/activity', async (request: Request, response: Response
 
     sendSuccess(response, sessions);
   } catch (error) {
-    logger.error('GET /api/profiles/:id/activity error', { error: error instanceof Error ? error.message : String(error) });
-    sendError(response, isNotFoundError(error) ? 404 : 500, isNotFoundError(error) ? 'Profile not found' : 'Internal server error');
+    logger.error('GET /api/profiles/:id/activity error', { error: getErrorMessage(error) });
+    sendError(response, getErrorStatusCode(error), getErrorMessage(error));
   }
 });
 

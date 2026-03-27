@@ -295,7 +295,7 @@ export interface Profile {
   runtime: string;
   proxy: ProxyConfig | null;
   extensionIds: string[];
-  bookmarks: any[]; // Avoid circular dep or refine later
+  bookmarks: Array<{ name: string; url: string; folder?: string | null }>;
   fingerprint: FingerprintConfig;
   createdAt: string;
   updatedAt: string;

@@ -1,33 +1,34 @@
-## What Changed
-<!-- Describe the specific changes made in this PR -->
+## Summary
 
-## Why This Change
-<!-- Explain the motivation and context for this change -->
+- What changed:
+- Why this change is needed:
+- Risk level:
 
-## Testing Done
-<!-- Describe the testing you performed to validate your changes -->
-- [ ] Manual testing completed
-- [ ] Automated tests pass locally (`node tests/run-all.js`)
-- [ ] Edge cases considered and tested
+## Architecture Impact
 
-## Type of Change
-- [ ] `fix:` Bug fix
-- [ ] `feat:` New feature
-- [ ] `refactor:` Code refactoring
-- [ ] `docs:` Documentation
-- [ ] `test:` Tests
-- [ ] `chore:` Maintenance/tooling
-- [ ] `ci:` CI/CD changes
+- [ ] UI layer
+- [ ] Server feature layer
+- [ ] Server core layer
+- [ ] Shared contracts
+- [ ] Electron shell
 
-## Security & Quality Checklist
-- [ ] No secrets or API keys committed (ghp_, sk-, AKIA, xoxb, xoxp patterns checked)
-- [ ] JSON files validate cleanly
-- [ ] Shell scripts pass shellcheck (if applicable)
-- [ ] Pre-commit hooks pass locally (if configured)
-- [ ] No sensitive data exposed in logs or output
-- [ ] Follows conventional commits format
+## Verification
 
-## Documentation
-- [ ] Updated relevant documentation
-- [ ] Added comments for complex logic
-- [ ] README updated (if needed)
+- [ ] `npm run lint`
+- [ ] `npm run typecheck`
+- [ ] `npm run test:coverage`
+- [ ] `npm run build`
+- [ ] `npm run release:preflight`
+
+## Security Checklist
+
+- [ ] No hardcoded secrets
+- [ ] Inputs validated at boundaries
+- [ ] Errors are sanitized for API responses
+- [ ] Authz/authn impact reviewed (if applicable)
+
+## Docs And Operations
+
+- [ ] Runbook/docs updated (if behavior changed)
+- [ ] Backward compatibility considered
+- [ ] Migration or rollout notes provided (if needed)

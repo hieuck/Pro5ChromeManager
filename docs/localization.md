@@ -8,6 +8,7 @@ This project keeps a simple, code-first localization system on purpose.
 - Keep Vietnamese as the default UI language for product users.
 - Keep English as a first-class maintained locale for contributors and future expansion.
 - Keep `qps-ploc` as a built-in pseudo-locale for UI stress testing and localization QA.
+- Expose only `vi` and `en` in production-facing language pickers.
 - Add all locale registration in one place: `src/ui/i18n/index.ts`.
 - Use shared formatting through `formatMessage()` for strings with variables like `{count}` or `{total}`.
 
@@ -21,6 +22,7 @@ This gives us a low-friction workflow now without pulling in a heavier i18n fram
 - No runtime dependency on external translation tooling.
 - Good fit for an Electron + Vite desktop product that is still evolving quickly.
 - Lets us test overflow, hardcoded strings, and placeholder handling before a real translator joins.
+- Keeps QA/debug locale coverage without leaking non-user-facing options into release builds.
 
 ## Source Of Truth
 
@@ -48,7 +50,7 @@ npx tsc --noEmit
 - Use `format()` for variable interpolation instead of manual `.replace(...)`.
 - Prefer stable keys over sentence-like keys.
 - When adding a new key, update both `vi` and `en` in the same change.
-- Use `qps-ploc` during QA to catch text overflow and missed hardcoded strings before release.
+- Use `qps-ploc` only in QA/debug workflows to catch text overflow and missed hardcoded strings before release.
 
 ## When To Upgrade Beyond This
 

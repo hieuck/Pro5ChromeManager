@@ -8,6 +8,7 @@ import {
 } from './supportDiagnostics';
 import { buildSupportSelfTest, buildSupportStatus } from './supportStatus';
 import { createDiagnosticsArchive } from './supportDiagnosticsExport';
+import { sendSuccess, sendError, getErrorStatusCode, getErrorMessage } from '../../core/http';
 
 const router = Router();
 
@@ -31,17 +32,13 @@ const OnboardingStateSchema = z.object({
   skippedAt: z.string().datetime().nullable().optional(),
 });
 
-
 router.get('/support/status', async (_req: Request, res: Response) => {
   try {
     const status = await buildSupportStatus();
-    res.json({
-      success: true,
-      data: status,
-    });
+    sendSuccess(res, status);
   } catch (err) {
-    logger.error('GET /api/support/status error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to load support status' });
+    logger.error('GET /api/support/status error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -50,43 +47,37 @@ router.get('/support/incidents', async (req: Request, res: Response) => {
     const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
     const incidents = buildIncidentSnapshot(await loadIncidentEntries(limit));
-    res.json({
-      success: true,
-      data: incidents,
-    });
+    sendSuccess(res, incidents);
   } catch (err) {
-    logger.error('GET /api/support/incidents error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to load incidents' });
+    logger.error('GET /api/support/incidents error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
 router.post('/support/self-test', async (_req: Request, res: Response) => {
   try {
     const selfTest = await buildSupportSelfTest();
-    res.json({
-      success: true,
-      data: selfTest,
-    });
+    sendSuccess(res, selfTest);
   } catch (err) {
-    logger.error('POST /api/support/self-test error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to run self-test' });
+    logger.error('POST /api/support/self-test error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
 router.post('/support/onboarding-state', async (req: Request, res: Response) => {
   const parsed = OnboardingStateSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ success: false, error: 'Invalid onboarding state payload', details: parsed.error.issues });
+    sendError(res, 400, 'Invalid onboarding state payload');
     return;
   }
 
   try {
-  const { onboardingStateManager } = await import('./OnboardingStateManager');
+    const { onboardingStateManager } = await import('./OnboardingStateManager');
     const state = await onboardingStateManager.update(parsed.data);
-    res.json({ success: true, data: state });
+    sendSuccess(res, state);
   } catch (err) {
-    logger.error('POST /api/support/onboarding-state error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to save onboarding state' });
+    logger.error('POST /api/support/onboarding-state error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -94,30 +85,24 @@ router.get('/support/feedback', async (req: Request, res: Response) => {
   try {
     const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
-  const { supportInboxManager } = await import('./SupportInboxManager');
+    const { supportInboxManager } = await import('./SupportInboxManager');
     const entries = await supportInboxManager.listFeedback(limit);
-    res.json({
-      success: true,
-      data: {
-        count: entries.length,
-        entries,
-      },
-    });
+    sendSuccess(res, { count: entries.length, entries });
   } catch (err) {
-    logger.error('GET /api/support/feedback error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to load support feedback' });
+    logger.error('GET /api/support/feedback error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
 router.post('/support/feedback', async (req: Request, res: Response) => {
   const parsed = SupportFeedbackSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ success: false, error: 'Invalid feedback payload', details: parsed.error.issues });
+    sendError(res, 400, 'Invalid feedback payload');
     return;
   }
 
   try {
-  const { supportInboxManager } = await import('./SupportInboxManager');
+    const { supportInboxManager } = await import('./SupportInboxManager');
     const entry = await supportInboxManager.createFeedback({
       category: parsed.data.category,
       sentiment: parsed.data.sentiment,
@@ -125,10 +110,10 @@ router.post('/support/feedback', async (req: Request, res: Response) => {
       email: parsed.data.email ?? null,
       appVersion: parsed.data.appVersion ?? null,
     });
-    res.status(201).json({ success: true, data: entry });
+    sendSuccess(res, entry, 201);
   } catch (err) {
-    logger.error('POST /api/support/feedback error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to save support feedback' });
+    logger.error('POST /api/support/feedback error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -148,11 +133,11 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
       void fs.unlink(archivePath).catch(() => undefined);
     });
   } catch (err) {
-    logger.error('GET /api/support/diagnostics error', { error: err instanceof Error ? err.message : String(err) });
+    logger.error('GET /api/support/diagnostics error', { error: getErrorMessage(err) });
     if (tmpZipPath) {
       void fs.unlink(tmpZipPath).catch(() => undefined);
     }
-    res.status(500).json({ success: false, error: 'Failed to export diagnostics' });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 

@@ -14,6 +14,7 @@ import { buildLaunchContext } from './launchContext';
 import { persistRunningEntries, reconcilePersistedInstances } from './persistence';
 import { runSessionCheck } from './sessionCheck';
 import type { RunningEntry } from './types';
+import { NotFoundError, ConflictError, InternalServerError } from '../../core/errors';
 
 const INSTANCES_PATH = dataPath('instances.json');
 const HEALTH_CHECK_INTERVAL_MS = 30_000;
@@ -38,12 +39,12 @@ export class InstanceManager {
 
   async launchInstance(profileId: string): Promise<Instance> {
     if (this.running.has(profileId)) {
-      throw new Error(`Instance already running for profile: ${profileId}`);
+      throw new ConflictError(`Instance already running for profile: ${profileId}`);
     }
 
     const profile = profileManager.getProfile(profileId);
     if (!profile) {
-      throw new Error(`Profile not found: ${profileId}`);
+      throw new NotFoundError('Profile', profileId);
     }
 
     const launchContext = await buildLaunchContext(profile, this.dataDir);
@@ -60,7 +61,7 @@ export class InstanceManager {
       if (launchContext.proxyCleanup) {
         launchContext.proxyCleanup();
       }
-      throw new Error('Failed to spawn browser process (no PID)');
+      throw new InternalServerError('Failed to spawn browser process (no PID)');
     }
 
     try {
@@ -70,7 +71,7 @@ export class InstanceManager {
       if (launchContext.proxyCleanup) {
         launchContext.proxyCleanup();
       }
-      throw new Error(`Browser did not become ready: ${error instanceof Error ? error.message : String(error)}`);
+      throw new InternalServerError(`Browser did not become ready: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     await this.applySavedCookies(profileId, launchContext.remoteDebuggingPort);
@@ -123,7 +124,7 @@ export class InstanceManager {
   async stopInstance(profileId: string): Promise<void> {
     const entry = this.running.get(profileId);
     if (!entry) {
-      throw new Error(`No running instance for profile: ${profileId}`);
+      throw new NotFoundError('Running instance', profileId);
     }
 
     processManager.kill(entry.process, 'SIGTERM');

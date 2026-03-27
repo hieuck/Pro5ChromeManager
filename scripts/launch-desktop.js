@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { SERVER_ENTRY_CANDIDATES, resolveExistingServerEntry } = require('./build-paths');
 
 const REQUIRED_BUILD_OUTPUTS = [
-  path.join('dist', 'server', 'index.js'),
+  ...SERVER_ENTRY_CANDIDATES,
   path.join('dist', 'ui', 'index.html'),
   path.join('dist', 'electron-main', 'main.js'),
 ];
@@ -35,7 +36,13 @@ function getLatestMtimeMs(targetPath) {
 }
 
 function getBuildState(projectRoot) {
-  const missingOutputs = REQUIRED_BUILD_OUTPUTS.filter((relativePath) => (
+  const { relativePath: serverEntry } = resolveExistingServerEntry(projectRoot);
+  const requiredOutputs = REQUIRED_BUILD_OUTPUTS.filter((relativePath) => (
+    !SERVER_ENTRY_CANDIDATES.includes(relativePath)
+  ));
+  requiredOutputs.unshift(serverEntry);
+
+  const missingOutputs = requiredOutputs.filter((relativePath) => (
     !fs.existsSync(path.join(projectRoot, relativePath))
   ));
 
@@ -43,7 +50,7 @@ function getBuildState(projectRoot) {
     Math.max(latest, getLatestMtimeMs(path.join(projectRoot, relativePath)))
   ), 0);
 
-  const buildLatestMtimeMs = REQUIRED_BUILD_OUTPUTS.reduce((latest, relativePath) => (
+  const buildLatestMtimeMs = requiredOutputs.reduce((latest, relativePath) => (
     Math.max(latest, getLatestMtimeMs(path.join(projectRoot, relativePath)))
   ), 0);
 

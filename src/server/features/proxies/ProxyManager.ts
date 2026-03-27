@@ -3,6 +3,7 @@ import * as ProxyChain from 'proxy-chain';
 import { logger } from '../../core/logging/logger';
 import { ProxyConfig } from '../../../shared/contracts';
 import { dataPath } from '../../core/fs/dataPaths';
+import { NotFoundError } from '../../core/errors';
 
 // Specialized Services
 import { proxyParser } from './proxyParser';
@@ -52,7 +53,7 @@ export class ProxyManager {
 
   async updateProxy(id: string, data: Partial<Omit<ProxyConfig, 'id'>>): Promise<ProxyConfig> {
     const existing = this.proxies.get(id);
-    if (!existing) throw new Error(`Proxy not found: ${id}`);
+    if (!existing) throw new NotFoundError('Proxy', id);
     const updated: ProxyConfig = { ...existing, ...data, id };
     this.proxies.set(id, updated);
     await this.persist();
@@ -60,7 +61,7 @@ export class ProxyManager {
   }
 
   async deleteProxy(id: string): Promise<void> {
-    if (!this.proxies.delete(id)) throw new Error(`Proxy not found: ${id}`);
+    if (!this.proxies.delete(id)) throw new NotFoundError('Proxy', id);
     await this.persist();
     logger.info('Proxy deleted', { id });
   }
@@ -106,7 +107,7 @@ export class ProxyManager {
 
   async recordTestSnapshot(id: string, snapshot: ProxyHealthSnapshot): Promise<ProxyConfig> {
     const existing = this.proxies.get(id);
-    if (!existing) throw new Error(`Proxy not found: ${id}`);
+    if (!existing) throw new NotFoundError('Proxy', id);
 
     const updated: ProxyConfig = {
       ...existing,

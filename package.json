@@ -4,7 +4,16 @@
   "description": "Pro5 Chrome Manager desktop app for isolated Chromium profiles",
   "main": "dist/electron-main/main.js",
   "scripts": {
-    "build:server": "tsc -p tsconfig.json",
+    "lint": "npm run lint:paths && npm run lint:ops-docs && npm run lint:file-size && npm run lint:no-secrets && npm run lint:boundaries",
+    "lint:paths": "node scripts/ci/validate-path-separators.js",
+    "lint:ops-docs": "node scripts/ci/validate-ops-docs.js",
+    "lint:file-size": "node scripts/ci/validate-file-size.js",
+    "lint:no-secrets": "node scripts/ci/validate-no-secrets.js",
+    "lint:boundaries": "node scripts/ci/validate-module-boundaries.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "clean:build": "node scripts/clean-build.js",
+    "clean:workspace": "node scripts/clean-workspace.js",
+    "build:server": "npm run clean:build && tsc -p tsconfig.json",
     "build:ui": "node -r ./scripts/vite-safe-realpath-shim.cjs ./node_modules/vite/bin/vite.js build --configLoader runner",
     "build:ui:optimized": "node -r ./scripts/vite-safe-realpath-shim.cjs ./node_modules/vite/bin/vite.js build --config vite.config.optimized.mjs",
     "build:electron": "tsc -p tsconfig.electron.json",
@@ -31,11 +40,13 @@
     "ops:smoke:local": "npm run build && node scripts/local-app-smoke.js",
     "package:electron:dev": "npm run generate:icons && npm run build && electron-builder --dir --win --config electron-builder.yml --config.win.signAndEditExecutable=false && npm run ops:verify:dev-package && npm run ops:smoke:dev-package",
     "generate:icons": "node scripts/generate-icons.js",
-    "package:electron": "npm run generate:icons && npm run build && electron-builder --config electron-builder.yml && npm run ops:artifacts && npm run ops:artifacts:verify",
+    "package:electron": "npm run generate:icons && npm run build && electron-builder --config electron-builder.yml --config.win.signAndEditExecutable=false && npm run ops:artifacts && npm run ops:artifacts:verify",
     "test": "node -r ./scripts/vite-safe-realpath-shim.cjs ./node_modules/vitest/vitest.mjs run --configLoader runner",
+    "test:coverage": "npm test -- --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "verify": "npm run lint && npm run typecheck && npm run test:coverage"
   },
   "keywords": [
     "anti-detect",
@@ -46,7 +57,7 @@
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@ant-design/icons": "^5.3.7",
@@ -78,6 +89,7 @@
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.10",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "electron": "^41.0.3",
     "electron-builder": "^26.8.1",
     "lru-cache": "^10.2.0",

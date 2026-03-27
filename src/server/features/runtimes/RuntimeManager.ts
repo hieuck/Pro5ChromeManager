@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import { configManager } from '../config/ConfigManager';
 import { logger } from '../../core/logging/logger';
+import { NotFoundError, ValidationError } from '../../core/errors';
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -66,14 +67,20 @@ export class RuntimeManager {
           return runtime.executablePath;
         }
       }
-      throw new Error('No available runtime found');
+      throw new ValidationError('No available runtime found', {
+        field: 'runtime',
+        value: 'auto',
+      });
     }
 
     const runtime = this.runtimes.get(key);
-    if (!runtime) throw new Error(`Runtime not found: ${key}`);
+    if (!runtime) throw new NotFoundError('Runtime', key);
 
     const available = await this.checkAvailability(runtime.executablePath);
-    if (!available) throw new Error(`Runtime not available: ${key} (${runtime.executablePath})`);
+    if (!available) throw new ValidationError(`Runtime not available: ${key} (${runtime.executablePath})`, {
+      field: 'runtime',
+      value: key,
+    });
 
     return runtime.executablePath;
   }
@@ -99,7 +106,7 @@ export class RuntimeManager {
   }
 
   async deleteRuntime(key: string): Promise<void> {
-    if (!this.runtimes.has(key)) throw new Error(`Runtime not found: ${key}`);
+    if (!this.runtimes.has(key)) throw new NotFoundError('Runtime', key);
     this.runtimes.delete(key);
 
     const current = { ...configManager.get().runtimes };

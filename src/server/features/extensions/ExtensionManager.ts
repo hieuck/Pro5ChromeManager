@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { dataPath } from '../../core/fs/dataPaths';
 import { logger } from '../../core/logging/logger';
 import { ManagedExtension, ExtensionBundle } from '../../../shared/contracts';
+import { NotFoundError, ConflictError, ValidationError } from '../../core/errors';
 
 // Specialized Services
 import { sourceResolver, ResolvedSourceInput } from './sourceResolver';
@@ -12,6 +13,14 @@ import { extractor } from './extractor';
 import { loadManagedExtensions, persistManagedExtensions } from './storage';
 
 const EXTENSIONS_PATH = dataPath('extensions.json');
+
+export interface ExtensionInspectResult {
+  sourcePath: string;
+  entryPath: string;
+  name: string;
+  version: string | null;
+  description: string | null;
+}
 
 export class ExtensionManager {
   private readonly extensionsPath: string;
@@ -53,7 +62,7 @@ export class ExtensionManager {
       extension.entryPath === resolvedSource.normalizedSourcePath
     ));
     if (duplicate) {
-      throw new Error(`Extension already added: ${duplicate.name}`);
+      throw new ConflictError(`Extension already added: ${duplicate.name}`);
     }
 
     const extensionId = uuidv4();
@@ -87,7 +96,7 @@ export class ExtensionManager {
     defaultForNewProfiles?: boolean;
   }): Promise<ManagedExtension> {
     const existing = this.extensions.get(id);
-    if (!existing) throw new Error(`Extension not found: ${id}`);
+    if (!existing) throw new NotFoundError('Extension', id);
 
     const updated: ManagedExtension = {
       ...existing,
@@ -105,7 +114,7 @@ export class ExtensionManager {
 
   async deleteExtension(id: string): Promise<void> {
     const extension = this.extensions.get(id);
-    if (!extension) throw new Error(`Extension not found: ${id}`);
+    if (!extension) throw new NotFoundError('Extension', id);
 
     this.extensions.delete(id);
     await this.persist();
@@ -167,17 +176,20 @@ export class ExtensionManager {
     return Array.from(selectedIds);
   }
 
-  async inspectExtension(sourcePath: string): Promise<any> {
+  async inspectExtension(sourcePath: string): Promise<ExtensionInspectResult> {
     return this.inspectExtensionSource(sourceResolver.resolve(sourcePath), uuidv4());
   }
 
-  private async inspectExtensionSource(source: ResolvedSourceInput, extensionId: string): Promise<any> {
+  private async inspectExtensionSource(source: ResolvedSourceInput, extensionId: string): Promise<ExtensionInspectResult> {
     let entryPath: string;
     if (source.kind === 'chrome_web_store') {
       entryPath = await this.downloadAndExtractCWS(source.extensionId!, extensionId);
     } else {
       const stat = await fs.stat(source.normalizedSourcePath).catch(() => null);
-      if (!stat) throw new Error(`Extension path not found: ${source.normalizedSourcePath}`);
+      if (!stat) throw new ValidationError(`Extension path not found: ${source.normalizedSourcePath}`, {
+        field: 'sourcePath',
+        value: source.normalizedSourcePath,
+      });
       
       entryPath = stat.isDirectory()
         ? await extractor.resolveExtensionEntryPath(source.normalizedSourcePath)

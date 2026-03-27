@@ -1,11 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import { ValidationError } from '../../core/errors';
 
 export interface BookmarkEntry {
   name: string;
   url: string;
-  folder: string | null;
+  folder?: string | null;
 }
 
 interface RawBookmarkEntry {
@@ -32,18 +33,18 @@ export function normalizeBookmark(input: RawBookmarkEntry): BookmarkEntry {
   const folder = typeof input.folder === 'string' && input.folder.trim() ? input.folder.trim() : null;
 
   if (!name) {
-    throw new Error('Bookmark name is required');
+    throw new ValidationError('Bookmark name is required', { field: 'name' });
   }
 
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(url);
   } catch {
-    throw new Error(`Bookmark URL is invalid for ${name}`);
+    throw new ValidationError(`Bookmark URL is invalid for ${name}`, { field: 'url', value: url });
   }
 
   if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-    throw new Error(`Bookmark URL must use http or https for ${name}`);
+    throw new ValidationError(`Bookmark URL must use http or https for ${name}`, { field: 'url', value: url });
   }
 
   return { name, url: parsedUrl.toString(), folder };

@@ -3,6 +3,7 @@ const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
+const { resolveExistingServerEntry } = require('./build-paths');
 
 async function waitForServer(baseUrl, timeoutMs) {
   const startedAt = Date.now();
@@ -62,9 +63,11 @@ async function main() {
   };
 
   await fsp.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  const projectRoot = path.resolve(__dirname, '..');
+  const { relativePath: serverEntry } = resolveExistingServerEntry(projectRoot);
 
-  const child = spawn(process.execPath, ['dist/server/index.js'], {
-    cwd: path.resolve(__dirname, '..'),
+  const child = spawn(process.execPath, [serverEntry], {
+    cwd: projectRoot,
     env: {
       ...process.env,
       DATA_DIR: smokeDir,

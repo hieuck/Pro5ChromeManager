@@ -1,7 +1,8 @@
 import path from 'path';
 import os from 'os';
+import fsSync from 'fs';
 import fs from 'fs/promises';
-import { execFileSync } from 'child_process';
+import archiver from 'archiver';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 async function setOnboardingCompleted(request: APIRequestContext, completed: boolean): Promise<void> {
@@ -62,17 +63,23 @@ async function createZipFixture(): Promise<string> {
   const fixturePath = path.join(process.cwd(), 'src', 'e2e', 'fixtures', 'sample-extension');
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pro5-extension-zip-'));
   const zipPath = path.join(tmpDir, 'sample-extension.zip');
-  execFileSync(
-    'powershell.exe',
-    [
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      `Compress-Archive -Path '${path.join(fixturePath, '*').replace(/'/g, "''")}' -DestinationPath '${zipPath.replace(/'/g, "''")}' -Force`,
-    ],
-    { stdio: 'pipe' },
-  );
+  await zipDirectory(fixturePath, zipPath);
   return zipPath;
+}
+
+async function zipDirectory(sourceDir: string, outputZipPath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const output = fsSync.createWriteStream(outputZipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => resolve());
+    output.on('error', reject);
+    archive.on('error', reject);
+
+    archive.pipe(output);
+    archive.directory(sourceDir, false);
+    void archive.finalize();
+  });
 }
 
 async function createCrxFixture(): Promise<string> {

@@ -178,8 +178,21 @@ export function buildIncidentSnapshot(incidents: IncidentEntry[]): IncidentSnaps
 
   const categories = Array.from(categoryMap.values()).sort((left, right) => {
     if (right.count !== left.count) return right.count - left.count;
+    if (right.errorCount !== left.errorCount) return right.errorCount - left.errorCount;
+
+    // Keep "general" as the last tie-breaker so actionable categories remain visible.
+    const leftIsGeneral = left.category === 'general';
+    const rightIsGeneral = right.category === 'general';
+    if (leftIsGeneral !== rightIsGeneral) {
+      return leftIsGeneral ? 1 : -1;
+    }
+
     return (right.latestAt ?? '').localeCompare(left.latestAt ?? '');
   });
+
+  const topCategory = categories.find((category) => category.category !== 'general')?.category
+    ?? categories[0]?.category
+    ?? null;
 
   return {
     count: incidents.length,
@@ -188,7 +201,7 @@ export function buildIncidentSnapshot(incidents: IncidentEntry[]): IncidentSnaps
       total: incidents.length,
       errorCount: incidents.filter((incident) => incident.level === 'error').length,
       warnCount: incidents.filter((incident) => incident.level === 'warn').length,
-      topCategory: categories[0]?.category ?? null,
+      topCategory,
       categories,
     },
     timeline: [...incidents].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),

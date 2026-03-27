@@ -5,7 +5,9 @@ import {
   defaultLanguage,
   languageMeta,
   supportedLanguages,
+  userFacingLanguages,
   type Language,
+  type UserFacingLanguage,
 } from '../../shared/i18n/locales';
 
 const qpsPloc = createPseudoLocale(en);
@@ -22,11 +24,29 @@ export function isSupportedLanguage(value: string | null | undefined): value is 
   return Boolean(value) && supportedLanguages.includes(value as Language);
 }
 
+export function isUserFacingLanguage(value: string | null | undefined): value is UserFacingLanguage {
+  return Boolean(value) && userFacingLanguages.includes(value as UserFacingLanguage);
+}
+
 export function getTranslations(language: Language): TranslationKeys {
   return translations[language];
 }
 
-export { defaultLanguage, languageMeta, supportedLanguages, type Language };
+export function getTranslationsWithFallback(language: string | null | undefined): TranslationKeys {
+  if (isSupportedLanguage(language)) {
+    return translations[language];
+  }
+  return translations[defaultLanguage];
+}
+
+export {
+  defaultLanguage,
+  languageMeta,
+  supportedLanguages,
+  userFacingLanguages,
+  type Language,
+  type UserFacingLanguage,
+};
 
 export function formatMessage(
   template: string,

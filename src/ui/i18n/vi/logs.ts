@@ -49,6 +49,7 @@ export const logs = {
   unknownValue: 'Không rõ',
   copied: 'Đã sao chép vào clipboard',
   copyFailed: 'Không thể sao chép',
+  loadFailed: 'Không thể tải nhật ký',
   issuesCopied: 'Đã sao chép danh sách sự cố',
   selfTestRan: 'Đã chạy tự kiểm tra hệ thống',
   latestIssueCopied: 'Đã sao chép sự cố mới nhất',

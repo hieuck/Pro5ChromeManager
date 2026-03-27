@@ -2,7 +2,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { dataPath } from '../../core/fs/dataPaths';
+import { sanitizePath } from '../../core/fs/pathSanitizer';
 import { logger } from '../../core/logging/logger';
+import { ConflictError, NotFoundError } from '../../core/errors';
 import { runtimeManager } from '../runtimes/RuntimeManager';
 
 // Specialized Services
@@ -76,9 +78,11 @@ export class BrowserCoreManager {
 
   async installCatalogCore(key: string): Promise<InstalledBrowserCore> {
     const entry = this.listCatalog().find((item) => item.key === key);
-    if (!entry) throw new Error(`Browser core catalog entry not found: ${key}`);
+    if (!entry) {
+      throw new NotFoundError('Browser core catalog entry', key);
+    }
     if (!entry.artifactUrl || entry.status !== 'package-ready') {
-      throw new Error(`Browser core package is not available yet: ${key}`);
+      throw new ConflictError(`Browser core package is not available yet: ${key}`);
     }
 
     const artifactUrl = browserCoreCatalog.validateArtifactUrl(entry.artifactUrl);
@@ -97,51 +101,58 @@ export class BrowserCoreManager {
   async installFromPackage(packagePath: string): Promise<InstalledBrowserCore> {
     const coreId = uuidv4();
     const installDir = path.join(this.installRootDir, coreId);
-    await fs.mkdir(installDir, { recursive: true });
-    await browserCoreExtractor.expandArchive(packagePath, installDir);
+    try {
+      await fs.mkdir(installDir, { recursive: true });
+      await browserCoreExtractor.expandArchive(packagePath, installDir);
 
-    const manifestPath = path.join(installDir, 'browser-core.json');
-    const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
-    const manifest = JSON.parse(manifestRaw) as BrowserCoreManifest;
-    validateBrowserCoreManifest(manifest);
+      const manifestPath = path.join(installDir, 'browser-core.json');
+      const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
+      const manifest = JSON.parse(manifestRaw) as BrowserCoreManifest;
+      validateBrowserCoreManifest(manifest);
 
-    const executablePath = path.join(installDir, manifest.executableRelativePath);
-    await fs.access(executablePath);
+      const executablePath = sanitizePath(installDir, manifest.executableRelativePath);
+      await fs.access(executablePath);
 
-    const managedRuntimeKey = `core-${manifest.key}`;
-    const existing = this.listInstalledCores().filter((core) => core.key === manifest.key);
-    for (const core of existing) {
-      this.cores.delete(core.id);
-      await fs.rm(core.installDir, { recursive: true, force: true });
+      const managedRuntimeKey = `core-${manifest.key}`;
+      const existing = this.listInstalledCores().filter((core) => core.key === manifest.key);
+      for (const core of existing) {
+        this.cores.delete(core.id);
+        await fs.rm(core.installDir, { recursive: true, force: true });
+      }
+
+      const now = new Date().toISOString();
+      const installedCore: InstalledBrowserCore = {
+        id: coreId,
+        key: manifest.key,
+        label: manifest.label,
+        version: manifest.version,
+        channel: manifest.channel ?? null,
+        platform: manifest.platform ?? process.platform,
+        executablePath,
+        installDir,
+        sourceType: 'package',
+        sourcePath: packagePath,
+        managedRuntimeKey,
+        installedAt: now,
+        updatedAt: now,
+      };
+
+      await runtimeManager.upsertRuntime(managedRuntimeKey, `${manifest.label} ${manifest.version}`, executablePath);
+      this.cores.set(installedCore.id, installedCore);
+      await this.persist();
+      logger.info('Browser core installed', { id: installedCore.id, key: installedCore.key, version: installedCore.version });
+      return installedCore;
+    } catch (error) {
+      await fs.rm(installDir, { recursive: true, force: true }).catch(() => undefined);
+      throw error;
     }
-
-    const now = new Date().toISOString();
-    const installedCore: InstalledBrowserCore = {
-      id: coreId,
-      key: manifest.key,
-      label: manifest.label,
-      version: manifest.version,
-      channel: manifest.channel ?? null,
-      platform: manifest.platform ?? process.platform,
-      executablePath,
-      installDir,
-      sourceType: 'package',
-      sourcePath: packagePath,
-      managedRuntimeKey,
-      installedAt: now,
-      updatedAt: now,
-    };
-
-    await runtimeManager.upsertRuntime(managedRuntimeKey, `${manifest.label} ${manifest.version}`, executablePath);
-    this.cores.set(installedCore.id, installedCore);
-    await this.persist();
-    logger.info('Browser core installed', { id: installedCore.id, key: installedCore.key, version: installedCore.version });
-    return installedCore;
   }
 
   async deleteCore(id: string): Promise<void> {
     const core = this.cores.get(id);
-    if (!core) throw new Error(`Browser core not found: ${id}`);
+    if (!core) {
+      throw new NotFoundError('Browser core', id);
+    }
 
     this.cores.delete(id);
     await this.persist();

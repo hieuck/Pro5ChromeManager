@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { extensionManager } from './ExtensionManager';
 import { logger } from '../../core/logging/logger';
+import { sendSuccess, sendError, getErrorStatusCode, getErrorMessage } from '../../core/http';
 
 const router = Router();
 
@@ -22,19 +23,19 @@ const UpdateExtensionSchema = z.object({
 
 router.get('/extensions', (_req: Request, res: Response) => {
   try {
-    res.json({ success: true, data: extensionManager.listExtensions() });
+    sendSuccess(res, extensionManager.listExtensions());
   } catch (err) {
-    logger.error('GET /api/extensions error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to list extensions' });
+    logger.error('GET /api/extensions error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
 router.get('/extensions/bundles', (_req: Request, res: Response) => {
   try {
-    res.json({ success: true, data: extensionManager.listBundles() });
+    sendSuccess(res, extensionManager.listBundles());
   } catch (err) {
-    logger.error('GET /api/extensions/bundles error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to list extension bundles' });
+    logger.error('GET /api/extensions/bundles error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -42,10 +43,10 @@ router.post('/extensions', async (req: Request, res: Response) => {
   try {
     const body = CreateExtensionSchema.parse(req.body);
     const extension = await extensionManager.addExtension(body);
-    res.status(201).json({ success: true, data: extension });
+    sendSuccess(res, extension, 201);
   } catch (err) {
-    logger.error('POST /api/extensions error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Bad request' });
+    logger.error('POST /api/extensions error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -53,22 +54,20 @@ router.put('/extensions/:id', async (req: Request, res: Response) => {
   try {
     const body = UpdateExtensionSchema.parse(req.body);
     const extension = await extensionManager.updateExtension(req.params['id'] ?? '', body);
-    res.json({ success: true, data: extension });
+    sendSuccess(res, extension);
   } catch (err) {
-    logger.error('PUT /api/extensions/:id error', { error: err instanceof Error ? err.message : String(err) });
-    const status = err instanceof Error && err.message.includes('not found') ? 404 : 400;
-    res.status(status).json({ success: false, error: err instanceof Error ? err.message : 'Bad request' });
+    logger.error('PUT /api/extensions/:id error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
 router.delete('/extensions/:id', async (req: Request, res: Response) => {
   try {
     await extensionManager.deleteExtension(req.params['id'] ?? '');
-    res.json({ success: true, data: null });
+    sendSuccess(res, null);
   } catch (err) {
-    logger.error('DELETE /api/extensions/:id error', { error: err instanceof Error ? err.message : String(err) });
-    const status = err instanceof Error && err.message.includes('not found') ? 404 : 400;
-    res.status(status).json({ success: false, error: err instanceof Error ? err.message : 'Bad request' });
+    logger.error('DELETE /api/extensions/:id error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 

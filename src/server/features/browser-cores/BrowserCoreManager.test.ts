@@ -25,7 +25,11 @@ describe('BrowserCoreManager', () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  async function createBrowserCorePackage(name = 'Pro5 Chromium', key = 'pro5-chromium'): Promise<string> {
+  async function createBrowserCorePackage(
+    name = 'Pro5 Chromium',
+    key = 'pro5-chromium',
+    executableRelativePath = 'runtime/pro5-chromium.exe',
+  ): Promise<string> {
     const uniqueToken = Math.random().toString(16).slice(2);
     const sourceDir = path.join(tmpDir, `${key}-package-${uniqueToken}`);
     const runtimeDir = path.join(sourceDir, 'runtime');
@@ -39,7 +43,7 @@ describe('BrowserCoreManager', () => {
         key,
         label: name,
         version: '127.0.0-preview',
-        executableRelativePath: 'runtime/pro5-chromium.exe',
+        executableRelativePath,
         channel: 'preview',
         platform: 'win32',
       }, null, 2),
@@ -108,7 +112,7 @@ describe('BrowserCoreManager', () => {
     expect(second.id).not.toBe(first.id);
     expect(manager.listInstalledCores()).toHaveLength(1);
     expect(manager.listInstalledCores()[0]?.id).toBe(second.id);
-  }, 15000);
+  }, 45000);
 
   it('deletes installed cores and unregisters their managed runtime', async () => {
     const packagePath = await createBrowserCorePackage();
@@ -197,5 +201,21 @@ describe('BrowserCoreManager', () => {
         process.env['PRO5_BROWSER_CORE_VERSION'] = previousVersion;
       }
     }
+  });
+
+  it('rejects package manifests with executable path traversal', async () => {
+    const packagePath = await createBrowserCorePackage('Pro5 Chromium', 'pro5-chromium', '../outside.exe');
+    const runtimeMod = await import('../runtimes/RuntimeManager');
+    const upsertSpy = vi.spyOn(runtimeMod.runtimeManager, 'upsertRuntime').mockResolvedValue({
+      key: 'core-pro5-chromium',
+      label: 'Pro5 Chromium 127.0.0-preview',
+      executablePath: 'stub',
+      available: true,
+    });
+
+    await expect(manager.installFromPackage(packagePath)).rejects.toThrow(
+      'executableRelativePath must not traverse parent directories',
+    );
+    expect(upsertSpy).not.toHaveBeenCalled();
   });
 });

@@ -1,88 +1,68 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { instanceManager } from './InstanceManager';
+import { sendSuccess } from '../../core/http';
+import { validateUuidParam } from '../../core/server/http/paramValidation';
+import { ValidationError } from '../../core/errors';
+import { asyncHandler } from '../../core/logging/errorHandler';
 
 const router = Router();
+router.param('id', validateUuidParam('id'));
 
 const SessionCheckBodySchema = z.object({
   url: z.string().url(),
 });
 
 // POST /api/profiles/:id/start
-router.post('/profiles/:id/start', async (req: Request, res: Response) => {
-  try {
-    const instance = await instanceManager.launchInstance(req.params['id'] as string);
-    res.status(201).json({ success: true, data: instance });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const status = msg.includes('not found') ? 404 : 500;
-    res.status(status).json({ success: false, error: msg });
-  }
-});
+router.post('/profiles/:id/start', asyncHandler(async (req: Request, res: Response) => {
+  const instance = await instanceManager.launchInstance(req.params['id'] as string);
+  sendSuccess(res, instance, 201);
+}));
 
 // POST /api/profiles/:id/stop
-router.post('/profiles/:id/stop', async (req: Request, res: Response) => {
-  try {
-    await instanceManager.stopInstance(req.params['id'] as string);
-    res.json({ success: true, data: null });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const status = msg.includes('No running instance') ? 404 : 500;
-    res.status(status).json({ success: false, error: msg });
-  }
-});
+router.post('/profiles/:id/stop', asyncHandler(async (req: Request, res: Response) => {
+  await instanceManager.stopInstance(req.params['id'] as string);
+  sendSuccess(res, null);
+}));
 
 // POST /api/profiles/:id/restart
-router.post('/profiles/:id/restart', async (req: Request, res: Response) => {
-  try {
-    const profileId = req.params['id'] as string;
-    const status = instanceManager.getStatus(profileId);
-    if (status !== 'not_running') {
-      await instanceManager.stopInstance(profileId);
-    }
-    const instance = await instanceManager.launchInstance(profileId);
-    res.status(201).json({ success: true, data: instance });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const status = msg.includes('not found') ? 404 : 500;
-    res.status(status).json({ success: false, error: msg });
+router.post('/profiles/:id/restart', asyncHandler(async (req: Request, res: Response) => {
+  const profileId = req.params['id'] as string;
+  const status = instanceManager.getStatus(profileId);
+  if (status !== 'not_running') {
+    await instanceManager.stopInstance(profileId);
   }
-});
+  const instance = await instanceManager.launchInstance(profileId);
+  sendSuccess(res, instance, 201);
+}));
 
 // GET /api/instances
 router.get('/instances', (_req: Request, res: Response) => {
-  res.json({ success: true, data: instanceManager.listInstances() });
+  sendSuccess(res, instanceManager.listInstances());
 });
 
 // POST /api/instances/stop-all
-router.post('/instances/stop-all', async (_req: Request, res: Response) => {
-  try {
-    await instanceManager.stopAll();
-    res.json({ success: true, data: null });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
-  }
-});
+router.post('/instances/stop-all', asyncHandler(async (_req: Request, res: Response) => {
+  await instanceManager.stopAll();
+  sendSuccess(res, null);
+}));
 
 // POST /api/profiles/:id/session-check
-router.post('/profiles/:id/session-check', async (req: Request, res: Response) => {
+router.post('/profiles/:id/session-check', asyncHandler(async (req: Request, res: Response) => {
   const parsed = SessionCheckBodySchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ success: false, error: 'Invalid request body', details: parsed.error.issues });
-    return;
+    throw new ValidationError('Invalid request body', {
+      context: { issues: parsed.error.issues },
+    });
   }
-  try {
-    const result = await instanceManager.sessionCheck(req.params['id'] as string, parsed.data.url);
-    res.json({ success: true, data: result });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
-  }
-});
+  const result = await instanceManager.sessionCheck(req.params['id'] as string, parsed.data.url);
+  sendSuccess(res, result);
+}));
 
 // GET /api/profiles/:id/status
 router.get('/profiles/:id/status', (req: Request, res: Response) => {
   const status = instanceManager.getStatus(req.params['id'] as string);
-  res.json({ success: true, data: { status } });
+  sendSuccess(res, { status });
 });
 
 export default router;

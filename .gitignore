@@ -4,6 +4,10 @@ node_modules/
 # Build output
 dist/
 .browser-fork/
+playwright-report/
+test-results/
+coverage/
+.nyc_output/
 
 # Data — user data, sensitive files
 data/profiles/
@@ -18,6 +22,8 @@ data/logs/
 
 # Logs
 *.log
+build-output.log
+test-results.log
 
 # OS
 .DS_Store
@@ -40,5 +46,21 @@ desktop.ini
 .env
 .env.local
 .env.*.local
+
+# Local agent/editor settings (do not commit)
+.claude/settings.local.json
+.cursor/settings.json
 /tmp
-/data
+/backups
+/data-e2e-test
+/logs
+/.qoder
+/dashboard-report.json
+/pro5-diagnostics.zip
+
+# Debug / scratch files
+*-error.txt
+*-errors.txt
+parsed-errors*.txt
+test-results*.json
+op-results.json

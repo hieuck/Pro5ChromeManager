@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from './shared/hooks/useTranslation';
-import { languageMeta, supportedLanguages } from './i18n';
+import { defaultLanguage, languageMeta, userFacingLanguages } from './i18n';
 import ProfileListPage from './features/profiles';
 import ProxiesPage from './features/proxies';
 import ExtensionsPage from './features/extensions';
@@ -73,8 +73,10 @@ const App: React.FC = () => {
   }, [format, t.common.updateNow, t.common.updateReadyDescription, t.common.updateReadyTitle]);
 
   function toggleLanguage(): void {
-    const currentIndex = supportedLanguages.indexOf(lang);
-    const next = supportedLanguages[(currentIndex + 1) % supportedLanguages.length];
+    const currentIndex = userFacingLanguages.indexOf(lang);
+    const next = currentIndex >= 0
+      ? userFacingLanguages[(currentIndex + 1) % userFacingLanguages.length]
+      : defaultLanguage;
     localStorage.setItem('uiLanguage', next);
     window.location.reload();
   }

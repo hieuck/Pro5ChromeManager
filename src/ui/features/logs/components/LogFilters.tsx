@@ -4,6 +4,7 @@ import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { type LogsState } from '../useLogsState';
 
 export const LogFilters: React.FC<{ state: LogsState }> = ({ state }) => {
+  const showDebugSurface = import.meta.env.DEV;
   const {
     t, loading, filter, query, sourceFilter, autoRefresh, recentWindowOnly, sortOrder, lastRefreshedAt,
     setFilter, setQuery, setSourceFilter, setAutoRefresh, setRecentWindowOnly, setSortOrder,
@@ -22,7 +23,7 @@ export const LogFilters: React.FC<{ state: LogsState }> = ({ state }) => {
           options={[
             { label: t.logs.filterAll, value: 'all' },
             { label: t.logs.issuesOnly, value: 'issues' },
-            { label: t.logs.filterDebug, value: 'debug' },
+            ...(showDebugSurface ? [{ label: t.logs.filterDebug, value: 'debug' }] : []),
             { label: t.logs.filterInfo, value: 'info' },
             { label: t.logs.filterWarn, value: 'warn' },
             { label: t.logs.filterError, value: 'error' },
@@ -85,9 +86,6 @@ export const LogFilters: React.FC<{ state: LogsState }> = ({ state }) => {
           <Typography.Text type="secondary">{t.logs.autoRefresh}</Typography.Text>
           <Switch checked={autoRefresh} onChange={setAutoRefresh} />
         </Space>
-        <Button onClick={() => { void state.handleRunSelfTest(); }}>
-          {t.logs.runSelfTest}
-        </Button>
         <Button onClick={handleResetFilters}>
           {t.logs.resetFilters}
         </Button>

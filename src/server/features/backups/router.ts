@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { backupManager } from './BackupManager';
 import { logger } from '../../core/logging/logger';
+import { sendSuccess, sendError, getErrorStatusCode, getErrorMessage } from '../../core/http';
 
 const router = Router();
 
@@ -8,10 +9,10 @@ const router = Router();
 router.get('/backups', async (_req: Request, res: Response) => {
   try {
     const backups = await backupManager.listBackups();
-    res.json({ success: true, data: backups });
+    sendSuccess(res, backups);
   } catch (err) {
-    logger.error('GET /api/backups error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: 'Failed to list backups' });
+    logger.error('GET /api/backups error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -19,10 +20,10 @@ router.get('/backups', async (_req: Request, res: Response) => {
 router.post('/backups', async (_req: Request, res: Response) => {
   try {
     const entry = await backupManager.createBackup();
-    res.status(201).json({ success: true, data: entry });
+    sendSuccess(res, entry, 201);
   } catch (err) {
-    logger.error('POST /api/backups error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(500).json({ success: false, error: err instanceof Error ? err.message : 'Backup failed' });
+    logger.error('POST /api/backups error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -31,11 +32,10 @@ router.post('/backups/restore/:filename', async (req: Request, res: Response) =>
   try {
     const { filename } = req.params;
     await backupManager.restoreBackup(filename);
-    res.json({ success: true, data: null });
+    sendSuccess(res, null);
   } catch (err) {
-    logger.error('POST /api/backups/restore error', { error: err instanceof Error ? err.message : String(err) });
-    const status = err instanceof Error && err.message.includes('not found') ? 404 : 400;
-    res.status(status).json({ success: false, error: err instanceof Error ? err.message : 'Restore failed' });
+    logger.error('POST /api/backups/restore error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 
@@ -48,8 +48,8 @@ router.get('/backups/export/:filename', async (req: Request, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.sendFile(filePath);
   } catch (err) {
-    logger.error('GET /api/backups/export error', { error: err instanceof Error ? err.message : String(err) });
-    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Export failed' });
+    logger.error('GET /api/backups/export error', { error: getErrorMessage(err) });
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 

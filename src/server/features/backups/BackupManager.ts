@@ -6,6 +6,7 @@ import { logger } from '../../core/logging/logger';
 import { configManager } from '../config/ConfigManager';
 import { dataPath, resolveAppPath } from '../../core/fs/dataPaths';
 import { BackupEntry } from '../../../shared/contracts';
+import { ValidationError } from '../../core/errors';
 
 const BACKUPS_DIR = dataPath('backups');
 const MAX_BACKUPS = 7;
@@ -98,7 +99,7 @@ export class BackupManager {
    */
   async restoreBackup(filename: string): Promise<void> {
     if (filename.includes('/') || filename.includes('\\') || !filename.endsWith('.zip')) {
-      throw new Error('Invalid backup filename');
+      throw new ValidationError('Invalid backup filename', { field: 'filename', value: filename });
     }
     const backupPath = path.join(this.backupsDir, filename);
     await fs.access(backupPath); // throws ENOENT if not found
@@ -146,7 +147,7 @@ export class BackupManager {
 
   getBackupPath(filename: string): string {
     if (filename.includes('/') || filename.includes('\\') || !filename.endsWith('.zip')) {
-      throw new Error('Invalid backup filename');
+      throw new ValidationError('Invalid backup filename', { field: 'filename', value: filename });
     }
     return path.join(this.backupsDir, filename);
   }

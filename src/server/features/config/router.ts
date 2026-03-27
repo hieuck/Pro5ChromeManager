@@ -1,20 +1,48 @@
 import { Router, Request, Response } from 'express';
-import { configManager } from './ConfigManager';
+import { z } from 'zod';
+import { configManager, AppConfigSchema, AppConfig } from './ConfigManager';
 import { logger } from '../../core/logging/logger';
+import { sendSuccess, sendError, getErrorStatusCode, getErrorMessage } from '../../core/http';
 
 const router = Router();
+const ConfigUpdateSchema = AppConfigSchema.deepPartial().strict();
 
 router.get('/config', (_req: Request, res: Response) => {
-  res.json({ success: true, data: configManager.get() });
+  sendSuccess(res, configManager.get());
 });
 
 router.put('/config', async (req: Request, res: Response) => {
+  const parsed = ConfigUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    sendError(
+      res,
+      400,
+      'Invalid config payload',
+      'VALIDATION_ERROR',
+      parsed.error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+      })),
+    );
+    return;
+  }
+
   try {
-    const updated = await configManager.update(req.body);
-    res.json({ success: true, data: updated });
+    const updated = await configManager.update(parsed.data as Partial<AppConfig>);
+    sendSuccess(res, updated);
   } catch (err) {
-    logger.error('Failed to update config', { error: err instanceof Error ? err.message : String(err) });
-    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Invalid config' });
+    const details = err instanceof z.ZodError
+      ? err.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+        }))
+      : undefined;
+    logger.error('Failed to update config', { error: getErrorMessage(err) });
+    if (details) {
+      sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', details);
+      return;
+    }
+    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
   }
 });
 

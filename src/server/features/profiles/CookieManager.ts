@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { profileManager } from './ProfileManager';
 import { logger } from '../../core/logging/logger';
+import { ValidationError } from '../../core/errors';
 
 export interface ManagedCookie {
   name: string;
@@ -59,10 +60,10 @@ export function normalizeCookie(input: RawCookieShape): ManagedCookie {
   const expires = normalizeExpires(input.expires ?? input.expirationDate);
 
   if (!name) {
-    throw new Error('Cookie name is required');
+    throw new ValidationError('Cookie name is required', { field: 'name' });
   }
   if (!domain) {
-    throw new Error(`Cookie domain is required for ${name}`);
+    throw new ValidationError(`Cookie domain is required for ${name}`, { field: 'domain' });
   }
 
   return {
