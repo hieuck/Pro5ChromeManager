@@ -1,0 +1,6 @@
+{
+  "manifest_version": 3,
+  "name": "Playwright Sample Extension",
+  "version": "0.0.1",
+  "description": "Fixture extension for Pro5 E2E tests"
+}

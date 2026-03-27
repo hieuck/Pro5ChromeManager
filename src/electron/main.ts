@@ -3,7 +3,6 @@ import { existsSync } from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
 import { autoUpdater } from 'electron-updater';
-import { isSafeExternalUrl } from './urlSafety';
 
 const APP_URL = 'http://127.0.0.1:3210/ui';
 const IS_DEV = process.env['NODE_ENV'] === 'development';
@@ -16,7 +15,6 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let serverStarted = false;
 let updateReady = false;
-let updaterInterval: NodeJS.Timeout | null = null;
 
 app.setName(APP_NAME);
 if (process.platform === 'win32') {
@@ -110,8 +108,9 @@ async function waitForBackendReady(timeoutMs = 15000): Promise<void> {
 }
 
 function createWindow(): void {
-  const iconImage = nativeImage.createFromPath(ICON_PATH);
-  const icon = iconImage.isEmpty() ? undefined : iconImage;
+  const icon = nativeImage.createFromPath(ICON_PATH).isEmpty()
+    ? undefined
+    : nativeImage.createFromPath(ICON_PATH);
 
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -162,10 +161,6 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!isSafeExternalUrl(url)) {
-      logMain('warn', 'Blocked unsafe external URL', { url });
-      return { action: 'deny' };
-    }
     void shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -237,7 +232,7 @@ function setupAutoUpdater(): void {
   });
 
   void autoUpdater.checkForUpdates().catch(() => undefined);
-  updaterInterval = setInterval(() => {
+  setInterval(() => {
     void autoUpdater.checkForUpdates().catch(() => undefined);
   }, 24 * 60 * 60 * 1000);
 }
@@ -280,10 +275,6 @@ app.on('activate', () => {
 
 app.on('before-quit', async () => {
   logMain('info', 'Electron app quitting');
-  if (updaterInterval) {
-    clearInterval(updaterInterval);
-    updaterInterval = null;
-  }
   try {
     const { instanceManager } = require('../server/features/instances/InstanceManager') as
       { instanceManager: { stopAll: () => Promise<void> } };

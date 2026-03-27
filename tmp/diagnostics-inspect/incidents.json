@@ -1,0 +1,71 @@
+{
+  "count": 11,
+  "incidents": [
+    {
+      "timestamp": "2026-03-25T05:41:26.660Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    },
+    {
+      "timestamp": "2026-03-25T01:10:37.032Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    },
+    {
+      "timestamp": "2026-03-25T00:40:39.405Z",
+      "level": "error",
+      "source": "electron-main.log",
+      "message": "Electron child process gone"
+    },
+    {
+      "timestamp": "2026-03-25T00:40:19.759Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    },
+    {
+      "timestamp": "2026-03-25T00:39:31.447Z",
+      "level": "error",
+      "source": "electron-main.log",
+      "message": "Electron child process gone"
+    },
+    {
+      "timestamp": "2026-03-25T00:25:56.554Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    },
+    {
+      "timestamp": "2026-03-25T00:23:46.991Z",
+      "level": "error",
+      "source": "electron-main.log",
+      "message": "Electron child process gone"
+    },
+    {
+      "timestamp": "2026-03-25T00:23:20.824Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    },
+    {
+      "timestamp": "2026-03-24T23:58:15.604Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    },
+    {
+      "timestamp": "2026-03-23T01:09:28.949Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    },
+    {
+      "timestamp": "2026-03-23T01:04:27.200Z",
+      "level": "warn",
+      "source": "electron-main.log",
+      "message": "Backend readiness probe failed"
+    }
+  ]
+}
