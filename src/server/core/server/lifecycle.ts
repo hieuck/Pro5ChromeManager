@@ -9,6 +9,7 @@ import { trackError } from '../monitoring/metrics';
 let httpServerRef: http.Server | null = null;
 let shutdownRegistered = false;
 let shuttingDown = false;
+let startPromise: Promise<void> | null = null;
 
 interface InitializationStep {
   readonly name: string;
@@ -17,8 +18,17 @@ interface InitializationStep {
 
 async function runInitializationStep(step: InitializationStep): Promise<void> {
   const startedAt = Date.now();
-  await step.run();
-  loggerService.performance(`Manager initialized: ${step.name}`, Date.now() - startedAt);
+  try {
+    await step.run();
+    loggerService.performance(`Manager initialized: ${step.name}`, Date.now() - startedAt);
+  } catch (error) {
+    loggerService.error('Manager initialization failed', error, {
+      step: step.name,
+      durationMs: Date.now() - startedAt,
+    });
+    trackError('INTERNAL_SERVER_ERROR', 'high');
+    throw error;
+  }
 }
 
 async function initializeManagers(): Promise<void> {
@@ -110,37 +120,53 @@ async function initializeManagers(): Promise<void> {
 }
 
 export async function startServer(app: Express): Promise<void> {
-  await initializeManagers();
+  if (startPromise) {
+    loggerService.warn('Start server joined in-flight startup operation');
+    return startPromise;
+  }
 
-  const { host, port } = configManager.get().api;
-  const httpServer = http.createServer(app);
-  httpServerRef = httpServer;
-  wsServer.attach(httpServer);
+  if (httpServerRef) {
+    loggerService.warn('Start server skipped because HTTP server is already initialized');
+    return;
+  }
 
-  await new Promise<void>((resolve, reject) => {
-    const onError = (error: Error): void => {
-      httpServer.off('listening', onListening);
-      bootState.ready = false;
-      bootState.lastError = error.message;
-      wsServer.close();
-      httpServerRef = null;
-      loggerService.error('Failed to start server', error, { host, port });
-      reject(error);
-    };
+  startPromise = (async () => {
+    await initializeManagers();
 
-    const onListening = (): void => {
-      httpServer.off('error', onError);
-      bootState.ready = true;
-      bootState.lastError = null;
-      loggerService.info('API server running', { host, port });
-      loggerService.info('WebSocket server running', { host, port, path: '/ws' });
-      resolve();
-    };
+    const { host, port } = configManager.get().api;
+    const httpServer = http.createServer(app);
+    httpServerRef = httpServer;
+    wsServer.attach(httpServer);
 
-    httpServer.once('error', onError);
-    httpServer.once('listening', onListening);
-    httpServer.listen(port, host);
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error): void => {
+        httpServer.off('listening', onListening);
+        bootState.ready = false;
+        bootState.lastError = error.message;
+        wsServer.close();
+        httpServerRef = null;
+        loggerService.error('Failed to start server', error, { host, port });
+        reject(error);
+      };
+
+      const onListening = (): void => {
+        httpServer.off('error', onError);
+        bootState.ready = true;
+        bootState.lastError = null;
+        loggerService.info('API server running', { host, port });
+        loggerService.info('WebSocket server running', { host, port, path: '/ws' });
+        resolve();
+      };
+
+      httpServer.once('error', onError);
+      httpServer.once('listening', onListening);
+      httpServer.listen(port, host);
+    });
+  })().finally(() => {
+    startPromise = null;
   });
+
+  return startPromise;
 }
 
 export async function stopServer(reason = 'shutdown'): Promise<void> {
