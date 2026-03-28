@@ -17,6 +17,7 @@ import type { RunningEntry } from './types';
 import { NotFoundError, ConflictError, InternalServerError } from '../../core/errors';
 
 const INSTANCES_PATH = dataPath('instances.json');
+const CDP_READY_TIMEOUT_MS = 30_000;
 const HEALTH_CHECK_INTERVAL_MS = 30_000;
 const SIGTERM_WAIT_MS = 3_000;
 
@@ -65,7 +66,7 @@ export class InstanceManager {
     }
 
     try {
-      await waitForCDP(launchContext.remoteDebuggingPort, 30_000);
+      await waitForCDP(launchContext.remoteDebuggingPort, CDP_READY_TIMEOUT_MS);
     } catch (error) {
       processManager.kill(child, 'SIGKILL');
       if (launchContext.proxyCleanup) {

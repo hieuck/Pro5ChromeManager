@@ -10,6 +10,7 @@ interface BrowserCoresTabProps {
 
 export const BrowserCoresTab: React.FC<BrowserCoresTabProps> = ({ state }) => {
   const {
+    t,
     cores,
     catalog,
     loadingCores,
@@ -29,15 +30,21 @@ export const BrowserCoresTab: React.FC<BrowserCoresTabProps> = ({ state }) => {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
         <Typography.Text type="secondary">
-          Quản lý browser runtime riêng của Pro5. Core đã cài sẽ tự xuất hiện như runtime cho profile.
+          {t.settings.browserCoresDescription}
         </Typography.Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => void fetchCores()} loading={loadingCores}>Làm mới</Button>
-          <Button type="primary" icon={<InboxOutlined />} onClick={() => setImportCoresOpen(true)}>Import core package</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => void fetchCores()} loading={loadingCores}>
+            {t.settings.refresh}
+          </Button>
+          <Button type="primary" icon={<InboxOutlined />} onClick={() => setImportCoresOpen(true)}>
+            {t.settings.browserCoreImportAction}
+          </Button>
         </Space>
       </Row>
 
-      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>Catalog</Typography.Text>
+      <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+        {t.settings.browserCoresCatalogTitle}
+      </Typography.Text>
       <Table
         rowKey="key"
         size="small"
@@ -45,31 +52,43 @@ export const BrowserCoresTab: React.FC<BrowserCoresTabProps> = ({ state }) => {
         loading={loadingCores}
         dataSource={catalog}
         columns={[
-          { title: 'Core', key: 'label', render: (_: unknown, item: BrowserCoreCatalogEntry) => item.version ? `${item.label} ${item.version}` : item.label },
-          { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 120 },
-          { title: 'Platform', dataIndex: 'platform', key: 'platform', width: 120 },
           {
-            title: 'Status',
+            title: t.settings.browserCoreLabel,
+            key: 'label',
+            render: (_: unknown, item: BrowserCoreCatalogEntry) => (
+              item.version ? `${item.label} ${item.version}` : item.label
+            ),
+          },
+          { title: t.settings.channelLabel, dataIndex: 'channel', key: 'channel', width: 120 },
+          { title: t.settings.platformLabel, dataIndex: 'platform', key: 'platform', width: 120 },
+          {
+            title: t.common.status,
             key: 'status',
             width: 160,
             render: (_: unknown, item: BrowserCoreCatalogEntry) => (
               <Tag color={item.installed ? 'success' : item.status === 'package-ready' ? 'processing' : 'default'}>
-                {item.installed ? 'Installed' : item.status === 'package-ready' ? 'Package ready' : 'Planned'}
+                {item.installed
+                  ? t.settings.browserCoreCatalogStatusInstalled
+                  : item.status === 'package-ready'
+                    ? t.settings.browserCoreCatalogStatusReady
+                    : t.settings.browserCoreCatalogStatusPlanned}
               </Tag>
             ),
           },
-          { title: 'Notes', dataIndex: 'notes', key: 'notes' },
+          { title: t.settings.notesLabel, dataIndex: 'notes', key: 'notes' },
           {
             title: '',
             key: 'actions',
             width: 120,
             render: (_: unknown, item: BrowserCoreCatalogEntry) => {
               if (item.installed) {
-                return <Tag color="success">Installed</Tag>;
+                return <Tag color="success">{t.settings.browserCoreCatalogStatusInstalled}</Tag>;
               }
+
               if (item.status !== 'package-ready' || !item.artifactUrl) {
-                return <Tag>Unavailable</Tag>;
+                return <Tag>{t.settings.browserCoreCatalogUnavailable}</Tag>;
               }
+
               return (
                 <Button
                   size="small"
@@ -77,7 +96,7 @@ export const BrowserCoresTab: React.FC<BrowserCoresTabProps> = ({ state }) => {
                   loading={installingCoreKey === item.key}
                   onClick={() => void handleInstallFromCatalog(item.key)}
                 >
-                  Install
+                  {t.settings.browserCoreCatalogInstall}
                 </Button>
               );
             },
@@ -85,26 +104,63 @@ export const BrowserCoresTab: React.FC<BrowserCoresTabProps> = ({ state }) => {
         ]}
       />
 
-      <Typography.Text strong style={{ display: 'block', margin: '16px 0 8px' }}>Installed cores</Typography.Text>
+      <Typography.Text strong style={{ display: 'block', margin: '16px 0 8px' }}>
+        {t.settings.browserCoresInstalledTitle}
+      </Typography.Text>
       <Table
         rowKey="id"
         size="small"
         pagination={false}
         loading={loadingCores}
         dataSource={cores}
-        locale={{ emptyText: <Empty description="Chưa có browser core nào" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        locale={{ emptyText: <Empty description={t.settings.browserCoreEmpty} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
         columns={[
-          { title: 'Core', key: 'label', render: (_: unknown, core: BrowserCore) => `${core.label} ${core.version}` },
-          { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 120, render: (v: string | null) => v ?? 'stable' },
-          { title: 'Runtime', dataIndex: 'managedRuntimeKey', key: 'managedRuntimeKey', render: (v: string) => <Typography.Text code>{v}</Typography.Text> },
-          { title: 'Executable', dataIndex: 'executablePath', key: 'executablePath', render: (v: string) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{v}</Typography.Text> },
-          { title: 'Installed', dataIndex: 'installedAt', key: 'installedAt', width: 180, render: (v: string) => new Date(v).toLocaleString('vi-VN') },
+          {
+            title: t.settings.browserCoreLabel,
+            key: 'label',
+            render: (_: unknown, core: BrowserCore) => `${core.label} ${core.version}`,
+          },
+          {
+            title: t.settings.channelLabel,
+            dataIndex: 'channel',
+            key: 'channel',
+            width: 120,
+            render: (value: string | null) => value ?? 'stable',
+          },
+          {
+            title: t.settings.browserCoreRuntimeLabel,
+            dataIndex: 'managedRuntimeKey',
+            key: 'managedRuntimeKey',
+            render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
+          },
+          {
+            title: t.settings.browserCoreExecutableLabel,
+            dataIndex: 'executablePath',
+            key: 'executablePath',
+            render: (value: string) => (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {value}
+              </Typography.Text>
+            ),
+          },
+          {
+            title: t.settings.browserCoreInstalledLabel,
+            dataIndex: 'installedAt',
+            key: 'installedAt',
+            width: 180,
+            render: (value: string) => new Date(value).toLocaleString(),
+          },
           {
             title: '',
             key: 'actions',
             width: 72,
             render: (_: unknown, core: BrowserCore) => (
-              <Popconfirm title="Gỡ browser core này?" onConfirm={() => void handleDeleteCore(core.id)} okText="Gỡ" cancelText="Hủy">
+              <Popconfirm
+                title={t.settings.browserCoreDeleteConfirm}
+                onConfirm={() => void handleDeleteCore(core.id)}
+                okText={t.common.delete}
+                cancelText={t.common.cancel}
+              >
                 <Button size="small" danger icon={<DeleteOutlined />} />
               </Popconfirm>
             ),
@@ -114,13 +170,15 @@ export const BrowserCoresTab: React.FC<BrowserCoresTabProps> = ({ state }) => {
 
       <Modal
         open={importCoresOpen}
-        title="Import browser core package"
-        okText="Cài browser core"
-        cancelText="Hủy"
+        title={t.settings.browserCoreImportModalTitle}
+        okText={t.settings.browserCoreImportModalConfirm}
+        cancelText={t.common.cancel}
         confirmLoading={importingCores}
         onOk={() => void handleImportCore()}
         onCancel={() => {
-          if (importingCores) return;
+          if (importingCores) {
+            return;
+          }
           setImportCoresOpen(false);
           setCorePackageFiles([]);
         }}
@@ -135,10 +193,8 @@ export const BrowserCoresTab: React.FC<BrowserCoresTabProps> = ({ state }) => {
           <p className="ant-upload-drag-icon">
             <InboxOutlined />
           </p>
-          <p className="ant-upload-text">Thả gói `.zip` của browser core vào đây</p>
-          <p className="ant-upload-hint">
-            Archive cần có `browser-core.json` và binary runtime bên trong.
-          </p>
+          <p className="ant-upload-text">{t.settings.browserCoreUploadText}</p>
+          <p className="ant-upload-hint">{t.settings.browserCoreUploadHint}</p>
         </Upload.Dragger>
       </Modal>
     </div>

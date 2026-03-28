@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { ParsedLogEntry } from './logParsing';
 import {
+  buildLogEntryDetailsText,
   buildIssueDigestText,
+  buildRecentIssueDigestText,
+  buildRecentIssueSourceLatestText,
   buildRecentIssueSourceDigestText,
+  buildRepeatedRecentIssuesText,
+  buildRepeatedRecentSourcesText,
+  buildVisibleSourceDigestText,
+  buildVisibleSourceLatestText,
   buildVisibleSliceSummaryText,
+  buildVisibleSourcesText,
   buildVisibleTopSourceSummaryText,
   type LogsCopyTextContext,
 } from './logsCopyText';
@@ -110,6 +118,30 @@ describe('logsCopyText', () => {
     expect(text).toContain('Latest issue: error:Proxy failed');
   });
 
+  it('builds detailed log entry and recent source latest text blocks', () => {
+    const entry = createEntry();
+
+    const entryDetails = buildLogEntryDetailsText(context, entry);
+    const sourceLatest = buildRecentIssueSourceLatestText(context, 'proxy', entry);
+
+    expect(entryDetails).toContain('Level: ERROR');
+    expect(entryDetails).toContain('Raw: {"level":"error","message":"Proxy failed"}');
+    expect(sourceLatest).toContain('Source: proxy');
+    expect(sourceLatest).toContain('Message: Proxy failed');
+  });
+
+  it('builds repeated issue and repeated source summaries', () => {
+    const repeatedIssues = buildRepeatedRecentIssuesText(context, [
+      { count: 4, level: 'warn', message: 'Proxy warming up' },
+    ]);
+    const repeatedSources = buildRepeatedRecentSourcesText(context, [
+      { count: 3, level: 'error', source: 'proxy', latestEntry: createEntry() },
+    ]);
+
+    expect(repeatedIssues).toContain('WARN | 4x | Proxy warming up');
+    expect(repeatedSources).toContain('ERROR | 3x | proxy');
+  });
+
   it('builds visible top source summaries with share and trend data', () => {
     const source: VisibleSourceSummary = {
       source: 'proxy',
@@ -130,6 +162,44 @@ describe('logsCopyText', () => {
     expect(text).toContain('Top source share: 67%');
     expect(text).toContain('Mode: Focused');
     expect(text).toContain('Top source trend: Hot | 15m=3 | 60m=6');
+  });
+
+  it('builds visible source latest, digest, and aggregate source summaries', () => {
+    const source: VisibleSourceSummary = {
+      source: 'proxy',
+      count: 4,
+      latestEntry: createEntry({
+        timestamp: '',
+      }),
+    };
+
+    const latestText = buildVisibleSourceLatestText(context, {
+      source,
+      actionHint: 'Inspect immediately',
+      topSourceTimestamp: '2026-03-26 18:59',
+      topSourceTrend: { last15m: 3, last60m: 6, label: 'Hot' },
+    });
+    const digestText = buildVisibleSourceDigestText(context, {
+      source,
+      sharePercent: 67,
+      concentrationPercent: 80,
+      mode: { label: 'Focused', hint: 'Mostly one source' },
+      actionHint: 'Inspect immediately',
+      topSourceFreshness: 'just now',
+      topSourceTimestamp: '2026-03-26 18:59',
+      topSourceTrend: { last15m: 3, last60m: 6, label: 'Hot' },
+    });
+    const sourcesText = buildVisibleSourcesText(context, {
+      sources: [source],
+      sharePercent: 67,
+      concentrationPercent: 80,
+      mode: { label: 'Focused', hint: 'Mostly one source' },
+    });
+
+    expect(latestText).toContain('Top source trend: Hot | 15m=3 | 60m=6');
+    expect(digestText).toContain('Latest timestamp: Unknown');
+    expect(digestText).toContain('Mode hint: Mostly one source');
+    expect(sourcesText).toContain('4x | proxy | ERROR | Proxy failed');
   });
 
   it('builds issue digests and recent source digests with latest entry details', () => {
@@ -156,5 +226,30 @@ describe('logsCopyText', () => {
     expect(issueDigest).toContain('Search: proxy');
     expect(recentSourceDigest).toContain('Issue lines 60m: 3');
     expect(recentSourceDigest).toContain('Latest issue message: Proxy failed');
+  });
+
+  it('builds recent issue digest snapshots and no-state visible slice summaries', () => {
+    const recentIssueDigest = buildRecentIssueDigestText(context, {
+      recentIssueCount: 7,
+      recentIssueBreakdown: { error: 5, warn: 2 },
+      latestRecentIssue: createEntry(),
+    });
+    const emptyVisibleSlice = buildVisibleSliceSummaryText(context, {
+      totalEntries: 0,
+      visibleEntries: 0,
+      filteredCounts: { debug: 0, info: 0, warn: 0, error: 0 },
+      visibleTrendLabel: 'Cold',
+      filter: 'all',
+      recentWindowOnly: false,
+      sortOrder: 'oldest',
+      query: '   ',
+      visibleIssueTrend: { last15m: 0, last60m: 0 },
+      latestVisibleIssue: null,
+    });
+
+    expect(recentIssueDigest).toContain('Incidents 60m: 7');
+    expect(recentIssueDigest).toContain('Latest recent issue: error:Proxy failed');
+    expect(emptyVisibleSlice).toContain('Recent only: No');
+    expect(emptyVisibleSlice).toContain('Search: None');
   });
 });

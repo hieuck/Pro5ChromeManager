@@ -136,19 +136,19 @@ const DashboardPage: React.FC = () => {
           </Card>
         ) : null}
 
-        <RenderBoundary title="Health overview">
+        <RenderBoundary title={t.dashboard.readinessTitle}>
           <StatsOverview state={state} t={t} />
         </RenderBoundary>
-        <RenderBoundary title="Profile quick actions">
+        <RenderBoundary title={t.dashboard.quickActionsTitle}>
           <ProfileQuickActions state={state} t={t} />
         </RenderBoundary>
-        <RenderBoundary title="Incident digest">
+        <RenderBoundary title={t.dashboard.incidentsTitle}>
           <IncidentDigest state={state} t={t} />
         </RenderBoundary>
-        <RenderBoundary title="Activity digest">
+        <RenderBoundary title={t.dashboard.activityTitle}>
           <ActivityDigest state={state} t={t} />
         </RenderBoundary>
-        <RenderBoundary title="Support panel">
+        <RenderBoundary title={t.settings.support}>
           <SupportPanel state={state} t={t} />
         </RenderBoundary>
 

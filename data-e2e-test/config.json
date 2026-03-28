@@ -20,7 +20,7 @@
   "runtimes": {
     "e2e": {
       "label": "E2E Runtime",
-      "executablePath": "C:\\Users\\hieut\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe"
+      "executablePath": "C:\\Users\\Admin\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe"
     }
   }
 }

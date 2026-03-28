@@ -4,7 +4,10 @@ import {
   buildSupportOverviewPresentation,
   buildSupportSummaryLines,
   formatUptime,
+  getFeedbackCategoryLabel,
+  getFeedbackSentimentLabel,
   getIncidentCategoryColor,
+  getIncidentLevelLabel,
   getOnboardingStateLabel,
   getSelfTestStatusLabel,
 } from './settingsSupport.utils';
@@ -91,9 +94,26 @@ describe('settingsSupport utils', () => {
   });
 
   it('maps support labels and colors correctly', () => {
+    expect(getSelfTestStatusLabel(t.settings, 'pass')).toBe('Pass');
     expect(getSelfTestStatusLabel(t.settings, 'warn')).toBe('Warn');
+    expect(getFeedbackCategoryLabel(t.settings, 'bug')).toBe('Bug');
+    expect(getFeedbackCategoryLabel(t.settings, 'question')).toBe('Question');
+    expect(getFeedbackCategoryLabel(t.settings, 'feedback')).toBe('Feedback');
+    expect(getFeedbackSentimentLabel(t.settings, 'positive')).toBe('Positive');
+    expect(getFeedbackSentimentLabel(t.settings, 'negative')).toBe('Negative');
+    expect(getFeedbackSentimentLabel(t.settings, 'neutral')).toBe('Neutral');
+    expect(getIncidentLevelLabel(t.settings, 'error')).toBe('Error');
+    expect(getIncidentLevelLabel(t.settings, 'warn')).toBe('Warn');
     expect(getOnboardingStateLabel(t.settings, 'completed')).toBe('Completed');
+    expect(getOnboardingStateLabel(t.settings, 'profile_created')).toBe('Profile created');
+    expect(getOnboardingStateLabel(t.settings, 'skipped')).toBe('Skipped');
+    expect(getOnboardingStateLabel(t.settings, undefined)).toBe('Not started');
+    expect(getIncidentCategoryColor('electron-process')).toBe('volcano');
+    expect(getIncidentCategoryColor('runtime-launch')).toBe('orange');
+    expect(getIncidentCategoryColor('proxy')).toBe('gold');
     expect(getIncidentCategoryColor('extension')).toBe('geekblue');
+    expect(getIncidentCategoryColor('cookies')).toBe('purple');
+    expect(getIncidentCategoryColor('support')).toBe('cyan');
     expect(getIncidentCategoryColor('unknown')).toBe('default');
   });
 
@@ -232,5 +252,146 @@ describe('settingsSupport utils', () => {
     expect(presentation.rows.find((row) => row.key === 'last-usage')?.value).toContain('Last launch');
     expect(presentation.rows.find((row) => row.key === 'release-readiness')?.value).toBe('Needs attention');
     expect(presentation.warnings).toEqual(['Needs config']);
+  });
+
+  it('builds support overview fallbacks when optional onboarding and usage fields are missing', () => {
+    const supportStatus = {
+      appVersion: '1.0.0',
+      nodeVersion: '22',
+      platform: 'win32',
+      arch: 'x64',
+      uptimeSeconds: 10,
+      dataDir: 'E:/data',
+      diagnosticsReady: false,
+      onboardingCompleted: true,
+      onboardingState: {
+        status: 'skipped',
+        currentStep: 4,
+        selectedRuntime: null,
+        draftProfileName: null,
+        lastOpenedAt: null,
+        profileCreatedAt: null,
+        createdProfileId: null,
+        lastUpdatedAt: null,
+        completedAt: null,
+        skippedAt: null,
+      },
+      profileCount: 1,
+      proxyCount: 0,
+      backupCount: 0,
+      feedbackCount: 0,
+      lastFeedbackAt: null,
+      usageMetrics: {
+        profileCreates: 0,
+        profileImports: 1,
+        profileLaunches: 0,
+        sessionChecks: 2,
+        sessionCheckLoggedIn: 0,
+        sessionCheckLoggedOut: 2,
+        sessionCheckErrors: 0,
+        lastProfileCreatedAt: null,
+        lastProfileImportedAt: '2026-03-26T01:02:00.000Z',
+        lastProfileLaunchAt: null,
+        lastSessionCheckAt: null,
+      },
+      offlineSecretConfigured: false,
+      codeSigningConfigured: true,
+      supportPagesReady: false,
+      releaseReady: true,
+      recentIncidentCount: 0,
+      recentErrorCount: 0,
+      lastIncidentAt: null,
+      recentIncidentCategories: [],
+      warnings: [],
+      logFileCount: 1,
+    } satisfies SupportStatus;
+
+    const presentation = buildSupportOverviewPresentation({ t: t as never, supportStatus });
+
+    expect(presentation.rows.find((row) => row.key === 'onboarding-runtime')?.value).toBe('None');
+    expect(presentation.rows.find((row) => row.key === 'onboarding-draft-profile')?.value).toBe('None');
+    expect(presentation.rows.find((row) => row.key === 'last-feedback')?.value).toBe('None');
+    expect(presentation.rows.find((row) => row.key === 'top-incident-category')?.value).toBe('None');
+    expect(presentation.rows.find((row) => row.key === 'diagnostics')?.value).toBe('Missing');
+    expect(presentation.rows.find((row) => row.key === 'offline-secret')?.value).toBe('Missing');
+    expect(presentation.rows.find((row) => row.key === 'support-pages')?.value).toBe('Missing pages');
+    expect(presentation.rows.find((row) => row.key === 'release-readiness')?.value).toBe('Ready');
+    expect(presentation.rows.find((row) => row.key === 'last-usage')?.value).toContain('Last import');
+  });
+
+  it('builds support summary lines with fallback warnings and without incident category summaries', () => {
+    const supportStatus = {
+      appVersion: '1.0.0',
+      nodeVersion: '22',
+      platform: 'win32',
+      arch: 'x64',
+      uptimeSeconds: 30,
+      dataDir: 'E:/data',
+      diagnosticsReady: false,
+      onboardingCompleted: true,
+      onboardingState: {
+        status: 'completed',
+        currentStep: 4,
+        selectedRuntime: 'chrome',
+        draftProfileName: 'Draft B',
+        lastOpenedAt: null,
+        profileCreatedAt: '2026-03-26T01:10:00.000Z',
+      },
+      profileCount: 2,
+      proxyCount: 1,
+      backupCount: 0,
+      feedbackCount: 0,
+      usageMetrics: {
+        profileCreates: 1,
+        profileImports: 0,
+        profileLaunches: 0,
+        sessionChecks: 1,
+        sessionCheckLoggedIn: 0,
+        sessionCheckLoggedOut: 1,
+        sessionCheckErrors: 0,
+        lastProfileCreatedAt: null,
+        lastProfileImportedAt: null,
+        lastProfileLaunchAt: null,
+        lastSessionCheckAt: '2026-03-26T01:12:00.000Z',
+      },
+      offlineSecretConfigured: false,
+      codeSigningConfigured: false,
+      supportPagesReady: false,
+      releaseReady: true,
+      recentIncidentCount: 1,
+      recentErrorCount: 0,
+      lastIncidentAt: null,
+      recentIncidentCategories: [],
+      lastFeedbackAt: null,
+      warnings: [],
+      logFileCount: 1,
+    } satisfies SupportStatus;
+
+    const incidentState = {
+      summary: { categories: [] },
+      incidents: [{
+        timestamp: '2026-03-26T01:06:00.000Z',
+        level: 'warn',
+        source: 'support',
+        category: 'support',
+        categoryLabel: 'Support',
+        message: 'Queued',
+        fingerprint: 'fp-2',
+      }],
+      timeline: [],
+    } satisfies SupportIncidentsResult;
+
+    const lines = buildSupportSummaryLines({
+      t: t as never,
+      supportStatus,
+      selfTestResult: null,
+      incidentState,
+    });
+
+    expect(lines.some((line) => line.includes('Warnings: None'))).toBe(true);
+    expect(lines.some((line) => line.includes('Onboarding profile created'))).toBe(true);
+    expect(lines.some((line) => line.includes('Last session check'))).toBe(true);
+    expect(lines.some((line) => line.includes('Incident categories'))).toBe(false);
+    expect(lines.some((line) => line.includes('Incident details'))).toBe(true);
   });
 });

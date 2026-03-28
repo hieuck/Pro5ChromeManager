@@ -266,7 +266,7 @@ export function buildSupportSummaryLines({
     summaryLines.push(`${settings.onboardingProfileCreatedLabel}: ${new Date(supportStatus.onboardingState.profileCreatedAt).toLocaleString()}`);
   }
   if (supportStatus.lastFeedbackAt) {
-    summaryLines.push(`Last feedback: ${new Date(supportStatus.lastFeedbackAt).toLocaleString()}`);
+    summaryLines.push(`${settings.lastFeedbackLabel}: ${new Date(supportStatus.lastFeedbackAt).toLocaleString()}`);
   }
 
   if (supportStatus.warnings.length > 0) {

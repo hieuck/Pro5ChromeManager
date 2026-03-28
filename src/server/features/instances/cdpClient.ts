@@ -3,6 +3,13 @@ import WebSocket from 'ws';
 import { logger } from '../../core/logging/logger';
 import { ManagedCookie } from '../../../shared/contracts';
 
+const CDP_HOST = '127.0.0.1';
+const CDP_LIST_PATH = '/json/list';
+const CDP_VERSION_PATH = '/json/version';
+const CDP_TARGET_REQUEST_TIMEOUT_MS = 5_000;
+const CDP_PING_TIMEOUT_MS = 2_000;
+const CDP_COMMAND_START_ID = 0;
+
 /**
  * Handles WebSocket and HTTP CDP (Chrome DevTools Protocol) interactions.
  */
@@ -10,7 +17,7 @@ export class CDPClient {
   async getPageWebSocketUrl(port: number): Promise<string | null> {
     return new Promise((resolve, reject) => {
       const req = http.get(
-        { host: '127.0.0.1', port, path: '/json/list', timeout: 5000 },
+        { host: CDP_HOST, port, path: CDP_LIST_PATH, timeout: CDP_TARGET_REQUEST_TIMEOUT_MS },
         (res) => {
           let data = '';
           res.setEncoding('utf8');
@@ -39,7 +46,7 @@ export class CDPClient {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(webSocketDebuggerUrl);
-      let nextId = 0;
+      let nextId = CDP_COMMAND_START_ID;
 
       socket.once('open', () => {
         for (const command of commands) {
@@ -78,7 +85,7 @@ export class CDPClient {
     return new Promise((resolve, reject) => {
       const deadline = setTimeout(() => reject(new Error('CDP getCurrentUrl timed out')), timeoutMs);
       const req = http.get(
-        { host: '127.0.0.1', port, path: '/json/list', timeout: 5000 },
+        { host: CDP_HOST, port, path: CDP_LIST_PATH, timeout: CDP_TARGET_REQUEST_TIMEOUT_MS },
         (res) => {
           let data = '';
           res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
@@ -99,7 +106,7 @@ export class CDPClient {
   async ping(port: number): Promise<boolean> {
     return new Promise((resolve) => {
       const req = http.get(
-        { host: '127.0.0.1', port, path: '/json/version', timeout: 2000 },
+        { host: CDP_HOST, port, path: CDP_VERSION_PATH, timeout: CDP_PING_TIMEOUT_MS },
         (res) => { res.resume(); resolve(res.statusCode === 200); },
       );
       req.on('error', () => resolve(false));

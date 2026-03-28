@@ -10,6 +10,7 @@ interface BackupTabProps {
 
 export const BackupTab: React.FC<BackupTabProps> = ({ state }) => {
   const {
+    t,
     backups,
     loadingBackups,
     creatingBackup,
@@ -20,24 +21,34 @@ export const BackupTab: React.FC<BackupTabProps> = ({ state }) => {
   } = state;
 
   function formatSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 
   const columns = [
     {
-      title: 'Thời gian',
+      title: t.settings.backupTimeLabel,
       dataIndex: 'timestamp',
       key: 'timestamp',
-      render: (v: string) => { try { return new Date(v).toLocaleString('vi-VN'); } catch { return v; } },
+      render: (value: string) => {
+        try {
+          return new Date(value).toLocaleString();
+        } catch {
+          return value;
+        }
+      },
     },
     {
-      title: 'Kích thước',
+      title: t.settings.backupSizeLabel,
       dataIndex: 'sizeBytes',
       key: 'sizeBytes',
       width: 100,
-      render: (v: number) => formatSize(v),
+      render: (value: number) => formatSize(value),
     },
     {
       title: '',
@@ -46,15 +57,15 @@ export const BackupTab: React.FC<BackupTabProps> = ({ state }) => {
       render: (_: unknown, record: BackupEntry) => (
         <Space size={4}>
           <Button size="small" icon={<DownloadOutlined />} onClick={() => handleExportBackup(record.filename)}>
-            Tải về
+            {t.settings.backupExportAction}
           </Button>
           <Popconfirm
-            title="Khôi phục backup này? Dữ liệu hiện tại sẽ bị ghi đè."
+            title={t.settings.backupRestoreConfirm}
             onConfirm={() => void handleRestoreBackup(record.filename)}
-            okText="Khôi phục"
-            cancelText="Hủy"
+            okText={t.settings.backupRestoreAction}
+            cancelText={t.common.cancel}
           >
-            <Button size="small">Khôi phục</Button>
+            <Button size="small">{t.settings.backupRestoreAction}</Button>
           </Popconfirm>
         </Space>
       ),
@@ -65,12 +76,14 @@ export const BackupTab: React.FC<BackupTabProps> = ({ state }) => {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
         <Typography.Text type="secondary">
-          Tự động backup mỗi 24h. Giữ tối đa 7 bản.
+          {t.settings.backupRetentionHint}
         </Typography.Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => void fetchBackups()} />
+          <Button icon={<ReloadOutlined />} onClick={() => void fetchBackups()}>
+            {t.settings.refresh}
+          </Button>
           <Button type="primary" loading={creatingBackup} onClick={() => void handleCreateBackup()}>
-            Backup ngay
+            {t.settings.backupCreateNow}
           </Button>
         </Space>
       </Row>
@@ -81,7 +94,7 @@ export const BackupTab: React.FC<BackupTabProps> = ({ state }) => {
         loading={loadingBackups}
         size="small"
         pagination={false}
-        locale={{ emptyText: <Empty description="Chưa có backup nào" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        locale={{ emptyText: <Empty description={t.settings.backupEmpty} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
     </div>
   );

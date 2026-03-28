@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildActivityDigestText,
   buildHottestIssueDigestText,
+  buildLatestActivityDigestText,
+  buildTopActivityIssuesText,
   buildTopActivitySourceLatestText,
+  buildTopActivitySourcesText,
   type DashboardActivityCopyContext,
 } from './dashboardActivityCopyText';
 import type { LogEntry } from './types';
@@ -121,6 +124,63 @@ describe('dashboardActivityCopyText', () => {
     expect(text).toContain('Top sources: proxy (6), storage (2)');
   });
 
+  it('omits optional activity digest sections when source and issue details are unavailable', () => {
+    const latestEntry = createEntry({ source: undefined });
+    const text = buildActivityDigestText(context, {
+      logHeatLabel: 'Calm',
+      total: 3,
+      issues15: 0,
+      issues60: 0,
+      errors: 0,
+      warnings: 0,
+      debugs: 1,
+      infos: 2,
+      issueRatio: 0,
+      activitySignalMode: { label: 'Quiet', hint: 'No issues' },
+      activityFreshness: { label: 'Stale' },
+      latestActivityLevel: { label: 'Info' },
+      topSource: null,
+      topSourceLatestEntry: null,
+      topSourceLatestFreshness: { label: 'Fresh' },
+      topSourceLatestLevel: { label: 'Info' },
+      topSourceShare: 0,
+      topSourcesConcentration: 0,
+      activitySourceMode: { label: 'Distributed', hint: 'Spread out' },
+      hottestRecentIssue: null,
+      hottestIssueFreshness: { label: 'Fresh' },
+      hottestIssueLevel: { label: 'Warn' },
+      latestEntry,
+      topRecentIssues: [],
+      topSources: [],
+    });
+
+    expect(text).toContain('Top source share: 0%');
+    expect(text).not.toContain('Top source:');
+    expect(text).not.toContain('Top issues:');
+    expect(text).not.toContain('Latest source:');
+    expect(text).not.toContain('Hottest freshness:');
+  });
+
+  it('builds latest activity digest text', () => {
+    const text = buildLatestActivityDigestText(context, createEntry());
+
+    expect(text).toContain('Latest activity digest');
+    expect(text).toContain('Timestamp: 2026-03-26T11:59:00.000Z');
+    expect(text).toContain('Raw: {"message":"Proxy failed"}');
+  });
+
+  it('builds top activity issues text', () => {
+    const text = buildTopActivityIssuesText(context, 'Hot', [
+      { entry: createEntry({ message: 'Proxy failed' }), count: 4 },
+      { entry: createEntry({ message: 'Runtime stalled' }), count: 2 },
+    ]);
+
+    expect(text).toContain('Top activity issues');
+    expect(text).toContain('Heat: Hot');
+    expect(text).toContain('1. Proxy failed (4)');
+    expect(text).toContain('2. Runtime stalled (2)');
+  });
+
   it('builds top activity source latest text', () => {
     const text = buildTopActivitySourceLatestText(context, {
       source: ['proxy', 6],
@@ -132,5 +192,21 @@ describe('dashboardActivityCopyText', () => {
     expect(text).toContain('Source: proxy');
     expect(text).toContain('Count: 6');
     expect(text).toContain('Level text: Critical');
+  });
+
+  it('builds top activity sources text', () => {
+    const text = buildTopActivitySourcesText(context, {
+      modeLabel: 'Focused',
+      topSourceShare: 60,
+      topSourcesConcentration: 85,
+      topSources: [['proxy', 6], ['runtime', 3], ['support', 1]],
+    });
+
+    expect(text).toContain('Top activity sources');
+    expect(text).toContain('Source mode: Focused');
+    expect(text).toContain('Top source share: 60%');
+    expect(text).toContain('Top source concentration: 85%');
+    expect(text).toContain('1. proxy (6)');
+    expect(text).toContain('3. support (1)');
   });
 });

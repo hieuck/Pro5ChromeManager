@@ -5,6 +5,7 @@ const http = require('http');
 const archiver = require('archiver');
 const { spawn } = require('child_process');
 const { chromium } = require('playwright');
+const { resolveExistingServerEntry } = require('./build-paths');
 
 const repoRoot = path.resolve(__dirname, '..');
 const dataDir = path.join(repoRoot, 'data-e2e-test');
@@ -100,8 +101,9 @@ async function main() {
     throw new Error('Failed to bind mock extension store server');
   }
   const mockStoreBaseUrl = `http://${host}:${mockStoreAddress.port}`;
+  const serverEntry = resolveExistingServerEntry(repoRoot);
 
-  const child = spawn(process.execPath, ['dist/server/index.js'], {
+  const child = spawn(process.execPath, [serverEntry.relativePath], {
     cwd: repoRoot,
     env: {
       ...process.env,

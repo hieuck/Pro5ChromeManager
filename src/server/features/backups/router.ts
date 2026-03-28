@@ -1,55 +1,59 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 import { backupManager } from './BackupManager';
 import { logger } from '../../core/logging/logger';
-import { sendSuccess, sendError, getErrorStatusCode, getErrorMessage } from '../../core/http';
+import { getErrorMessage, getErrorStatusCode, sendError, sendSuccess } from '../../core/http';
 
 const router = Router();
 
-// GET /api/backups
-router.get('/backups', async (_req: Request, res: Response) => {
+const BACKUPS_ROUTE = '/backups';
+const RESTORE_ROUTE = '/backups/restore/:filename';
+const EXPORT_ROUTE = '/backups/export/:filename';
+const ZIP_CONTENT_TYPE = 'application/zip';
+const CONTENT_TYPE_HEADER = 'Content-Type';
+const CONTENT_DISPOSITION_HEADER = 'Content-Disposition';
+
+function handleBackupRouteError(operation: string, error: unknown, response: Response): void {
+  logger.error(`${operation} error`, { error: getErrorMessage(error) });
+  sendError(response, getErrorStatusCode(error), getErrorMessage(error));
+}
+
+router.get(BACKUPS_ROUTE, async (_request: Request, response: Response) => {
   try {
     const backups = await backupManager.listBackups();
-    sendSuccess(res, backups);
-  } catch (err) {
-    logger.error('GET /api/backups error', { error: getErrorMessage(err) });
-    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
+    sendSuccess(response, backups);
+  } catch (error) {
+    handleBackupRouteError('GET /api/backups', error, response);
   }
 });
 
-// POST /api/backups — create backup now
-router.post('/backups', async (_req: Request, res: Response) => {
+router.post(BACKUPS_ROUTE, async (_request: Request, response: Response) => {
   try {
     const entry = await backupManager.createBackup();
-    sendSuccess(res, entry, 201);
-  } catch (err) {
-    logger.error('POST /api/backups error', { error: getErrorMessage(err) });
-    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
+    sendSuccess(response, entry, 201);
+  } catch (error) {
+    handleBackupRouteError('POST /api/backups', error, response);
   }
 });
 
-// POST /api/backups/restore/:filename
-router.post('/backups/restore/:filename', async (req: Request, res: Response) => {
+router.post(RESTORE_ROUTE, async (request: Request, response: Response) => {
   try {
-    const { filename } = req.params;
+    const { filename } = request.params;
     await backupManager.restoreBackup(filename);
-    sendSuccess(res, null);
-  } catch (err) {
-    logger.error('POST /api/backups/restore error', { error: getErrorMessage(err) });
-    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
+    sendSuccess(response, null);
+  } catch (error) {
+    handleBackupRouteError('POST /api/backups/restore', error, response);
   }
 });
 
-// GET /api/backups/export/:filename — download zip
-router.get('/backups/export/:filename', async (req: Request, res: Response) => {
+router.get(EXPORT_ROUTE, async (request: Request, response: Response) => {
   try {
-    const { filename } = req.params;
+    const { filename } = request.params;
     const filePath = backupManager.getBackupPath(filename);
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.sendFile(filePath);
-  } catch (err) {
-    logger.error('GET /api/backups/export error', { error: getErrorMessage(err) });
-    sendError(res, getErrorStatusCode(err), getErrorMessage(err));
+    response.setHeader(CONTENT_TYPE_HEADER, ZIP_CONTENT_TYPE);
+    response.setHeader(CONTENT_DISPOSITION_HEADER, `attachment; filename="${filename}"`);
+    response.sendFile(filePath);
+  } catch (error) {
+    handleBackupRouteError('GET /api/backups/export', error, response);
   }
 });
 

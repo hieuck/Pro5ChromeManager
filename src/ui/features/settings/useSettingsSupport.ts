@@ -23,6 +23,16 @@ import {
 
 type Translations = ReturnType<typeof useTranslation>['t'];
 
+const SUPPORT_ENDPOINTS = {
+  status: '/api/support/status',
+  incidents: '/api/support/incidents',
+  feedback: '/api/support/feedback',
+  selfTest: '/api/support/self-test',
+} as const;
+
+const INCIDENT_LIMIT = 10;
+const FEEDBACK_LIMIT = 5;
+
 export function useSettingsSupport(t: Translations) {
   const [supportStatus, setSupportStatus] = useState<SupportStatus | null>(null);
   const [selfTestResult, setSelfTestResult] = useState<SelfTestResult | null>(null);
@@ -37,34 +47,56 @@ export function useSettingsSupport(t: Translations) {
 
   const fetchSupportStatus = useCallback(async () => {
     setLoadingSupport(true);
-    const res = await apiClient.get<SupportStatus>('/api/support/status');
-    if (res.success) setSupportStatus(res.data);
-    setLoadingSupport(false);
-  }, []);
+    try {
+      const res = await apiClient.get<SupportStatus>(SUPPORT_ENDPOINTS.status);
+      if (res.success) {
+        setSupportStatus(res.data);
+      } else {
+        void message.error(t.settings.supportStatusLoadFailed);
+      }
+    } catch {
+      void message.error(t.settings.supportStatusLoadFailed);
+    } finally {
+      setLoadingSupport(false);
+    }
+  }, [t.settings.supportStatusLoadFailed]);
 
   const fetchIncidents = useCallback(async () => {
     setIncidentLoading(true);
-    const res = await apiClient.get<SupportIncidentsResult>('/api/support/incidents?limit=10');
-    if (res.success) setIncidentState(res.data);
-    setIncidentLoading(false);
+    try {
+      const res = await apiClient.get<SupportIncidentsResult>(`${SUPPORT_ENDPOINTS.incidents}?limit=${INCIDENT_LIMIT}`);
+      if (res.success) {
+        setIncidentState(res.data);
+      }
+    } finally {
+      setIncidentLoading(false);
+    }
   }, []);
 
   const fetchFeedback = useCallback(async () => {
     setFeedbackLoading(true);
-    const res = await apiClient.get<SupportFeedbackResult>('/api/support/feedback?limit=5');
-    if (res.success) setFeedbackState(res.data);
-    setFeedbackLoading(false);
+    try {
+      const res = await apiClient.get<SupportFeedbackResult>(`${SUPPORT_ENDPOINTS.feedback}?limit=${FEEDBACK_LIMIT}`);
+      if (res.success) {
+        setFeedbackState(res.data);
+      }
+    } finally {
+      setFeedbackLoading(false);
+    }
   }, []);
 
   const runSelfTest = async () => {
     setSelfTesting(true);
-    const res = await apiClient.post<SelfTestResult>('/api/support/self-test');
-    setSelfTesting(false);
-    if (res.success) {
-      setSelfTestResult(res.data);
-      void message.success(t.settings.supportSelfTestCompleted);
-    } else {
-      void message.error(res.error);
+    try {
+      const res = await apiClient.post<SelfTestResult>(SUPPORT_ENDPOINTS.selfTest);
+      if (res.success) {
+        setSelfTestResult(res.data);
+        void message.success(t.settings.supportSelfTestCompleted);
+      } else {
+        void message.error(res.error);
+      }
+    } finally {
+      setSelfTesting(false);
     }
   };
 
@@ -72,18 +104,21 @@ export function useSettingsSupport(t: Translations) {
     try {
       const values = await feedbackForm.validateFields();
       setSubmittingFeedback(true);
-      const res = await apiClient.post<SupportFeedbackEntry>('/api/support/feedback', {
-        ...values,
-        appVersion: supportStatus?.appVersion ?? '',
-      });
-      setSubmittingFeedback(false);
+      try {
+        const res = await apiClient.post<SupportFeedbackEntry>(SUPPORT_ENDPOINTS.feedback, {
+          ...values,
+          appVersion: supportStatus?.appVersion ?? '',
+        });
 
-      if (res.success) {
-        feedbackForm.resetFields();
-        void message.success(t.settings.feedbackSaved);
-        await Promise.all([fetchSupportStatus(), fetchFeedback()]);
-      } else {
-        void message.error(res.error);
+        if (res.success) {
+          feedbackForm.resetFields();
+          void message.success(t.settings.feedbackSaved);
+          await Promise.all([fetchSupportStatus(), fetchFeedback()]);
+        } else {
+          void message.error(res.error);
+        }
+      } finally {
+        setSubmittingFeedback(false);
       }
     } catch {
       // Form validation error.

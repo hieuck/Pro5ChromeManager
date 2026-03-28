@@ -9,22 +9,31 @@ import { resolveAppPath } from '../../core/fs/dataPaths';
 import { buildChromeFlags } from './chromeFlags';
 import type { Profile } from '../../../shared/contracts';
 
-export async function buildLaunchContext(profile: Profile, dataDir: string, headlessOverride?: boolean): Promise<{
+const DEFAULT_WEBRTC_POLICY = 'disable_non_proxied_udp';
+
+export interface LaunchContext {
   executablePath: string;
   proxyCleanup: (() => void) | null;
   remoteDebuggingPort: number;
   userDataDir: string;
   flags: string[];
   headless: boolean;
-}> {
+}
+
+export async function buildLaunchContext(
+  profile: Profile,
+  dataDir: string,
+  headlessOverride?: boolean,
+): Promise<LaunchContext> {
+  const config = configManager.get();
   const executablePath = await runtimeManager.resolveRuntime(profile.runtime);
 
   let proxyFlag: string | null = null;
   let proxyCleanup: (() => void) | null = null;
   if (profile.proxy) {
-    const result = await proxyManager.buildProxyConfig(profile.proxy);
-    proxyFlag = result.flag;
-    proxyCleanup = result.cleanup;
+    const proxyResult = await proxyManager.buildProxyConfig(profile.proxy);
+    proxyFlag = proxyResult.flag;
+    proxyCleanup = proxyResult.cleanup;
   }
 
   const extensionDir = await fingerprintEngine.prepareExtension(profile.id, profile.fingerprint, dataDir, {
@@ -35,8 +44,8 @@ export async function buildLaunchContext(profile: Profile, dataDir: string, head
   });
   const managedExtensionDirs = await extensionManager.resolveEnabledExtensionPaths(profile.extensionIds);
   const remoteDebuggingPort = await findFreePort();
-  const userDataDir = path.join(resolveAppPath(configManager.get().profilesDir), profile.id);
-  const headless = headlessOverride ?? configManager.get().headless;
+  const userDataDir = path.join(resolveAppPath(config.profilesDir), profile.id);
+  const headless = headlessOverride ?? config.headless;
 
   const flags = buildChromeFlags({
     userDataDir,
@@ -44,7 +53,7 @@ export async function buildLaunchContext(profile: Profile, dataDir: string, head
     extensionDirs: [extensionDir, ...managedExtensionDirs],
     proxyFlag,
     headless,
-    webrtcPolicy: profile.fingerprint.webrtcPolicy ?? 'disable_non_proxied_udp',
+    webrtcPolicy: profile.fingerprint.webrtcPolicy ?? DEFAULT_WEBRTC_POLICY,
   });
 
   return {

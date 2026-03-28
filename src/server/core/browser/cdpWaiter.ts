@@ -1,13 +1,16 @@
 import http from 'http';
 
+const CDP_READY_HOST = '127.0.0.1';
+const CDP_VERSION_PATH = '/json/version';
 const POLL_INTERVAL_MS = 500;
+const DEFAULT_CDP_TIMEOUT_MS = 30_000;
 
 /**
  * Poll http://localhost:{port}/json/version every 500ms until it returns HTTP 200
  * or the timeout is exceeded.
  * Resolves when CDP is ready, rejects on timeout.
  */
-export function waitForCDP(port: number, timeoutMs: number = 30000): Promise<void> {
+export function waitForCDP(port: number, timeoutMs: number = DEFAULT_CDP_TIMEOUT_MS): Promise<void> {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + timeoutMs;
 
@@ -18,7 +21,7 @@ export function waitForCDP(port: number, timeoutMs: number = 30000): Promise<voi
       }
 
       const req = http.get(
-        { host: '127.0.0.1', port, path: '/json/version', timeout: POLL_INTERVAL_MS },
+        { host: CDP_READY_HOST, port, path: CDP_VERSION_PATH, timeout: POLL_INTERVAL_MS },
         (res) => {
           if (res.statusCode === 200) {
             // Drain response body

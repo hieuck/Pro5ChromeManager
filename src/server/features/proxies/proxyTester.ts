@@ -1,8 +1,18 @@
 import http from 'http';
 import https from 'https';
+import * as tls from 'tls';
 import * as ProxyChain from 'proxy-chain';
 import { ProxyConfig } from '../../../shared/contracts';
-import { logger } from '../../core/logging/logger';
+
+const LOOPBACK_HOST = '127.0.0.1';
+const IP_LOOKUP_URL = 'https://api.ipify.org?format=json';
+const TIMEZONE_LOOKUP_URL_TEMPLATE = 'https://ipapi.co/{ip}/timezone';
+const HTTPS_DEFAULT_PORT = 443;
+const PROXY_AUTH_HEADER = 'Proxy-Authorization';
+const REQUEST_TIMEOUT_MESSAGE = 'Request timed out';
+const PROXY_CONNECT_TIMEOUT_MESSAGE = 'Proxy connect timed out';
+const PROXY_TEST_TIMEOUT_MS = 10_000;
+const TIMEZONE_LOOKUP_TIMEOUT_MS = 5_000;
 
 /**
  * Handles proxy connectivity testing and IP/Timezone detection.
@@ -20,24 +30,25 @@ export class ProxyTester {
         const httpProxy: ProxyConfig = {
           id: proxy.id,
           type: 'http',
-          host: '127.0.0.1',
+          host: LOOPBACK_HOST,
           port: localPort,
         };
-        const body = await this.httpGetViaProxy('https://api.ipify.org?format=json', httpProxy, 10000);
+        const body = await this.httpGetViaProxy(IP_LOOKUP_URL, httpProxy, PROXY_TEST_TIMEOUT_MS);
         const parsed = JSON.parse(body) as { ip: string };
         return parsed.ip;
       } finally {
         await ProxyChain.closeAnonymizedProxy(localProxyUrl, true).catch(() => undefined);
       }
     } else {
-      const body = await this.httpGetViaProxy('https://api.ipify.org?format=json', proxy, 10000);
+      const body = await this.httpGetViaProxy(IP_LOOKUP_URL, proxy, PROXY_TEST_TIMEOUT_MS);
       const parsed = JSON.parse(body) as { ip: string };
       return parsed.ip;
     }
   }
 
   async detectTimezone(ip: string): Promise<string> {
-    const body = await this.httpGet(`https://ipapi.co/${ip}/timezone`, 5000);
+    const url = TIMEZONE_LOOKUP_URL_TEMPLATE.replace('{ip}', ip);
+    const body = await this.httpGet(url, TIMEZONE_LOOKUP_TIMEOUT_MS);
     return body.trim();
   }
 
@@ -50,7 +61,7 @@ export class ProxyTester {
         res.on('end', () => resolve(data));
       });
       req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+      req.on('timeout', () => { req.destroy(); reject(new Error(REQUEST_TIMEOUT_MESSAGE)); });
     });
   }
 
@@ -64,19 +75,17 @@ export class ProxyTester {
           host: proxy.host,
           port: proxy.port,
           method: 'CONNECT',
-          path: `${parsed.hostname}:443`,
+          path: `${parsed.hostname}:${HTTPS_DEFAULT_PORT}`,
           timeout: timeoutMs,
         };
         if (proxy.username) {
           const auth = Buffer.from(`${proxy.username}:${proxy.password ?? ''}`).toString('base64');
-          connectOptions.headers = { 'Proxy-Authorization': `Basic ${auth}` };
+          connectOptions.headers = { [PROXY_AUTH_HEADER]: `Basic ${auth}` };
         }
 
         const connectReq = http.request(connectOptions);
         connectReq.on('connect', (_res, socket) => {
           const tlsOptions = { socket, servername: parsed.hostname };
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const tls = require('tls') as typeof import('tls');
           const tlsSocket = tls.connect(tlsOptions, () => {
             const getReq = `GET ${parsed.pathname}${parsed.search} HTTP/1.1\r\nHost: ${parsed.hostname}\r\nConnection: close\r\n\r\n`;
             tlsSocket.write(getReq);
@@ -91,7 +100,7 @@ export class ProxyTester {
           tlsSocket.on('error', reject);
         });
         connectReq.on('error', reject);
-        connectReq.on('timeout', () => { connectReq.destroy(); reject(new Error('Proxy connect timed out')); });
+        connectReq.on('timeout', () => { connectReq.destroy(); reject(new Error(PROXY_CONNECT_TIMEOUT_MESSAGE)); });
         connectReq.end();
       } else {
         const options: http.RequestOptions = {
@@ -103,7 +112,7 @@ export class ProxyTester {
         };
         if (proxy.username) {
           const auth = Buffer.from(`${proxy.username}:${proxy.password ?? ''}`).toString('base64');
-          options.headers = { ...options.headers, 'Proxy-Authorization': `Basic ${auth}` };
+          options.headers = { ...options.headers, [PROXY_AUTH_HEADER]: `Basic ${auth}` };
         }
         const req = http.get(options, (res) => {
           let data = '';
@@ -111,7 +120,7 @@ export class ProxyTester {
           res.on('end', () => resolve(data));
         });
         req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+        req.on('timeout', () => { req.destroy(); reject(new Error(REQUEST_TIMEOUT_MESSAGE)); });
       }
     });
   }

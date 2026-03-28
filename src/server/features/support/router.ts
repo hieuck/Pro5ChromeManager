@@ -11,6 +11,12 @@ import { createDiagnosticsArchive } from './supportDiagnosticsExport';
 import { sendSuccess, sendError, getErrorStatusCode, getErrorMessage } from '../../core/http';
 
 const router = Router();
+const DEFAULT_LIST_LIMIT = 20;
+const MAX_LIST_LIMIT = 100;
+const DIAGNOSTICS_FILE_NAME = 'pro5-diagnostics.zip';
+const DIAGNOSTICS_CONTENT_TYPE = 'application/zip';
+const INVALID_ONBOARDING_STATE_MESSAGE = 'Invalid onboarding state payload';
+const INVALID_FEEDBACK_MESSAGE = 'Invalid feedback payload';
 
 const SupportFeedbackSchema = z.object({
   category: z.enum(['bug', 'feedback', 'question']),
@@ -32,6 +38,15 @@ const OnboardingStateSchema = z.object({
   skippedAt: z.string().datetime().nullable().optional(),
 });
 
+function parseListLimit(limitValue: unknown): number {
+  const parsedLimit = typeof limitValue === 'string' ? Number(limitValue) : DEFAULT_LIST_LIMIT;
+  if (!Number.isFinite(parsedLimit) || parsedLimit <= 0) {
+    return DEFAULT_LIST_LIMIT;
+  }
+
+  return Math.min(parsedLimit, MAX_LIST_LIMIT);
+}
+
 router.get('/support/status', async (_req: Request, res: Response) => {
   try {
     const status = await buildSupportStatus();
@@ -44,8 +59,7 @@ router.get('/support/status', async (_req: Request, res: Response) => {
 
 router.get('/support/incidents', async (req: Request, res: Response) => {
   try {
-    const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
+    const limit = parseListLimit(req.query['limit']);
     const incidents = buildIncidentSnapshot(await loadIncidentEntries(limit));
     sendSuccess(res, incidents);
   } catch (err) {
@@ -67,7 +81,7 @@ router.post('/support/self-test', async (_req: Request, res: Response) => {
 router.post('/support/onboarding-state', async (req: Request, res: Response) => {
   const parsed = OnboardingStateSchema.safeParse(req.body);
   if (!parsed.success) {
-    sendError(res, 400, 'Invalid onboarding state payload');
+    sendError(res, 400, INVALID_ONBOARDING_STATE_MESSAGE);
     return;
   }
 
@@ -83,8 +97,7 @@ router.post('/support/onboarding-state', async (req: Request, res: Response) => 
 
 router.get('/support/feedback', async (req: Request, res: Response) => {
   try {
-    const limitRaw = typeof req.query['limit'] === 'string' ? Number(req.query['limit']) : 20;
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
+    const limit = parseListLimit(req.query['limit']);
     const { supportInboxManager } = await import('./SupportInboxManager');
     const entries = await supportInboxManager.listFeedback(limit);
     sendSuccess(res, { count: entries.length, entries });
@@ -97,7 +110,7 @@ router.get('/support/feedback', async (req: Request, res: Response) => {
 router.post('/support/feedback', async (req: Request, res: Response) => {
   const parsed = SupportFeedbackSchema.safeParse(req.body);
   if (!parsed.success) {
-    sendError(res, 400, 'Invalid feedback payload');
+    sendError(res, 400, INVALID_FEEDBACK_MESSAGE);
     return;
   }
 
@@ -123,8 +136,8 @@ router.get('/support/diagnostics', async (_req: Request, res: Response) => {
   try {
     tmpZipPath = await createDiagnosticsArchive();
 
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename="pro5-diagnostics.zip"');
+    res.setHeader('Content-Type', DIAGNOSTICS_CONTENT_TYPE);
+    res.setHeader('Content-Disposition', `attachment; filename="${DIAGNOSTICS_FILE_NAME}"`);
     const archivePath = tmpZipPath;
     res.sendFile(archivePath, (err) => {
       if (err) {

@@ -1,8 +1,9 @@
-import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
+import { WebSocket, WebSocketServer } from 'ws';
 import { logger } from '../logging/logger';
 
-// ─── Event types ──────────────────────────────────────────────────────────────
+const WEBSOCKET_PATH = '/ws';
+const WEBSOCKET_SERVER_ATTACHED_MESSAGE = 'WebSocket server attached at /ws';
 
 export type WsEventType =
   | 'instance:started'
@@ -18,13 +19,11 @@ export interface WsEvent {
   };
 }
 
-// ─── WsServer singleton ───────────────────────────────────────────────────────
-
 class WsServer {
   private wss: WebSocketServer | null = null;
 
   attach(server: Server): void {
-    this.wss = new WebSocketServer({ server, path: '/ws' });
+    this.wss = new WebSocketServer({ server, path: WEBSOCKET_PATH });
 
     this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       logger.debug('WebSocket client connected', { ip: req.socket.remoteAddress });
@@ -38,11 +37,14 @@ class WsServer {
       });
     });
 
-    logger.info('WebSocket server attached at /ws');
+    logger.info(WEBSOCKET_SERVER_ATTACHED_MESSAGE);
   }
 
   broadcast(event: WsEvent): void {
-    if (!this.wss) return;
+    if (!this.wss) {
+      return;
+    }
+
     const data = JSON.stringify(event);
     for (const client of this.wss.clients) {
       if (client.readyState === WebSocket.OPEN) {

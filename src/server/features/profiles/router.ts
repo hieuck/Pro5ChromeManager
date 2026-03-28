@@ -32,6 +32,18 @@ import {
 const router = Router();
 router.param('id', validateUuidParam('id'));
 const ACTIVITY_TAIL_READ_BYTES = 5 * 1024 * 1024;
+const ACTIVITY_LOG_FILENAME = 'activity.log';
+const COOKIE_EXPORT_CONTENT_TYPE = 'application/json; charset=utf-8';
+const PROFILE_DOWNLOAD_SAFE_ID_MAX_LENGTH = 100;
+const PROFILE_EXPORT_CONTENT_TYPE = 'application/zip';
+const PROFILE_PACKAGE_CONTENT_TYPE = 'application/octet-stream';
+const PROFILE_PACKAGE_UPLOAD_LIMIT = '512mb';
+const RECENT_ACTIVITY_LIMIT = 50;
+const SAFE_ID_REPLACEMENT_PATTERN = /[^a-zA-Z0-9_-]/g;
+
+function toSafeDownloadId(value: string): string {
+  return value.replace(SAFE_ID_REPLACEMENT_PATTERN, '_').slice(0, PROFILE_DOWNLOAD_SAFE_ID_MAX_LENGTH);
+}
 
 function getRequiredProfile(profileId: string) {
   const profile = profileManager.getProfile(profileId);
@@ -179,7 +191,7 @@ router.post('/profiles/import', async (request: Request, response: Response) => 
 
 router.post(
   '/profiles/import-package',
-  express.raw({ type: 'application/octet-stream', limit: '512mb' }),
+  express.raw({ type: PROFILE_PACKAGE_CONTENT_TYPE, limit: PROFILE_PACKAGE_UPLOAD_LIMIT }),
   async (request: Request, response: Response) => {
     const uploadedPackagePath = path.join(
       dataPath('tmp'),
@@ -276,8 +288,8 @@ router.get('/profiles/:id/cookies/export', async (request: Request, response: Re
     getRequiredProfile(id);
 
     const cookies = await cookieManager.listCookies(id);
-    const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100);
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    const safeId = toSafeDownloadId(id);
+    response.setHeader('Content-Type', COOKIE_EXPORT_CONTENT_TYPE);
     response.setHeader('Content-Disposition', `attachment; filename="profile-${safeId}-cookies.json"`);
     response.send(JSON.stringify(cookies, null, 2));
   } catch (error) {
@@ -335,11 +347,11 @@ router.get('/profiles/:id/export', async (request: Request, response: Response) 
     const { id } = request.params;
     getRequiredProfile(id);
 
-    const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100);
+    const safeId = toSafeDownloadId(id);
     const temporaryPath = path.join(os.tmpdir(), `profile-${safeId}-${Date.now()}.zip`);
     await profileManager.exportProfile(id, temporaryPath);
 
-    response.setHeader('Content-Type', 'application/zip');
+    response.setHeader('Content-Type', PROFILE_EXPORT_CONTENT_TYPE);
     response.setHeader('Content-Disposition', `attachment; filename="profile-${safeId}.zip"`);
     response.sendFile(temporaryPath, (error) => {
       if (error) {
@@ -358,7 +370,7 @@ router.get('/profiles/:id/activity', async (request: Request, response: Response
     const { id } = request.params;
     getRequiredProfile(id);
 
-    const activityPath = dataPath('activity.log');
+    const activityPath = dataPath(ACTIVITY_LOG_FILENAME);
     const content = await readRecentActivityContent(activityPath);
     const sessions = content
       .split('\n')
@@ -371,7 +383,7 @@ router.get('/profiles/:id/activity', async (request: Request, response: Response
         }
       })
       .filter((entry): entry is Record<string, unknown> => entry !== null && entry.profileId === id)
-      .slice(-50)
+      .slice(-RECENT_ACTIVITY_LIMIT)
       .reverse();
 
     sendSuccess(response, sessions);

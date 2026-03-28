@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { createReadStream, createWriteStream } from 'fs';
+import { createWriteStream } from 'fs';
 import archiver from 'archiver';
 import { logger } from '../../core/logging/logger';
 import { configManager } from '../config/ConfigManager';
@@ -10,7 +10,28 @@ import { ValidationError } from '../../core/errors';
 
 const BACKUPS_DIR = dataPath('backups');
 const MAX_BACKUPS = 7;
-const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
+const HOURS_PER_DAY = 24;
+const MINUTES_PER_HOUR = 60;
+const SECONDS_PER_MINUTE = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+const BACKUP_INTERVAL_MS =
+  HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND;
+const ZIP_ARCHIVE_FORMAT = 'zip';
+const ZIP_COMPRESSION_LEVEL = 6;
+const BACKUP_FILE_PREFIX = 'backup-';
+const ZIP_EXTENSION = '.zip';
+const CONFIG_FILENAME = 'config.json';
+const PROXIES_FILENAME = 'proxies.json';
+const PROFILE_METADATA_GLOB = '*/profile.json';
+const PROFILES_ARCHIVE_PREFIX = 'profiles';
+const RESTORE_TEMP_DIR_PREFIX = 'restore-tmp-';
+const WINDOWS_PLATFORM = 'win32';
+const POWERSHELL_BINARY = 'powershell';
+const POWERSHELL_ARGS = ['-NoProfile', '-Command'] as const;
+const UNZIP_BINARY = 'unzip';
+const UNZIP_ARGS = ['-o'] as const;
+const INVALID_BACKUP_FILENAME_MESSAGE = 'Invalid backup filename';
+const AUTO_BACKUP_STARTED_MESSAGE = 'BackupManager: auto-backup started';
 
 export class BackupManager {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -22,50 +43,61 @@ export class BackupManager {
 
   startAutoBackup(): void {
     if (this.timer) return;
+
     this.timer = setInterval(() => {
-      this.createBackup().catch((err) => {
-        logger.error('Auto-backup failed', { error: err instanceof Error ? err.message : String(err) });
+      this.createBackup().catch((error) => {
+        logger.error('Auto-backup failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
       });
     }, BACKUP_INTERVAL_MS);
-    logger.info('BackupManager: auto-backup started (interval 24h)');
+
+    logger.info(AUTO_BACKUP_STARTED_MESSAGE, { intervalMs: BACKUP_INTERVAL_MS });
   }
 
   stopAutoBackup(): void {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
   }
 
   async createBackup(): Promise<BackupEntry> {
     await fs.mkdir(this.backupsDir, { recursive: true });
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `backup-${timestamp}.zip`;
-    const destPath = path.join(this.backupsDir, filename);
-
+    const timestamp = new Date().toISOString();
+    const filenameTimestamp = timestamp.replace(/[:.]/g, '-');
+    const filename = `${BACKUP_FILE_PREFIX}${filenameTimestamp}${ZIP_EXTENSION}`;
+    const destinationPath = path.join(this.backupsDir, filename);
     const profilesDir = resolveAppPath(configManager.get().profilesDir);
-    const configPath = dataPath('config.json');
-    const proxiesPath = dataPath('proxies.json');
-
-    // Check which optional files exist before entering the sync Promise callback
-    const configExists = await fs.access(configPath).then(() => true).catch(() => false);
-    const proxiesExists = await fs.access(proxiesPath).then(() => true).catch(() => false);
+    const configPath = dataPath(CONFIG_FILENAME);
+    const proxiesPath = dataPath(PROXIES_FILENAME);
+    const configExists = await fileExists(configPath);
+    const proxiesExists = await fileExists(proxiesPath);
 
     await new Promise<void>((resolve, reject) => {
-      const output = createWriteStream(destPath);
-      const archive = archiver('zip', { zlib: { level: 6 } });
+      const output = createWriteStream(destinationPath);
+      const archive = archiver(ZIP_ARCHIVE_FORMAT, {
+        zlib: { level: ZIP_COMPRESSION_LEVEL },
+      });
+
       output.on('close', resolve);
       archive.on('error', reject);
       archive.pipe(output);
 
-      if (configExists) archive.file(configPath, { name: 'config.json' });
-      if (proxiesExists) archive.file(proxiesPath, { name: 'proxies.json' });
+      if (configExists) {
+        archive.file(configPath, { name: CONFIG_FILENAME });
+      }
 
-      // Add only profile.json from each profile (skip Default/ — too large)
-      archive.glob('*/profile.json', { cwd: profilesDir }, { prefix: 'profiles' });
+      if (proxiesExists) {
+        archive.file(proxiesPath, { name: PROXIES_FILENAME });
+      }
 
+      archive.glob(PROFILE_METADATA_GLOB, { cwd: profilesDir }, { prefix: PROFILES_ARCHIVE_PREFIX });
       void archive.finalize();
     });
 
-    const stat = await fs.stat(destPath);
+    const stat = await fs.stat(destinationPath);
     const entry: BackupEntry = { filename, timestamp, sizeBytes: stat.size };
 
     await this.rotateBackups();
@@ -78,90 +110,113 @@ export class BackupManager {
     const files = await fs.readdir(this.backupsDir);
     const entries: BackupEntry[] = [];
 
-    for (const file of files.filter((f) => f.endsWith('.zip'))) {
+    for (const file of files.filter((candidate) => candidate.endsWith(ZIP_EXTENSION))) {
       try {
         const stat = await fs.stat(path.join(this.backupsDir, file));
-        // Reconstruct ISO timestamp from filename: backup-2026-03-22T12-00-00-000Z.zip
-        const raw = file.replace('backup-', '').replace('.zip', '');
-        // raw = "2026-03-22T12-00-00-000Z" → "2026-03-22T12:00:00.000Z"
-        const ts = raw.replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/, 'T$1:$2:$3.$4Z');
-        entries.push({ filename: file, timestamp: ts, sizeBytes: stat.size });
-      } catch { /* skip corrupted entries */ }
+        entries.push({
+          filename: file,
+          timestamp: parseTimestampFromFilename(file),
+          sizeBytes: stat.size,
+        });
+      } catch {
+        // Skip corrupted entries.
+      }
     }
 
-    return entries.sort((a, b) => b.filename.localeCompare(a.filename));
+    return entries.sort((left, right) => right.filename.localeCompare(left.filename));
   }
 
-  /**
-   * Restore profile.json files from a backup zip.
-   * Uses Node.js built-in child_process to call PowerShell Expand-Archive (Windows)
-   * or unzip (Linux/Mac) — no extra npm dependency needed.
-   */
   async restoreBackup(filename: string): Promise<void> {
-    if (filename.includes('/') || filename.includes('\\') || !filename.endsWith('.zip')) {
-      throw new ValidationError('Invalid backup filename', { field: 'filename', value: filename });
-    }
+    validateBackupFilename(filename);
+
     const backupPath = path.join(this.backupsDir, filename);
-    await fs.access(backupPath); // throws ENOENT if not found
+    await fs.access(backupPath);
 
     const profilesDir = resolveAppPath(configManager.get().profilesDir);
-    const tmpDir = path.join(this.backupsDir, `restore-tmp-${Date.now()}`);
+    const temporaryDir = path.join(this.backupsDir, `${RESTORE_TEMP_DIR_PREFIX}${Date.now()}`);
 
     try {
-      await fs.mkdir(tmpDir, { recursive: true });
+      await fs.mkdir(temporaryDir, { recursive: true });
+      await extractBackupArchive(backupPath, temporaryDir);
 
-      // Extract zip using child_process — cross-platform
-      const { execFile } = await import('child_process');
-      const { promisify } = await import('util');
-      const execFileAsync = promisify(execFile);
-
-      if (process.platform === 'win32') {
-        await execFileAsync('powershell', [
-          '-NoProfile', '-Command',
-          `Expand-Archive -Path "${backupPath}" -DestinationPath "${tmpDir}" -Force`,
-        ]);
-      } else {
-        await execFileAsync('unzip', ['-o', backupPath, '-d', tmpDir]);
-      }
-
-      // Copy profiles/*/profile.json back to profilesDir
-      const profilesTmpDir = path.join(tmpDir, 'profiles');
-      const profileDirs = await fs.readdir(profilesTmpDir).catch(() => [] as string[]);
+      const profilesTempDir = path.join(temporaryDir, PROFILES_ARCHIVE_PREFIX);
+      const profileDirs = await fs.readdir(profilesTempDir).catch(() => [] as string[]);
 
       for (const profileId of profileDirs) {
-        const srcJson = path.join(profilesTmpDir, profileId, 'profile.json');
-        const destDir = path.join(profilesDir, profileId);
-        const destJson = path.join(destDir, 'profile.json');
+        const sourceProfilePath = path.join(profilesTempDir, profileId, 'profile.json');
+        const destinationDir = path.join(profilesDir, profileId);
+        const destinationProfilePath = path.join(destinationDir, 'profile.json');
+
         try {
-          await fs.access(srcJson);
-          await fs.mkdir(destDir, { recursive: true });
-          await fs.copyFile(srcJson, destJson);
-        } catch { /* skip if file missing */ }
+          await fs.access(sourceProfilePath);
+          await fs.mkdir(destinationDir, { recursive: true });
+          await fs.copyFile(sourceProfilePath, destinationProfilePath);
+        } catch {
+          // Ignore missing or unreadable profile.json files inside the archive.
+        }
       }
 
       logger.info('Backup restored', { filename });
     } finally {
-      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+      await fs.rm(temporaryDir, { recursive: true, force: true }).catch(() => undefined);
     }
   }
 
   getBackupPath(filename: string): string {
-    if (filename.includes('/') || filename.includes('\\') || !filename.endsWith('.zip')) {
-      throw new ValidationError('Invalid backup filename', { field: 'filename', value: filename });
-    }
+    validateBackupFilename(filename);
     return path.join(this.backupsDir, filename);
   }
 
   private async rotateBackups(): Promise<void> {
     const entries = await this.listBackups();
-    if (entries.length <= MAX_BACKUPS) return;
+    if (entries.length <= MAX_BACKUPS) {
+      return;
+    }
 
-    const toDelete = entries.slice(MAX_BACKUPS);
-    for (const entry of toDelete) {
+    const staleEntries = entries.slice(MAX_BACKUPS);
+    for (const entry of staleEntries) {
       await fs.unlink(path.join(this.backupsDir, entry.filename)).catch(() => undefined);
       logger.info('Old backup deleted', { filename: entry.filename });
     }
   }
+}
+
+async function extractBackupArchive(backupPath: string, destinationPath: string): Promise<void> {
+  const { execFile } = await import('child_process');
+  const { promisify } = await import('util');
+  const execFileAsync = promisify(execFile);
+
+  if (process.platform === WINDOWS_PLATFORM) {
+    await execFileAsync(POWERSHELL_BINARY, [
+      ...POWERSHELL_ARGS,
+      buildWindowsRestoreCommand(backupPath, destinationPath),
+    ]);
+    return;
+  }
+
+  await execFileAsync(UNZIP_BINARY, [...UNZIP_ARGS, backupPath, '-d', destinationPath]);
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  return fs.access(filePath).then(() => true).catch(() => false);
+}
+
+function parseTimestampFromFilename(filename: string): string {
+  const rawTimestamp = filename.replace(BACKUP_FILE_PREFIX, '').replace(ZIP_EXTENSION, '');
+  return rawTimestamp.replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/, 'T$1:$2:$3.$4Z');
+}
+
+function validateBackupFilename(filename: string): void {
+  if (filename.includes('/') || filename.includes('\\') || !filename.endsWith(ZIP_EXTENSION)) {
+    throw new ValidationError(INVALID_BACKUP_FILENAME_MESSAGE, {
+      field: 'filename',
+      value: filename,
+    });
+  }
+}
+
+function buildWindowsRestoreCommand(backupPath: string, destinationPath: string): string {
+  return `Expand-Archive -Path "${backupPath}" -DestinationPath "${destinationPath}" -Force`;
 }
 
 export const backupManager = new BackupManager();

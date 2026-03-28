@@ -15,7 +15,7 @@ const SettingsPage: React.FC = () => {
   const tabItems = [
     { key: 'general', label: t.settings.general, children: <GeneralTab state={state} /> },
     { key: 'runtimes', label: t.settings.runtimes, children: <RuntimesTab state={state} /> },
-    { key: 'browser-cores', label: 'Browser Cores', children: <BrowserCoresTab state={state} /> },
+    { key: 'browser-cores', label: t.settings.browserCores, children: <BrowserCoresTab state={state} /> },
     { key: 'backup', label: t.settings.backup, children: <BackupTab state={state} /> },
     { key: 'logs', label: t.settings.logs, children: <LogsTab state={state} /> },
     { key: 'support', label: t.settings.support, children: <SupportTab state={state} /> },

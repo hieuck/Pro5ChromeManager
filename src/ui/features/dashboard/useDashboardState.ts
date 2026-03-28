@@ -6,7 +6,8 @@ import { useDashboardIncidents } from './useDashboardIncidents';
 import { useDashboardActivity } from './useDashboardActivity';
 import { useDashboardActions } from './useDashboardActions';
 import { useDashboardSetup } from './useDashboardSetup';
-import { LogEntry, IncidentEntry } from './types';
+import { DASHBOARD_LIMITS } from './constants';
+import { FeedbackEntry, LogEntry, IncidentEntry, SupportStatus } from './types';
 import { formatTime, formatMaybeValue } from './utils';
 
 export { formatTime, minutesSince, isWithinLastMinutes, summarizeIssueMessage } from './utils';
@@ -26,11 +27,11 @@ export function useDashboardState() {
   const availableRuntimes = useMemo(() => runtimes.filter((r) => r.available), [runtimes]);
   const runningProfiles = useMemo(() => profiles.filter((p) => instances[p.id]?.status === 'running').length, [instances, profiles]);
   const healthyProxies = useMemo(() => proxies.filter((p) => p.lastCheckStatus === 'healthy').length, [proxies]);
-  const activeProfiles = useMemo(() => profiles.filter((p) => instances[p.id]?.status === 'running').sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, 5), [instances, profiles]);
-  const launchReadyProfiles = useMemo(() => profiles.filter((p) => (instances[p.id]?.status ?? 'stopped') !== 'running' && p.proxy?.lastCheckStatus !== 'failing').sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, 5), [instances, profiles]);
+  const activeProfiles = useMemo(() => profiles.filter((p) => instances[p.id]?.status === 'running').sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, DASHBOARD_LIMITS.workspaceList), [instances, profiles]);
+  const launchReadyProfiles = useMemo(() => profiles.filter((p) => (instances[p.id]?.status ?? 'stopped') !== 'running' && p.proxy?.lastCheckStatus !== 'failing').sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, DASHBOARD_LIMITS.workspaceList), [instances, profiles]);
   const failingProxyIds = useMemo(() => Array.from(new Set(profiles.filter((p) => p.proxy?.lastCheckStatus === 'failing').map((p) => p.proxy?.id).filter((id): id is string => Boolean(id)))), [profiles]);
-  const recentProfiles = useMemo(() => [...profiles].sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, 5), [profiles]);
-  const profilesNeedingAttention = useMemo(() => profiles.filter((p) => instances[p.id]?.status === 'unreachable' || p.proxy?.lastCheckStatus === 'failing').slice(0, 5), [instances, profiles]);
+  const recentProfiles = useMemo(() => [...profiles].sort((a, b) => new Date(b.lastUsedAt ?? 0).getTime() - new Date(a.lastUsedAt ?? 0).getTime()).slice(0, DASHBOARD_LIMITS.workspaceList), [profiles]);
+  const profilesNeedingAttention = useMemo(() => profiles.filter((p) => instances[p.id]?.status === 'unreachable' || p.proxy?.lastCheckStatus === 'failing').slice(0, DASHBOARD_LIMITS.workspaceList), [instances, profiles]);
 
   // 3. Helper labels
   const getIncidentLevelLabel = useCallback((level: 'warn' | 'error') => (level === 'error' ? t.settings.incidentLevelError : t.settings.incidentLevelWarn), [t.settings]);
@@ -43,17 +44,17 @@ export function useDashboardState() {
       default: return t.logs.filterError;
     }
   }, [t.logs]);
-  const getFeedbackCategoryLabel = useCallback((category: any) => {
+  const getFeedbackCategoryLabel = useCallback((category: FeedbackEntry['category']) => {
     if (category === 'bug') return t.settings.feedbackCategoryBug;
     if (category === 'question') return t.settings.feedbackCategoryQuestion;
     return t.settings.feedbackCategoryFeedback;
   }, [t.settings]);
-  const getFeedbackSentimentLabel = useCallback((sentiment: any) => {
+  const getFeedbackSentimentLabel = useCallback((sentiment: FeedbackEntry['sentiment']) => {
     if (sentiment === 'positive') return t.settings.feedbackSentimentPositive;
     if (sentiment === 'negative') return t.settings.feedbackSentimentNegative;
     return t.settings.feedbackSentimentNeutral;
   }, [t.settings]);
-  const getOnboardingStatusLabel = useCallback((statusValue?: any) => {
+  const getOnboardingStatusLabel = useCallback((statusValue?: SupportStatus['onboardingState']['status'] | null) => {
     if (statusValue === 'in_progress') return t.settings.onboardingStateInProgress;
     if (statusValue === 'profile_created') return t.settings.onboardingStateProfileCreated;
     if (statusValue === 'completed') return t.settings.onboardingStateCompleted;

@@ -1,5 +1,12 @@
 import { logger } from '../logging/logger';
 
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+const HIGH_HEAP_USAGE_THRESHOLD_MB = 500;
+const HEAP_LEAK_UTILIZATION_THRESHOLD = 0.9;
+const MEMORY_MONITOR_INTERVAL_MS = 30_000;
+const HEAP_DUMP_FILE_PREFIX = 'heapdump';
+const HEAP_DUMP_FILE_EXTENSION = '.heapsnapshot';
+
 class MemoryMonitor {
   private static instance: MemoryMonitor;
   private monitoringInterval: NodeJS.Timeout | null = null;
@@ -21,27 +28,27 @@ class MemoryMonitor {
       
       // Convert bytes to MB for readability
       const memoryMB = {
-        rss: Math.round(memoryUsage.rss / 1024 / 1024),
-        heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
-        heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
-        external: Math.round(memoryUsage.external / 1024 / 1024),
-        arrayBuffers: Math.round(memoryUsage.arrayBuffers / 1024 / 1024)
+        rss: Math.round(memoryUsage.rss / BYTES_PER_MEGABYTE),
+        heapTotal: Math.round(memoryUsage.heapTotal / BYTES_PER_MEGABYTE),
+        heapUsed: Math.round(memoryUsage.heapUsed / BYTES_PER_MEGABYTE),
+        external: Math.round(memoryUsage.external / BYTES_PER_MEGABYTE),
+        arrayBuffers: Math.round(memoryUsage.arrayBuffers / BYTES_PER_MEGABYTE)
       };
 
       logger.debug('Memory usage', memoryMB);
 
       // Alert on high memory usage
-      if (memoryMB.heapUsed > 500) { // 500MB threshold
+      if (memoryMB.heapUsed > HIGH_HEAP_USAGE_THRESHOLD_MB) {
         logger.warn('High memory usage detected', memoryMB);
         this.performGarbageCollection();
       }
 
       // Alert on memory leaks
-      if (memoryMB.heapUsed > memoryMB.heapTotal * 0.9) {
+      if (memoryMB.heapUsed > memoryMB.heapTotal * HEAP_LEAK_UTILIZATION_THRESHOLD) {
         logger.error('Critical memory usage - potential memory leak', memoryMB);
         this.logHeapStatistics();
       }
-    }, 30000); // Check every 30 seconds
+    }, MEMORY_MONITOR_INTERVAL_MS);
   }
 
   private performGarbageCollection(): void {
@@ -51,16 +58,16 @@ class MemoryMonitor {
       const after = process.memoryUsage();
       
       logger.info('Manual garbage collection performed', {
-        before: Math.round(before.heapUsed / 1024 / 1024),
-        after: Math.round(after.heapUsed / 1024 / 1024),
-        freed: Math.round((before.heapUsed - after.heapUsed) / 1024 / 1024)
+        before: Math.round(before.heapUsed / BYTES_PER_MEGABYTE),
+        after: Math.round(after.heapUsed / BYTES_PER_MEGABYTE),
+        freed: Math.round((before.heapUsed - after.heapUsed) / BYTES_PER_MEGABYTE)
       });
     }
   }
 
   private logHeapStatistics(): void {
     if ((process as any).heapdump) {
-      const filename = `heapdump-${Date.now()}.heapsnapshot`;
+      const filename = `${HEAP_DUMP_FILE_PREFIX}-${Date.now()}${HEAP_DUMP_FILE_EXTENSION}`;
       (process as any).heapdump(filename, (err: Error | null) => {
         if (err) {
           logger.error('Failed to create heap dump', { error: err.message });

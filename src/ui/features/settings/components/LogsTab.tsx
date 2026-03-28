@@ -8,20 +8,19 @@ interface LogsTabProps {
 }
 
 export const LogsTab: React.FC<LogsTabProps> = ({ state }) => {
-  const { logLines, loadingLogs, fetchLogs } = state;
+  const { t, logLines, loadingLogs, fetchLogs } = state;
 
   return (
     <div>
       <Row justify="end" className="mb-8">
         <Button icon={<ReloadOutlined />} loading={loadingLogs} onClick={() => void fetchLogs()}>
-          Làm mới
+          {t.settings.refresh}
         </Button>
       </Row>
       <div className="terminal-box">
         {logLines.length === 0
-          ? <Typography.Text type="secondary">Không có log</Typography.Text>
-          : logLines.map((line, i) => <div key={i}>{line}</div>)
-        }
+          ? <Typography.Text type="secondary">{t.settings.logsEmpty}</Typography.Text>
+          : logLines.map((line, index) => <div key={index}>{line}</div>)}
       </div>
     </div>
   );
